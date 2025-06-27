@@ -1,13 +1,8 @@
 {
-  "name": "bcoin",
-  "version": "2.2.0",
-  "description": "Bitcoin bike-shed",
-  "license": "MIT",
-  "repository": "git://github.com/bcoin-org/bcoin.git",
-  "homepage": "https://github.com/bcoin-org/bcoin",
-  "bugs": {
-    "url": "https://github.com/bcoin-org/bcoin/issues"
-  },
+  "name": "lif-coin",
+  "version": "1.2.0",
+  "description": "Shekel Hi - שקל חי - Green Leaf",
+  "license": "JPL MIT CHABAD",
   "author": "Fedor Indutny <fedor@indutny.com>",
   "contributors": [
     "Christopher Jeffrey <chjjeffrey@gmail.com>"
