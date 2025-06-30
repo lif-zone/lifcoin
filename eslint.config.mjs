@@ -28,6 +28,7 @@ export default [...compat.extends("eslint:recommended"), {
   languageOptions: {
     globals: {
       ...globals.browser,
+      ...globals.node,
     },
     ecmaVersion: 'latest',
     sourceType: "module",
