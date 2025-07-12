@@ -1,4 +1,4 @@
-// suggested by GROK
+// suggested by GROK 4o
 /*
   To create a slightly modified version of SHA-256 that incorporates
   conditional branching, Math.imul (32-bit signed integer multiplication),
