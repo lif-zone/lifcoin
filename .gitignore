@@ -1,5 +1,4 @@
-node_modules/**/build
-node_modules/.yarn-integrity
+node_modules/**
 .nyc_output
 docs/reference/
 docker_data/
