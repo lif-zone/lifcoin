@@ -2,6 +2,7 @@
 'use strict';
 process.title = 'lif_node';
 const FullNode = require('../lib/node/fullnode');
+const Miner = require('../lib/mining/miner');
 
 const node = new FullNode({
   network: 'lif', // 'main'
@@ -20,9 +21,26 @@ const node = new FullNode({
 });
 
 // Temporary hack
-if (!node.config.bool('no-wallet') && !node.has('walletdb')) {
+if (!node.config.bool('no-wallet') && !node.has('walletdb')){
   const plugin = require('../lib/wallet/plugin');
   node.use(plugin);
+}
+
+let mine = 1; //process.argv.includes('mine');
+async function mineBlocks(n){
+  const chain = node.chain;
+  const miner = new Miner({chain});
+  const entries = [];
+  for (let i = 0; i < n; i++){
+    const job = await miner.cpu.createJob();
+    // Mine blocks all ten minutes apart from regtest genesis
+    job.attempt.time = chain.tip.time + (60 * 10);
+    const block = await job.mineAsync();
+    console.log('mined block');
+    const entry = await chain.add(block);
+    entries.push(entry);
+  }
+  return entries;
 }
 
 process.on('unhandledRejection', (err, promise)=>{
@@ -37,7 +55,10 @@ async function _main(){
   await node.open();
   await node.connect();
   node.startSync();
+  if (mine)
+    await mineBlocks(5);
 }
+
 async function main(){
   try {
     _main();
