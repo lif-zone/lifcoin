@@ -33,7 +33,7 @@ function createGenesisBlock(options) {
         hash: consensus.ZERO_HASH,
         index: 0xffffffff
       },
-      script: Script()
+      script: new Script()
         .pushInt(486604799)
         .pushPush(Buffer.from([4]))
         .pushData(flags)
@@ -88,6 +88,13 @@ const btcd = createGenesisBlock({
   time: 1401292357,
   bits: 545259519,
   nonce: 2
+});
+
+const lif = createGenesisBlock({
+  version: 1,
+  time: 1231006505,
+  bits: 486604799,
+  nonce: 2083236893
 });
 
 console.log(main);
