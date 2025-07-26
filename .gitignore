@@ -8,3 +8,4 @@ coverage/
 yarn.lock
 package-lock.json
 webpack.*.js
+*.swp
