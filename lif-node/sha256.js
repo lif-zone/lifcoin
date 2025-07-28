@@ -166,14 +166,8 @@ class SHA256 {
       W[i] = sigma1(W[i - 2]) + W[i - 7] + sigma0(W[i - 15]) + W[i - 16];
 
     for (i = 0; i < 64; i++) {
-      let t1 = h + Sigma1(e) + Ch(e, f, g) + K[i] + W[i];
-      let t2 = Sigma0(a) + Maj(a, b, c);
-
-      let clz = Math.clz32(t2);
-      if (clz%2)
-        t1 = (t1 + Math.imul(f+clz, g)) >>> 0;
-      else
-        t1 = (t1 + Math.imul(b+clz, c)) >>> 0;
+      const t1 = h + Sigma1(e) + Ch(e, f, g) + K[i] + W[i];
+      const t2 = Sigma0(a) + Maj(a, b, c);
 
       h = g;
       g = f;
