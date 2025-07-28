@@ -1,20 +1,21 @@
 'use strict';
 
-const consensus = require('../lib/protocol/consensus');
+const Consensus = require('../lib/protocol/consensus');
+const Networks = require('../lib/protocol/networks');
 const TX = require('../lib/primitives/tx');
 const Block = require('../lib/primitives/block');
 const Script = require('../lib/script/script');
 
+let nets = {};
 function createGenesisBlock(options) {
   let flags = options.flags;
   let key = options.key;
   let reward = options.reward;
 
-  if (!flags) {
-    flags = Buffer.from(
-      'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks',
-      'ascii');
-  }
+  if (!flags)
+    flags = 'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks';
+  if (typeof flags=='string')
+    flags = Buffer.from(flags, 'ascii');
 
   if (!key) {
     key = Buffer.from(''
@@ -24,18 +25,18 @@ function createGenesisBlock(options) {
   }
 
   if (!reward)
-    reward = 50 * consensus.COIN;
+    reward = 50 * Consensus.COIN;
 
   const tx = new TX({
     version: 1,
     inputs: [{
       prevout: {
-        hash: consensus.ZERO_HASH,
+        hash: Consensus.ZERO_HASH,
         index: 0xffffffff
       },
       script: new Script()
-        .pushInt(486604799)
-        .pushPush(Buffer.from([4]))
+        .pushInt(0x1d00ffff) // ~4G hashing attempts needed
+        .pushPush(Buffer.from([4])) // on avarage even 1 nonce cycle (32^2).
         .pushData(flags)
         .compile(),
       sequence: 0xffffffff
@@ -49,7 +50,7 @@ function createGenesisBlock(options) {
 
   const block = new Block({
     version: options.version,
-    prevBlock: consensus.ZERO_HASH,
+    prevBlock: Consensus.ZERO_HASH,
     merkleRoot: tx.hash(),
     time: options.time,
     bits: options.bits,
@@ -62,56 +63,58 @@ function createGenesisBlock(options) {
   return block;
 }
 
-const main = createGenesisBlock({
+nets.main = createGenesisBlock({
   version: 1,
   time: 1231006505,
-  bits: 486604799,
+  bits: 0x1d00ffff,
   nonce: 2083236893
 });
-
-const testnet = createGenesisBlock({
+nets.lif = createGenesisBlock({
   version: 1,
-  time: 1296688602,
-  bits: 486604799,
-  nonce: 414098458
+  time: 1753572481,
+  bits: 0x207fffff,
+  nonce: 2083236893 // need to mine this block to get a value
 });
 
-const regtest = createGenesisBlock({
+nets.testnet = createGenesisBlock({
   version: 1,
   time: 1296688602,
-  bits: 545259519,
+  bits: 0x1d010fff,
+  nonce: 0x1d00ffff,
+});
+
+nets.regtest = createGenesisBlock({
+  version: 1,
+  time: 1296688602,
+  bits: 0x207fffff,
   nonce: 2
 });
 
-const btcd = createGenesisBlock({
+nets.simnet = createGenesisBlock({
   version: 1,
   time: 1401292357,
-  bits: 545259519,
+  bits: 0x207fffff,
   nonce: 2
 });
 
-const lif = createGenesisBlock({
-  version: 1,
-  time: 1231006505,
-  bits: 486604799,
-  nonce: 2083236893
-});
+function diff_block(name, block, net_def){
+  console.log('--------- '+name+' ---------------');
+  0 && console.log(block);
+  let hold = block.rhash();
+  let hnew = net_def.genesis.hash.reverse().toString('hex');
+  if (hold!=hnew)
+    console.log('diff new: ', hnew);
+  console.log('hash old: ', hnew);
+  let bold = block.toRaw().toString('hex');
+  let bnew = net_def.genesisBlock;
+  if (bold!=bnew)
+    console.log('diff new:', bnew);
+  console.log('diff old:', bold);
+}
 
-console.log(main);
-console.log('');
-console.log(testnet);
-console.log('');
-console.log(regtest);
-console.log('');
-console.log('');
-console.log('main hash: %s', main.rhash());
-console.log('main raw: %s', main.toRaw().toString('hex'));
-console.log('');
-console.log('testnet hash: %s', testnet.rhash());
-console.log('testnet raw: %s', testnet.toRaw().toString('hex'));
-console.log('');
-console.log('regtest hash: %s', regtest.rhash());
-console.log('regtest raw: %s', regtest.toRaw().toString('hex'));
-console.log('');
-console.log('btcd simnet hash: %s', btcd.rhash());
-console.log('btcd simnet raw: %s', btcd.toRaw().toString('hex'));
+diff_block('main', nets.main, Networks.main);
+process.exit(0);
+diff_block('lif', nets.lif, Networks.lif);
+diff_block('testnet', nets.testnet, Networks.testnet);
+diff_block('regtest', nets.regtest, Networks.regtest);
+diff_block('simnet', nets.simnet, Networks.simnet);
