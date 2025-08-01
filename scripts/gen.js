@@ -1,5 +1,6 @@
 'use strict';
 
+function assert(v, msg){ if (v) return; debugger; throw Error('assert: '+msg); }
 const Consensus = require('../lib/protocol/consensus');
 const Networks = require('../lib/protocol/networks');
 const TX = require('../lib/primitives/tx');
@@ -100,19 +101,88 @@ nets.simnet = createGenesisBlock({
 function diff_block(name, block, net_def){
   console.log('--------- '+name+' ---------------');
   0 && console.log(block);
-  let hold = block.rhash();
-  let hnew = net_def.genesis.hash.reverse().toString('hex');
+  let hold = net_def.genesis.hash.reverse().toString('hex');
+  let hnew = block.rhash();
   if (hold!=hnew)
     console.log('diff new: ', hnew);
   console.log('hash old: ', hnew);
-  let bold = block.toRaw().toString('hex');
-  let bnew = net_def.genesisBlock;
+  let bold = net_def.genesisBlock;
+  let bnew = block.toRaw().toString('hex');
   if (bold!=bnew)
     console.log('diff new:', bnew);
   console.log('diff old:', bold);
 }
 
+const hash256 = require('bcrypto/lib/hash256');
+const sha256 = require('../lif-node/sha256');
+const sha256lif = require('../lif-node/sha256lif');
+const mine = require('../lib/mining/mine');
+const common = require('../lib/mining/common');
+function rcmp(a, b) {
+  assert(a.length === b.length);
+  for (let i = a.length-1; i>=0; i--){
+    let cmp = a[i]-b[i];
+    if (cmp)
+      return cmp;
+  }
+  return 0;
+}
+function mine_single(header, target, nonce){
+  let hash;
+  header.writeUInt32LE(nonce, 76, true);
+  hash = sha256.digest(sha256.digest(header)); // 0.13M/sec
+  //hash = sha256lif.digest(sha256lif.digest(header)); // 0.13M/sec
+  //hash = hash256.digest(header); // 0.28M/sec
+  let found = rcmp(hash, target)<=0;
+  if (!found)
+    return;
+  console.log('found nonce', nonce, header.toString('hex'));
+  return true;
+}
+
+function mine_range(header, target, min, max){
+  for (let nonce=min; nonce<=max; nonce++){
+    if (mine_single(header, target, nonce))
+      return nonce;
+  }
+  return -1;
+}
+
+function do_mine(block){
+  // $ speed -bytes 80 sha256
+  // Doing sha256 for 3s on 80 size blocks: 4368155 sha256's in 2.98s
+  // so does 1.3M/sec (nodeJS native).
+  // For bitcoin block double hashing: 0.77M/sec.
+  // to reach 4G - needs 5000 sec. Thats more than one hour
+  // sha256.digest(header); --> 0.25M/sec (6 times slower than NodeJS native)
+  console.log('mining...');
+  let header = block.toRaw().slice(0, 80);
+  let min = 2083236890; // nonce bitcoin genesis 2083236893
+  let max = 0x100000000;
+  let target = common.getTarget(block.bits);
+  let inc = 1000000;
+  let nonce = -1;
+  for (let i=min; i<=max; i+=inc){
+    let start = Date.now();
+    let _max = Math.min(max, i+inc-1);
+    //nonce = mine(header, target, i, _max); // 0.28M/sec
+    nonce = mine_range(header, target, i, _max+1);
+    console.log(nonce);
+    if (nonce>=0)
+      break;
+    let tm = Date.now()-start;
+    console.log(tm+'ms at '+i+' '+(inc/tm/1000)+'M/sec');
+  }
+  if (nonce<0){
+    console.log('failed mining');
+    return;
+  }
+  console.log('SUCCESS: nonce='+nonce, header.toString('hex'));
+  return nonce;
+}
+
 diff_block('main', nets.main, Networks.main);
+1 && do_mine(nets.main);
 process.exit(0);
 diff_block('lif', nets.lif, Networks.lif);
 diff_block('testnet', nets.testnet, Networks.testnet);
