@@ -44,6 +44,7 @@ export default [...compat.extends("eslint:recommended"), {
     "no-cond-assign": 'off',
     "no-unused-vars": 'off',
     "no-constant-condition": 'off',
+    "no-constant-binary-expression": "off",
     "no-unreachable": 'off',
     "no-useless-escape": 'off',
     "no-empty": 'off',
