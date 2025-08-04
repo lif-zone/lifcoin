@@ -33,7 +33,7 @@ function createGenesisBlock(options) {
       },
       script: new Script()
         .pushInt(0x1d00ffff) // ~4G hashing attempts needed
-        .pushPush(Buffer.from([consensus.lif ? 2 : 4])) // on avarage even 1 nonce cycle (32^2).
+        .pushPush(Buffer.from([options.net_type=='lif' ? 2 : 4])) // on avarage even 1 nonce cycle (32^2).
         .pushData(flags)
         .compile(),
       sequence: 0xffffffff
@@ -67,7 +67,8 @@ nets.lif = createGenesisBlock({
   time: 1753572481,
   //bits: 0x1d00ffff, nonce: ???, // 256*10sec = 1hour
   //bits: 0x1e00ffff, nonce: ???, // 10sec
-  bits: 0x1f00ffff, nonce: 4297, // 0.1sec fast
+  bits: 0x1f00ffff, nonce: 29664, // 0.1sec fast
+  net_type: 'lif',
 });
 
 nets.testnet = createGenesisBlock({
@@ -105,7 +106,7 @@ function diff_block(name, block, net_def){
   let b_orig = net_def.genesisBlock;
   let b_gen = block.toRaw().toString('hex');
   if (b_orig!=b_gen){
-    console.log('DIFF block gen:', b_gen);
+    console.log('ERR block gen:', b_gen);
     str_diff(b_orig, b_gen);
   }
   console.log('block orig:', b_orig);
@@ -114,13 +115,13 @@ function diff_block(name, block, net_def){
   let h_orig_comp = new Block().fromHead(Buffer.from(b_orig, 'hex')).hash()
     .toString('hex');
   if (h_orig!=h_orig_comp)
-    console.log('DIFF hash orig comp:', h_orig_comp);
+    console.log('ERR hash orig comp:', h_orig_comp);
   let h_gen = block.hash().toString('hex');
   if (h_gen!=h_orig)
-    console.log('DIFF hash gen:', h_gen);
+    console.log('ERR hash gen:', h_gen);
   // check hash matches target
   if (mine_range(block.toRaw().slice(0, 80), null, block.nonce, block.nonce)<0){
-    console.log('target not reached:', '0x'+block.bits.toString(16),
+    console.log('ERR target not reached:', '0x'+block.bits.toString(16),
       common.getTarget(block.bits));
   }
   console.log('hash orig:', h_orig);
@@ -168,13 +169,12 @@ function do_mine(block){
   // For bitcoin block double hashing: 0.77M/sec.
   // to reach 4G - needs 5000 sec. Thats more than one hour
   // sha256.digest(header); --> 0.25M/sec (6 times slower than NodeJS native)
-  console.log('mining...');
+  console.log('-------------- mining... ---------------');
   let header = block.toRaw().slice(0, 80);
   let min = 0; // nonce bitcoin genesis 2083236893
   let max = 0x100000000;
-  console.log(block.bits.toString(16));
   let target = common.getTarget(block.bits);
-  console.log(target.toString('hex'));
+  console.log('difficulty:', block.bits.toString(16), target.toString('hex'));
   let inc = 1000000;
   let nonce = -1;
   for (let i=min; i<=max; i+=inc){
@@ -195,14 +195,14 @@ function do_mine(block){
 }
 
 diff_block('main', nets.main, Networks.main);
-consensus.set_net('lif');
+consensus.set_type('lif');
 diff_block('lif', nets.lif, Networks.lif);
-consensus.set_net();
+consensus.set_type();
 diff_block('testnet', nets.testnet, Networks.testnet);
 diff_block('regtest', nets.regtest, Networks.regtest);
 diff_block('simnet', nets.simnet, Networks.simnet);
 0 && do_mine(nets.main);
-consensus.set_net('lif');
+consensus.set_type('lif');
 1 && do_mine(nets.lif);
-consensus.set_net();
+consensus.set_type();
 
