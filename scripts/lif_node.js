@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 process.title = 'lif_node';
+const consensus = require('../lib/protocol/consensus');
 const FullNode = require('../lib/node/fullnode');
 const Miner = require('../lib/mining/miner');
 
+consensus.set_type('lif');
 const node = new FullNode({
   network: 'lif', // 'main'
   file: false,
