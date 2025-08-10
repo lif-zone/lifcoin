@@ -22,12 +22,6 @@ const node = new FullNode({
   coinbaseFlags: 'mined by lif-coin',
 });
 
-// Temporary hack
-if (!node.config.bool('no-wallet') && !node.has('walletdb')){
-  const plugin = require('../lib/wallet/plugin');
-  node.use(plugin);
-}
-
 let mine = 1; //process.argv.includes('mine');
 async function mineBlocks(n){
   const chain = node.chain;
@@ -36,9 +30,9 @@ async function mineBlocks(n){
   for (let i = 0; i < n; i++){
     const job = await miner.cpu.createJob();
     // Mine blocks all ten minutes apart from regtest genesis
-    job.attempt.time = chain.tip.time + (60 * 10);
+    //job.attempt.time = chain.tip.time + (60 * 10); // fake time
     const block = await job.mineAsync();
-    console.log('mined block');
+    0 && console.log('mined block:', block.format());
     const entry = await chain.add(block);
     entries.push(entry);
   }
