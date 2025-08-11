@@ -3,6 +3,7 @@
 const assert = require('bsert');
 const consensus = require('../lib/protocol/consensus');
 const Networks = require('../lib/protocol/networks');
+const Network = require('../lib/protocol/network');
 const TX = require('../lib/primitives/tx');
 const Block = require('../lib/primitives/block');
 const Script = require('../lib/script/script');
@@ -32,10 +33,10 @@ function createGenesisBlock(options) {
         index: 0xffffffff
       },
       script: new Script()
-        .pushInt(0x1d00ffff) // ~4G hashing attempts needed
-        .pushPush(Buffer.from([options.net_type=='lif' ? 2 : 4])) // on avarage even 1 nonce cycle (32^2).
-        .pushData(flags)
-        .compile(),
+      .pushInt(0x1d00ffff) // ~4G hashing attempts needed
+      .pushPush(Buffer.from([options.net_type=='lif' ? 2 : 4])) // on avarage even 1 nonce cycle (32^2).
+      .pushData(flags)
+      .compile(),
       sequence: 0xffffffff
     }],
     outputs: [{
@@ -101,12 +102,13 @@ function str_diff(a, b){
   return i;
 }
 function diff_block(name, block, net_def){
+  let err;
   console.log('--------- '+name+' ---------------');
   // complete block
   let b_orig = net_def.genesisBlock;
   let b_gen = block.toRaw().toString('hex');
   if (b_orig!=b_gen){
-    console.log('ERR block gen:', b_gen);
+    console.log(err='ERR block gen:', b_gen);
     str_diff(b_orig, b_gen);
   }
   console.log('block orig:', b_orig);
@@ -115,16 +117,18 @@ function diff_block(name, block, net_def){
   let h_orig_comp = new Block().fromHead(Buffer.from(b_orig, 'hex')).hash()
     .toString('hex');
   if (h_orig!=h_orig_comp)
-    console.log('ERR hash orig comp:', h_orig_comp);
+    console.log(err='ERR hash orig comp:', h_orig_comp);
   let h_gen = block.hash().toString('hex');
   if (h_gen!=h_orig)
-    console.log('ERR hash gen:', h_gen);
+    console.log(err='ERR hash gen:', h_gen);
   // check hash matches target
   if (mine_range(block.toRaw().slice(0, 80), null, block.nonce, block.nonce)<0){
-    console.log('ERR target not reached:', '0x'+block.bits.toString(16),
+    console.log(err='ERR target not reached:', '0x'+block.bits.toString(16),
       common.getTarget(block.bits));
   }
   console.log('hash orig:', h_orig);
+  if (!err)
+    console.log('SUCCESS');
 }
 
 const hash256 = require('bcrypto/lib/hash256');
@@ -142,7 +146,7 @@ function mine_single(header, target, nonce){
   //hash = sha256lif.digest(_sha256.digest(header)); // 0.29M/sec
   //hash = hash256lif.digest(header); // 0.29M/sec
   //hash = hash256.digest(header); // 0.36M/sec
-  hash = consensus.pow_hash256.digest(header);
+  hash = Network.get_pow_hash256().digest(header);
   let found = mine.rcmp(hash, target)<=0;
   if (!found)
     return;
@@ -195,14 +199,14 @@ function do_mine(block){
 }
 
 diff_block('main', nets.main, Networks.main);
-consensus.set_type('lif');
+Network.set('lif');
 diff_block('lif', nets.lif, Networks.lif);
-consensus.set_type();
+Network.set();
 diff_block('testnet', nets.testnet, Networks.testnet);
 diff_block('regtest', nets.regtest, Networks.regtest);
 diff_block('simnet', nets.simnet, Networks.simnet);
 0 && do_mine(nets.main);
-consensus.set_type('lif');
+Network.set('lif');
 1 && do_mine(nets.lif);
-consensus.set_type();
+Network.set();
 
