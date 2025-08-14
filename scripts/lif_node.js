@@ -10,6 +10,7 @@ const Mnemonic = require('../lib/hd/mnemonic');
 const HDPrivateKey = require('../lib/hd/private');
 const KeyRing = require('../lib/primitives/keyring');
 const Address = require('../lib/primitives/address');
+const assert = require('bsert');
 
 const node = new FullNode({
   network: 'lif', // 'main'
@@ -27,16 +28,14 @@ const node = new FullNode({
   coinbaseFlags: 'mined by lif-coin',
 });
 
-function bech32_address(mnemonicPhrase){
-  const mnemonic = Mnemonic.fromPhrase(mnemonicPhrase);
-  const hdPrivKey = HDPrivateKey.fromMnemonic(mnemonic);
-  const derivedKey = hdPrivKey.derive(44, true)
+function bech32(mnemonic){
+  const _mnemonic = Mnemonic.fromPhrase(mnemonic);
+  const hdPrivKey = HDPrivateKey.fromMnemonic(_mnemonic);
+  const derivedKey = hdPrivKey.derive(84, true)
   .derive(0, true).derive(0, true).derive(0).derive(0);
   const keyRing = new KeyRing({privateKey: derivedKey.privateKey,
     witness: true});
   const net = Network.get();
-  // For LIF network, update bech32 prefix to 'lif'
-  console.log(net.addressPrefix); // bc? lif?
   const address = keyRing.getKeyAddress('string', net);
   return {
     privateKey: derivedKey.privateKey.toString('hex'),
@@ -46,10 +45,27 @@ function bech32_address(mnemonicPhrase){
   };
 }
 
+let wallet1 = 'six clip senior spy fury aerobic volume sheriff critic number feature inside';
+function test(){
+  let type = Network.type;
+  Network.set('main');
+  assert.strictEqual(bech32(wallet1).address, 
+    'bc1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfqp76xr');
+  Network.set('testnet');
+  assert.strictEqual(bech32(wallet1).address, 
+    'tb1qe5trcka3qtt2ll8exe3xmt7qzyjjp6df289fas');
+  Network.set('lif');
+  assert.strictEqual(bech32(wallet1).address, 
+    'lif1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfazcpj5');
+  Network.set(type);
+}
+test();
+
+let dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
 let mine = 1; //process.argv.includes('mine');
-let mine_priv = 'six clip senior spy fury aerobic volume sheriff critic number feature inside';
-let mine_address = null; //bech32_address(mine_priv).address;
-//console.log(`Mining address calculated: ${mine_address}`); 
+let mine_wallet = wallet1;
+let mine_address = bech32(mine_wallet).address;
+console.log(`Mining address calculated: ${mine_address}`);
 
 async function mineBlocks(n){
   const chain = node.chain;
