@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-'use strict';
+'use strict'; /* eslint-env node */
 process.title = 'lif_node';
 const Network = require('../lib/protocol/network');
 Network.set('lif');
