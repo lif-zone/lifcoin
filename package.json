@@ -18,6 +18,9 @@
     "node": ">=10.0.0"
   },
   "dependencies": {
+    "dns2": "2.0.1",
+    "acme-client": "5.0.0",
+    "@peculiar/x509": "1.9.3",
     "bcfg": "git+https://github.com/bcoin-org/bcfg.git#semver:~0.1.7",
     "bcrypto": "git+https://github.com/bcoin-org/bcrypto.git#semver:~5.5.0",
     "bcurl": "git+https://github.com/bcoin-org/bcurl.git#semver:^0.2.0",
