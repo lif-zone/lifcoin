@@ -9,7 +9,7 @@ document.head.appendChild(link);
 // add stylesheet
 link = document.createElement('link');
 link.rel = 'stylesheet';
-link.href = 'style.css';
+link.href = import.meta.resolve('./style.css');
 document.head.appendChild(link);
 // start app
 let _root = document.body.appendChild(document.createElement('div'));
