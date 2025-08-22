@@ -13,24 +13,24 @@ const App = ()=>{
         target="_blank">bcoin repo</a>
       for more bitcoin magic).
     </small>
-    <div class="tx">
+    <div className="tx">
       <div>Chain State: <span id="state"></span></div>
       <div>Last 20 Blocks/TXs:</div>
       <div id="tx"></div>
     </div>
-    <div id="log" class="log"></div>
-    <form id="rpc" class="rpc" action="#">
+    <div id="log" className="log"></div>
+    <form id="rpc" className="rpc" action="#">
       <input type="text" name="cmd" id="cmd"
         placeholder="RPC command (e.g. getblockchaininfo)" />
     </form>
-    <div id="wallet" class="wallet"></div>
-    <form id="send" class="send" action="#">
+    <div id="wallet" className="wallet"></div>
+    <form id="send" className="send" action="#">
       <input type="text" name="address" id="address" placeholder="Address" />
       <input type="text" name="amount" id="amount" placeholder="Amount (BTC)" />
       <input type="submit" value="Send" />
     </form>
     <input type="button" id="newaddr" value="New Address" />
-    <div id="floating" class="floating"></div>
+    <div id="floating" className="floating"></div>
   </>);
 };
 
