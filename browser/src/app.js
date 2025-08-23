@@ -2,11 +2,11 @@
 'use strict';
 
 const Logger = require('blgr');
-const FullNode = require('../../lib/node/fullnode');
-const Amount = require('../../lib/btc/amount');
-const plugin = require('../../lib/wallet/plugin');
-const util = require('../../lib/utils/util');
-const ProxySocket = require('./proxysocket');
+import FullNode from '../../lib/node/fullnode';
+import Amount from '../../lib/btc/amount';
+import plugin from '../../lib/wallet/plugin';
+import util from '../../lib/utils/util';
+import ProxySocket from './proxysocket';
 
 const body = document.getElementsByTagName('body')[0];
 const log = document.getElementById('log');
@@ -279,14 +279,13 @@ async function _formatWallet(wallet) {
 node.chain.on('block', addItem);
 node.mempool.on('tx', addItem);
 
-(async () => {
+export default async function(){
   await node.open();
   await node.connect();
   node.startSync();
-  wdb.primary.on('balance', () => {
+  wdb.primary.on('balance', ()=>{
     formatWallet(wdb.primary);
   });
   formatWallet(wdb.primary);
-})().catch((err) => {
-  throw err;
-});
+}
+
