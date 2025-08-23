@@ -1,9 +1,11 @@
 // from code.esm.sh
 import React from 'react';
+import app from './src/app.js';
+let x = app;
 
 const App = ()=>{
   return (<>
-    <h1>Bcoin, the browser full node</h1>
+    <h1>Lifcoin, the browser full node</h1>
     <small>
       Welcome. Your machine is currently validating the blockchain. The blocks
       and wallet are stored on your local disk with indexed DB. You are
