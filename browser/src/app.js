@@ -1,7 +1,7 @@
 /* eslint-env browser */
 'use strict';
 
-const Logger = require('blgr');
+import Logger from 'blgr';
 import FullNode from '../../lib/node/fullnode';
 import Amount from '../../lib/btc/amount';
 import plugin from '../../lib/wallet/plugin';
