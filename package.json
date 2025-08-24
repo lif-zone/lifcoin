@@ -57,7 +57,7 @@
     "x cluster": "npm:_empty",
     "console": "npm:console-browserify@1.1.0",
     "constants": "npm:constants-browserify@1.0.0",
-    "crypto": "crypto-browserify@3.0.0",
+    "crypto": "npm:crypto-browserify@3.0.0",
     "x dgram": "npm:_empty",
     "x dns": "npm:_empty",
     "domain": "npm:domain-browser@1.2.0",
