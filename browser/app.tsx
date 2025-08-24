@@ -1,7 +1,11 @@
 // from code.esm.sh
 import React from 'react';
-import app from './src/app.js';
-let x = app;
+
+// node env
+globalThis.global = globalThis; // for bsock npm
+import buffer from 'buffer';
+globalThis.Buffer = buffer.Buffer;
+let app = (await import('./src/app.js')).default;
 
 const App = ()=>{
   return (<>
