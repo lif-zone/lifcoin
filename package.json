@@ -49,7 +49,8 @@
     "express": "^5.1.0",
     "loady": "git+https://github.com/chjj/loady.git#semver:~0.0.1",
     "n64": "git+https://github.com/chjj/n64.git#semver:~0.2.10",
-    "nan": "git+https://github.com/braydonf/nan.git#semver:=2.14.0"
+    "nan": "git+https://github.com/braydonf/nan.git#semver:=2.14.0",
+    "readable-stream": "^4.7.0"
   },
   "lif": {
     "globDependencies": {
@@ -64,7 +65,7 @@
       "x dns": "npm:_empty",
       "domain": "npm:domain-browser@1.2.0",
       "events": "^3.3.0",
-      "x fs": "npm:_empty",
+      "fs": "npm:browserfs@2.0.0",
       "http": "npm:stream-http@3.2.0",
       "https": "npm:https-browserify@1.0.0",
       "x http2": "npm:_empty",
@@ -79,12 +80,12 @@
       "x readline": "npm:_empty",
       "x repl": "npm:_empty",
       "browser-pack": "^6.1.0",
-      "stream": "npm:stream-browserify@3.0.0",
-      "_stream_duplex": "npm:readable-stream@3.6.2/duplex.js",
-      "_stream_passthrough": "npm:readable-stream@3.6.2/passthrough.js",
-      "_stream_readable": "npm:readable-stream@3.6.2/readable.js",
-      "_stream_transform": "npm:readable-stream@3.6.2/transform.js",
-      "_stream_writable": "npm:readable-stream@3.6.2/writable.js",
+      "stream": "npm:readable-stream@4.7.0",
+      "_stream_duplex": "npm:readable-stream@4.7.0/duplex.js",
+      "_stream_passthrough": "npm:readable-stream@4.7.0/passthrough.js",
+      "_stream_readable": "npm:readable-stream@4.7.0/readable.js",
+      "_stream_transform": "npm:readable-stream@4.7.0/transform.js",
+      "_stream_writable": "npm:readable-stream@4.7.0/writable.js",
       "string_decoder": "^1.1.1",
       "sys": "npm:util@0.12.5/util.js",
       "timers": "npm:timers-browserify@1.4.2",
@@ -94,7 +95,9 @@
       "util": "0.12.5",
       "vm": "npm:vm-browserify@1.0.0",
       "zlib": "npm:browserify-zlib@0.2.0",
-      "process": "~0.11.10"
+      "process": "~0.11.10",
+
+      "brorand": "^1.1.0"
     },
     "dependencies": {
       "browser-resolve": "^2.0.0",
@@ -123,11 +126,10 @@
       "path-browserify": "^1.0.1",
       "querystring-es3": "~0.2.1",
       "read-only-stream": "^2.0.0",
-      "readable-stream": "^3.6.2",
+      "readable-stream": "^4.7.0",
       "resolve": "^1.1.4",
       "shasum-object": "^1.0.0",
       "shell-quote": "^1.6.1",
-      "stream-browserify": "^3.0.0",
       "stream-http": "^3.2.0",
       "subarg": "^1.0.0",
       "syntax-error": "^1.4.0",
