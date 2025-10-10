@@ -7,7 +7,6 @@ import buffer from 'buffer';
 globalThis.Buffer = buffer.Buffer;
 process.env.NODE_BACKEND = 'js'; // for bcrypto npm
 import fs from "fs";
-console.log(fs);
 
 // main app
 let app = (await import('./src/app.js')).default;
