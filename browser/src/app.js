@@ -23,10 +23,7 @@ const items = [];
 
 let scrollback = 0;
 
-const logger = new Logger({
-  level: 'debug',
-  console: true
-});
+const logger = new Logger({level: 'debug', console: true});
 
 logger.writeConsole = function writeConsole(level, module, args) {
   const name = Logger.levelsByVal[level];

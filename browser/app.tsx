@@ -9,11 +9,17 @@ process.env.NODE_BACKEND = 'js'; // for bcrypto npm
 import fs from "fs";
 
 // main app
-let app = (await import('./src/app.js')).default;
+let app;
+async function start_app(){
+  if (app)
+    return;
+  app = (await import('./src/app.js')).default;
+}
 
 const App = ()=>{
   return (<>
     <h1>Lifcoin, the browser full node</h1>
+    <button onClick={()=>start_app()}>Click Me</button>
     <small>
       Welcome. Your machine is currently validating the blockchain. The blocks
       and wallet are stored on your local disk with indexed DB. You are
