@@ -13,6 +13,7 @@ let app;
 async function start_app(){
   if (app)
     return;
+  console.log('starting lif-chain app');
   app = (await import('./src/app.js')).default;
 }
 
