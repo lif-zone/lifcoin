@@ -2,10 +2,13 @@
   <head>
     <script type=module>
       // lif-coin boot
+      let lif_boot = globalThis.lif?.boot;
       let local = 1;
-      let kernel_path = local ? '/lif-kernel' :
-        'https://unpkg.com/lif-kernel@1.2.0';
-      let lif_boot = (await import(`${kernel_path}/boot.js`)).default;
+      if (!lif_boot){
+        let kernel_path = local ? '/lif-kernel' :
+          'https://unpkg.com/lif-kernel@1.3.0';
+        lif_boot = (await import(`${kernel_path}/boot.js`)).default;
+      }
       let lif = {
         webapp: 'lif-coin/browser/main.tsx',
       };
