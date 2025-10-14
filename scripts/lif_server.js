@@ -5,7 +5,7 @@ let map = {
   '/lif-os': '../../lif-os',
   '/lif-basic': '../../lif-os/lif-basic',
   '/lif-kernel': '../../lif-os/lif-kernel',
-  '/index.html': './index.html',
-  '/favicon.ico': '../../lif-os/lif-kernel/favicon.ico',
+  '/index.html': './',
+  '/favicon.ico': '../../lif-os/lif-kernel/',
 };
 server({map, root: import.meta.dirname});
