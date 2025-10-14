@@ -2,7 +2,7 @@
   <head>
     <script type=module>
       // lif-coin boot
-      let lif_boot = globalThis.lif?.boot;
+      let lif_boot = globalThis.$lif?.boot;
       let local = 1;
       if (!lif_boot){
         let kernel_path = local ? '/lif-kernel' :
