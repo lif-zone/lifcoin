@@ -1,17 +1,12 @@
 <html>
   <head>
     <script type=module>
-    console.log('AAA');
-    </script>
-    <script type=module>
       // lif-coin boot
       let lif_boot = globalThis.lif?.boot;
-      console.log('aaa');
-      debugger;
       let local = 1;
       if (!lif_boot){
         let kernel_path = local ? '/lif-kernel' :
-          'https://unpkg.com/lif-kernel@1.3.0';
+          'https://unpkg.com/lif-kernel@latest';
         lif_boot = (await import(`${kernel_path}/boot.js`)).default;
       }
       let lif = {
@@ -28,7 +23,7 @@
           'react-rnd': '18.3.1',
         };
       }
-      await lif_boot.boot.boot_app({lif});
+      await lif_boot.boot.boot_app({pkg: {lif}});
     </script>
   </head>
   <body>
