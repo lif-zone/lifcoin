@@ -20,7 +20,9 @@ async function start_app(){
 const App = ()=>{
   return (<>
     <h1>Lifcoin, the browser full node</h1>
-    <button onClick={()=>start_app()}>Click Me</button>
+    <p>
+      <button onClick={()=>start_app()}>Start lif-coin node</button>
+    </p>
     <small>
       Welcome. Your machine is currently validating the blockchain. The blocks
       and wallet are stored on your local disk with indexed DB. You are
