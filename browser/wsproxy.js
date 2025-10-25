@@ -14,11 +14,12 @@ class WSProxy extends EventEmitter {
       options = {};
 
     this.options = options;
-    this.ports = new Set();
+    this.ports = null;
     this.io = bsock.server();
     this.sockets = new WeakMap();
 
     if (options.ports) {
+      this.ports = new Set();
       for (const port of options.ports)
         this.ports.add(port);
     }
@@ -96,7 +97,7 @@ class WSProxy extends EventEmitter {
       return;
     }
 
-    if (!this.ports.has(port)) {
+    if (this.ports && !this.ports.has(port)) {
       this.log('Client is connecting to non-whitelist port (%s).', state.host);
       ws.fire('tcp error', {
         message: 'ENETUNREACH',
