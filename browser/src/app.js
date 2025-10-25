@@ -75,6 +75,7 @@ const {wdb} = node.require('walletdb');
 wdb.options.witness = true;
 
 window.onunhandledrejection = function onunhandledrejection(event) {
+  console.log('unhandled rejection', event.reason);
   throw event.reason;
 };
 

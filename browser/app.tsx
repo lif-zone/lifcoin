@@ -12,9 +12,12 @@ import fs from "fs";
 let app;
 async function start_app(){
   if (app)
-    return;
-  console.log('starting lif-chain app');
+    return console.error('already started');
+  console.log('loading lif-chain app');
   app = (await import('./src/app.js')).default;
+  console.log('starting lif-chain app');
+  await app();
+  console.log('completed lif-chain app');
 }
 
 const App = ()=>{
