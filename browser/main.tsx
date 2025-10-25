@@ -1,5 +1,6 @@
 import React from 'react';
-import {createRoot, render} from 'react-dom';
+import {render} from 'react-dom';
+import {createRoot} from 'react-dom/client';
 import App from './app.tsx';
 // set favicon
 let link = document.createElement('link');
