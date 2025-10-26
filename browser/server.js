@@ -48,4 +48,4 @@ proxy.attach(server.http);
 
 server.open();
 
-console.log('server proxy started on port '+opt.port)
+console.log('server proxy started on port '+opt.port);
