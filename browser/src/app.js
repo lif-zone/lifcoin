@@ -63,8 +63,9 @@ const node = new FullNode({
   workers: true,
   workerFile: '/worker.js',
   createSocket: (port, host) => {
-    const proto = global.location.protocol === 'https:' ? 'wss' : 'ws';
-    const hostname = global.location.host;
+    let proto = global.location.protocol === 'https:' ? 'wss' : 'ws';
+    let hostname = global.location.host;
+    hostname = 'localhost:4000';
     return ProxySocket.connect(`${proto}://${hostname}`, port, host);
   },
   logger: logger,
@@ -279,6 +280,7 @@ node.chain.on('block', addItem);
 node.mempool.on('tx', addItem);
 
 export default async function(){
+  await node.ensure();
   await node.open();
   await node.connect();
   node.startSync();
