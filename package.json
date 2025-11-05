@@ -1,8 +1,8 @@
 {
   "name": "lif-coin",
-  "version": "1.3.0",
+  "version": "25.11.4",
   "description": "Shekel Hi - שקל חי - Green Leaf",
-  "license": "JPL MIT CHABAD DNA",
+  "license": "JPL MIT MTC CHABAD DNA",
   "author": "Fedor Indutny <fedor@indutny.com>",
   "contributors": [
     "Christopher Jeffrey <chjjeffrey@gmail.com>"
