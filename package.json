@@ -26,7 +26,7 @@
     "bdb": "git+https://github.com/bcoin-org/bdb.git#semver:~1.4.0",
     "bdns": "git+https://github.com/bcoin-org/bdns.git#semver:~0.1.5",
     "bevent": "git+https://github.com/bcoin-org/bevent.git#semver:~0.1.5",
-    "bfile": "git+https://github.com/bcoin-org/bfile.git#semver:~0.2.1",
+    "bfile": "git+https://github.com/xderry/bfile.git#semver:~25.11.5",
     "bfilter": "git+https://github.com/bcoin-org/bfilter.git#semver:~2.3.0",
     "bheep": "git+https://github.com/bcoin-org/bheep.git#semver:~0.1.5",
     "binet": "git+https://github.com/bcoin-org/binet.git#semver:~0.3.7",
