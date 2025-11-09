@@ -34,6 +34,7 @@
     "blru": "git+https://github.com/bcoin-org/blru.git#semver:~0.1.6",
     "blst": "git+https://github.com/bcoin-org/blst.git#semver:~0.1.5",
     "bmutex": "git+https://github.com/bcoin-org/bmutex.git#semver:~0.1.6",
+    "browserfs": "^2.0.0",
     "brq": "git+https://github.com/bcoin-org/brq.git#semver:~0.1.8",
     "bs32": "git+https://github.com/bcoin-org/bs32.git#semver:=0.1.6",
     "bsert": "git+https://github.com/chjj/bsert.git#semver:~0.0.10",
@@ -97,7 +98,6 @@
       "vm": "npm:vm-browserify@1.0.0",
       "zlib": "npm:browserify-zlib@0.2.0",
       "process": "~0.11.10",
-
       "brorand": "^1.1.0"
     },
     "dependencies": {
