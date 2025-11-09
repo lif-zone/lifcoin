@@ -7,4 +7,5 @@ browserfs.configure({
 }, ()=>wait.return());
 await wait;
 let fs = browserfs.BFSRequire('fs');
+fs.constants = fs.FS;
 export default fs;
