@@ -51,7 +51,11 @@
     "loady": "git+https://github.com/chjj/loady.git#semver:~0.0.1",
     "n64": "git+https://github.com/chjj/n64.git#semver:~0.2.10",
     "nan": "git+https://github.com/braydonf/nan.git#semver:=2.14.0",
-    "readable-stream": "^4.7.0"
+    "readable-stream": "^4.7.0",
+    "@zenfs/core": "^2.4.3",
+    "@zenfs/dom": "^1.2.5",
+    "kerium": "^1.3.8",
+    "utilium": "^2.5.8"
   },
   "lif": {
     "webapp": "./browser/main.tsx",

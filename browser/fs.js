@@ -1,11 +1,15 @@
-import browserfs from 'browserfs';
 import util from 'lif-kernel/util.js';
-let wait = util.ewait();
-browserfs.configure({
-  fs: "MountableFileSystem",
-  options: {"/": {fs: "IndexedDB", options: {storeName: 'lif-coin'}}},
-}, ()=>wait.return());
-await wait;
-let fs = browserfs.BFSRequire('fs');
-fs.constants = fs.FS;
+import {configure, InMemory, fs} from '@zenfs/core';
+import {IndexedDB} from '@zenfs/dom';
+
+await configure({
+  mounts: {
+    '/': {backend: IndexedDB, options: {storeName: 'fs1'}},
+    '/media': {backend: InMemory, options: {name: 'media'}},
+    '/mnt': {backend: InMemory, options: {name: 'mnt'}},
+    '/proc': {backend: InMemory, options: {name: 'procfs'}},
+    '/tmp': {backend: InMemory, options: {name: 'tmpfs'}}
+  },
+});
+
 export default fs;
