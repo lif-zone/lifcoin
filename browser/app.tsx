@@ -8,6 +8,28 @@ globalThis.Buffer = buffer.Buffer;
 process.env.NODE_BACKEND = 'js'; // for bcrypto npm
 import fs from "fs";
 
+let nextId = 1;
+let callbacks = {};
+globalThis.setImmediate = function(fn /*, ...args */){
+  if (typeof fn!='function')
+    throw new TypeError('setImmediate argument must be a function');
+  var id = nextId++;
+  var args = Array.prototype.slice.call(arguments, 1);
+  callbacks[id] = true; // mark as active
+  setTimeout(function(){
+    if (!callbacks[id])
+      return
+    delete callbacks[id];
+    fn.apply(null, args);
+  }, 0);
+  return id;
+};
+
+globalThis.clearImmediate = function(id){
+  if (id)
+    delete callbacks[id];
+};
+
 // main app
 let app;
 async function start_app(){

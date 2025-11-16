@@ -24,3 +24,15 @@ p {
   font-style: italic;
 }
 
+.log {
+  padding: 5px;
+  margin-left: 10px;
+  overflow-y: scroll;
+  border: 1px solid black;
+  white-space: pre-wrap;
+  height: 40%;
+  width: 40%;
+  font: 1em monospace;
+  margin-top: 10px;
+}
+
