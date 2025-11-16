@@ -7,7 +7,8 @@ import buffer from 'buffer';
 globalThis.Buffer = buffer.Buffer;
 process.env.NODE_BACKEND = 'js'; // for bcrypto npm
 import fs from "fs";
-
+process.argv = ['lif-coin'];
+process.on = ()=>{}; // TODO need require('events')
 let nextId = 1;
 let callbacks = {};
 globalThis.setImmediate = function(fn /*, ...args */){
@@ -32,11 +33,21 @@ globalThis.clearImmediate = function(id){
 
 // main app
 let app;
-async function start_app(){
+async function start_btc_node(){
+  if (app)
+    return console.error('already started');
+  console.log('loading btc-chain app');
+  app = (await import('./btc_node.js')).default;
+  console.log('starting btc-chain app');
+  await app();
+  console.log('completed btc-chain app');
+}
+
+async function start_lif_node(){
   if (app)
     return console.error('already started');
   console.log('loading lif-chain app');
-  app = (await import('./src/app.js')).default;
+  app = (await import('./lif_node.js')).default;
   console.log('starting lif-chain app');
   await app();
   console.log('completed lif-chain app');
@@ -46,7 +57,8 @@ const App = ()=>{
   return (<>
     <h1>Lifcoin, the browser full node</h1>
     <p>
-      <button onClick={()=>start_app()}>Start lif-coin node</button>
+      <button onClick={()=>start_btc_node()}>Start bit-coin node</button>
+      <button onClick={()=>start_lif_node()}>Start lif-coin node</button>
     </p>
     <small>
       Welcome. Your machine is currently validating the blockchain. The blocks

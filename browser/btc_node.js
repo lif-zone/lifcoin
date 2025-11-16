@@ -3,10 +3,10 @@
 console.log('start lif-scroll app.js');
 
 import Logger from 'blgr';
-import FullNode from '../../lib/node/fullnode';
-import Amount from '../../lib/btc/amount';
-import plugin from '../../lib/wallet/plugin';
-import util from '../../lib/utils/util';
+import FullNode from '../lib/node/fullnode';
+import Amount from '../lib/btc/amount';
+import plugin from '../lib/wallet/plugin';
+import util from '../lib/utils/util';
 import ProxySocket from './proxysocket';
 
 const body = document.getElementsByTagName('body')[0];
