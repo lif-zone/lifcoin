@@ -25,11 +25,12 @@ globalThis.setImmediate = function(fn /*, ...args */){
   }, 0);
   return id;
 };
-
 globalThis.clearImmediate = function(id){
   if (id)
     delete callbacks[id];
 };
+// lif-coin env
+process.env.BCOIN_WORKER_FILE = import.meta.resolve('../lib/workers/worker.js');
 
 // main app
 let app;
