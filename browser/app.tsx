@@ -1,36 +1,9 @@
-// from code.esm.sh
 import React from 'react';
-
-// node env
-globalThis.global = globalThis; // for bsock npm
-import buffer from 'buffer';
-globalThis.Buffer = buffer.Buffer;
-process.env.NODE_BACKEND = 'js'; // for bcrypto npm
-import fs from "fs";
-process.argv = ['lif-coin'];
-process.on = ()=>{}; // TODO need require('events')
-let nextId = 1;
-let callbacks = {};
-globalThis.setImmediate = function(fn /*, ...args */){
-  if (typeof fn!='function')
-    throw new TypeError('setImmediate argument must be a function');
-  var id = nextId++;
-  var args = Array.prototype.slice.call(arguments, 1);
-  callbacks[id] = true; // mark as active
-  setTimeout(function(){
-    if (!callbacks[id])
-      return
-    delete callbacks[id];
-    fn.apply(null, args);
-  }, 0);
-  return id;
-};
-globalThis.clearImmediate = function(id){
-  if (id)
-    delete callbacks[id];
-};
+import './node_env.js';
 // lif-coin env
 process.env.BCOIN_WORKER_FILE = import.meta.resolve('../lib/workers/worker.js');
+process.argv = ['lif-coin'];
+import fs from "./fs.js";
 
 // main app
 let app;
