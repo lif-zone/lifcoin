@@ -112,4 +112,6 @@ async function main(){
     process.exit(1);
   }
 }
+if (!process.in_browser)
+  main();
 module.exports = main;
