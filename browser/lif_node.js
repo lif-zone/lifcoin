@@ -106,12 +106,12 @@ async function _main(){
 
 async function main(){
   try {
-    _main();
+    await _main();
   } catch(err){
     console.error(err.stack);
     process.exit(1);
   }
 }
-if (!process.in_browser)
+if (!process.browser)
   main();
 module.exports = main;
