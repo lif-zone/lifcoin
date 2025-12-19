@@ -1,12 +1,18 @@
-'use strict';
+#!/usr/bin/env node
+'use strict'; /* eslint-env node */
+process.title = 'gen';
 
 const assert = require('bsert');
 const consensus = require('../lib/protocol/consensus');
 const Networks = require('../lib/protocol/networks');
 const Network = require('../lib/protocol/network');
 const TX = require('../lib/primitives/tx');
+const MTX = require('../lib/primitives/mtx');
 const Block = require('../lib/primitives/block');
 const Script = require('../lib/script/script');
+const Mnemonic = require('../lib/hd/mnemonic');
+const HDPrivateKey = require('../lib/hd/private');
+const KeyRing = require('../lib/primitives/keyring');
 
 let nets = {};
 function createGenesisBlock(options) {
@@ -198,15 +204,47 @@ function do_mine(block){
   return nonce;
 }
 
-diff_block('main', nets.main, Networks.main);
-Network.set('lif');
-diff_block('lif', nets.lif, Networks.lif);
-Network.set();
-diff_block('testnet', nets.testnet, Networks.testnet);
-diff_block('regtest', nets.regtest, Networks.regtest);
-diff_block('simnet', nets.simnet, Networks.simnet);
-0 && do_mine(nets.main);
-Network.set('lif');
-1 && do_mine(nets.lif);
-Network.set();
+function do_test(){
+  diff_block('main', nets.main, Networks.main);
+  Network.set('lif');
+  diff_block('lif', nets.lif, Networks.lif);
+  Network.set();
+  diff_block('testnet', nets.testnet, Networks.testnet);
+  diff_block('regtest', nets.regtest, Networks.regtest);
+  diff_block('simnet', nets.simnet, Networks.simnet);
+  0 && do_mine(nets.main);
+  Network.set('lif');
+  1 && do_mine(nets.lif);
+  Network.set();
+}
+
+function bech32(mnemonic){
+  const _mnemonic = Mnemonic.fromPhrase(mnemonic);
+  const hdPrivKey = HDPrivateKey.fromMnemonic(_mnemonic);
+  const derivedKey = hdPrivKey.derive(84, true)
+  .derive(0, true).derive(0, true).derive(0).derive(0);
+  const keyRing = new KeyRing({privateKey: derivedKey.privateKey,
+    witness: true});
+  const net = Network.get();
+  const address = keyRing.getKeyAddress('string', net);
+  return {
+    privateKey: derivedKey.privateKey.toString('hex'),
+    publicKey: keyRing.publicKey.toString('hex'),
+    address: address,
+    keyRing: keyRing
+  };
+}
+let wallet1 = 'six clip senior spy fury aerobic volume sheriff critic number feature inside';
+let wallet1_a = bech32(wallet1);
+let wallet2 = 'morning like hello gym core stage wood deposit artefact monster turn absorb';
+let wallet2_a = bech32(wallet1);
+
+function do_tx(){
+  Network.set('lif');
+  Network.set();
+}
+
+if (!process.browser)
+  do_test();
+module.exports = {do_test, do_tx};
 
