@@ -18,13 +18,25 @@ async function start_btc_node(){
 }
 
 async function start_lif_node(){
-  if (app)
-    return console.error('already started');
   console.log('loading lif-chain app');
-  app = (await import('./lif_node.js')).default;
-  console.log('starting lif-chain app');
-  await app();
-  console.log('completed lif-chain app');
+  let exp = await import('./lif_node.js');
+  debugger;
+  //let {do_start, do_mine} = await import('./lif_node.js');
+  let {do_start, do_mine} = exp;
+  await do_start();
+  await do_mine();
+}
+
+async function start_lif_gen_run_test(){
+  console.log('loading gen.do_test');
+  let {do_test} = await import('./gen.js');
+  await do_test();
+}
+
+async function start_lif_gen_run_tx(){
+  console.log('loading gen.tx');
+  let {do_tx} = await import('./gen.js');
+  await do_tx();
 }
 
 const App = ()=>{
@@ -33,6 +45,8 @@ const App = ()=>{
     <p>
       <button onClick={()=>start_btc_node()}>Start bit-coin node</button>
       <button onClick={()=>start_lif_node()}>Start lif-coin node</button>
+      <button onClick={()=>start_lif_gen_run_test()}>Start lif-gen</button>
+      <button onClick={()=>start_lif_gen_tx()}>Start lif-tx</button>
     </p>
     <small>
       Welcome. Your machine is currently validating the blockchain. The blocks
