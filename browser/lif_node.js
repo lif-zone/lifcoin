@@ -14,8 +14,19 @@ const Output = require('../lib/primitives/output');
 const MTX = require('../lib/primitives/mtx');
 const Coin = require('../lib/primitives/coin');
 const assert = require('bsert');
+const ewait = ()=>{
+  let _return, _throw;
+  let promise = new Promise((resolve, reject)=>{
+    _return = ret=>{ resolve(ret); return ret; };
+    _throw = err=>{ reject(err); return err; };
+  });
+  promise.return = _return;
+  promise.throw = _throw;
+  promise.catch(err=>{}); // catch un-waited wait() objects. avoid Uncaught in promise
+  return promise;
+};
 
-const node = new FullNode({
+let node = new FullNode({
   network: 'lif', // 'main'
   file: false,
   argv: [],
@@ -29,63 +40,65 @@ const node = new FullNode({
   //loader: require,
   prefix: '~/lif.store',
   coinbaseFlags: 'mined by lif-coin',
+  'index-tx': true,
+  'index-address': true,
+  'reject-absurd-fees': false,
 });
 
 function bech32(mnemonic){
-  const _mnemonic = Mnemonic.fromPhrase(mnemonic);
-  const hdPrivKey = HDPrivateKey.fromMnemonic(_mnemonic);
-  const derivedKey = hdPrivKey.derive(84, true)
+  let _mnemonic = Mnemonic.fromPhrase(mnemonic);
+  let hdPrivKey = HDPrivateKey.fromMnemonic(_mnemonic);
+  let derivedKey = hdPrivKey.derive(84, true)
   .derive(0, true).derive(0, true).derive(0).derive(0);
-  const keyRing = new KeyRing({privateKey: derivedKey.privateKey,
+  let keyRing = new KeyRing({privateKey: derivedKey.privateKey,
     witness: true});
-  const net = Network.get();
-  const address = keyRing.getKeyAddress('string', net);
+  let net = Network.get();
+  let address = keyRing.getKeyAddress('string', net);
+  let a = new Address(address);
   return {
+    mn: mnemonic, // for dev
     privateKey: derivedKey.privateKey.toString('hex'),
     publicKey: keyRing.publicKey.toString('hex'),
     address: address,
-    keyRing: keyRing
+    keyRing: keyRing,
+    a,
   };
 }
 
-let wallet1 = 'six clip senior spy fury aerobic volume sheriff critic number feature inside';
-let wallet1_a = bech32(wallet1);
-let wallet2 = 'morning like hello gym core stage wood deposit artefact monster turn absorb';
-let wallet2_a = bech32(wallet2);
+let wallet1 = bech32('six clip senior spy fury aerobic volume sheriff critic number feature inside');
+let wallet2 = bech32('morning like hello gym core stage wood deposit artefact monster turn absorb');
 
 function test(){
   let type = Network.type;
-  Network.set('main');
-  assert.strictEqual(bech32(wallet1).address, 
-    'bc1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfqp76xr');
-  Network.set('testnet');
-  assert.strictEqual(bech32(wallet1).address, 
-    'tb1qe5trcka3qtt2ll8exe3xmt7qzyjjp6df289fas');
-  Network.set('lif');
-  assert.strictEqual(bech32(wallet1).address, 
-    'lif1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfazcpj5');
+  let t = (net, addr)=>{
+    Network.set(net);
+    assert.strictEqual(bech32(wallet1.mn).address. addr);
+  };
+  t('main', 'bc1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfqp76xr');
+  t('testnet', 'tb1qe5trcka3qtt2ll8exe3xmt7qzyjjp6df289fas');
+  t('lif', 'lif1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfazcpj5');
   Network.set(type);
 }
 test();
 
 let dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
 let mine = 1; //process.argv.includes('mine');
-let mine_address = bech32(wallet1).address;
+let mine_address = wallet1.address;
 console.log(`Mining address calculated: ${mine_address}`);
 
 async function mineBlocks(n){
-  const chain = node.chain;
-  const miner = new Miner({chain});
-  const entries = [];
-  const miningAddress = new Address(mine_address);
+  let chain = node.chain;
+  let miner = new Miner({chain});
+  let entries = [];
+  let miningAddress = new Address(mine_address);
   console.log(`Mining ${n} blocks to address: ${mine_address}`);
   for (let i = 0; i < n; i++){
-    const job = await miner.cpu.createJob(null, miningAddress);
+    let job = await miner.cpu.createJob(null, miningAddress);
     // Mine blocks all ten minutes apart from regtest genesis
     //job.attempt.time = chain.tip.time + (60 * 10); // fake time
-    const block = await job.mineAsync();
+    let block = await job.mineAsync();
     console.log(`Mined block ${i + 1}/${n}: ${block.hash().toString('hex')}`);
-    const entry = await chain.add(block);
+    let entry = await chain.add(block);
     entries.push(entry);
   }
   
@@ -101,20 +114,32 @@ process.on('SIGINT', async()=>{
   await node.close();
 });
 
+async function Ewait(e, name){
+  let wait = ewait();
+  e.once('name', a=>wait.return(a));
+  return await wait;
+}
+async function wait_for_sync_full(){
+  console.log('waiting for full');
+  console.log(node.chain.isFull());
+  let ret = await Ewait(node, 'full');
+  console.log('got full');
+}
 async function do_start(){
   await node.ensure();
   await node.open();
   await node.connect();
-  node.startSync();
+  await node.startSync();
+  //await wait_for_sync_full();
 }
 
 async function do_mine(){
   await mineBlocks(5);
 }
 
-function mtx_fund(mtx, {coins, fee, change_addr}){
+function mtx_fund(mtx, {coins, fee, change}){
   let out_val = fee;
-  for (let out of mtx.tx.outputs)
+  for (let out of mtx.outputs)
     out_val += out.value;
   // Add coins to transaction.
   let in_val = 0;
@@ -125,26 +150,25 @@ function mtx_fund(mtx, {coins, fee, change_addr}){
       break;
   }
   if (in_val<out_val){
-    console.err('not enough funds');
+    console.error('not enough funds. need '+out_val+' got only '+in_val);
     throw 'not enough funds';
   }
   if (in_val>out_val){
-    assert(change_addr, 'tx change: missing change_addr');
+    assert(change, 'tx change: missing change addr');
     let output = new Output();
     output.value = in_val-out_val;
-    output.script.fromAddress(change_addr);
-    this.changeIndex = this.outputs.length-1;
+    output.script.fromAddress(change);
+    mtx.changeIndex = mtx.outputs.length-1;
   }
 }
 
-function tx_get_coins_by_addr(tx, addr_h){
+function tx_get_coins_by_addr(txm, addr){
   let coins = [];
-  for (let i = 0; i < tx.outputs.length; i++) {
-    let addr = tx.outputs[i].getAddress();
-    let h = addr.getHash();
-    if (!h||addr_h!=h)
+  for (let i = 0; i < txm.tx.outputs.length; i++) {
+    let a = txm.tx.outputs[i].getAddress();
+    if (!a||!a.equals(addr))
       continue;
-    coins.push(Coin.fromTX(tx.hash, i));
+    coins.push(Coin.fromTX(txm.tx, i, txm.height));
   }
   return coins;
 }
@@ -152,32 +176,33 @@ async function node_get_coins(addr){
   let txs = await node.getMetaByAddress(addr);
   let coins = [];
   for (let t of txs)
-    coins.push(...tx_get_coins_by_addr(t.tx, addr));
+    coins.push(...tx_get_coins_by_addr(t, addr));
   return coins;
 }
 
-async function mtx_send_create({from, to, value, change, fee}){
+async function mtx_send_create({from, from_key, to, value, change, fee}){
   let mtx = new MTX();
   let send = 10000;
-  let coins = await node_get_coins(from.address);
-  let funds = coins.reduce((v, coin)=>v||0+coin.value);
-  console.log(tx);
+  let coins = await node_get_coins(from);
+  let funds = coins.reduce((v, coin)=>v+coin.value, 0);
+  console.log(coins, funds);
   mtx.addOutput({address: to, value});
-  for (let coin of coins)
-    mtx.addCoin(coin);
-  mtx.sign(from.keyring);
+  change ||= from;
+  mtx_fund(mtx, {coins, fee, change});
+  mtx.sign(from_key);
   assert(mtx.verify());
   let tx = mtx.toTX();
   assert(tx.verify(mtx.view));
   return mtx;
 }
 
-async function do_tx({from, to, amount, change, fee}){
+async function do_tx(){
   await do_start();
-  debugger;
-  let mtx = mtx_send_create({from: wallet1_a, to: wallet2_a, value: 10000,
-    fee: 1000});
-  let res = await node.sendTX(mtx.tx);
+  let mtx = await mtx_send_create({from: wallet1.a, from_key: wallet1.keyRing,
+    to: wallet2.a, value: 10000, fee: 1000});
+  let tx = mtx.toTX();
+  assert(tx.verify(mtx.view));
+  let res = await node.sendTX(tx);
   await mineBlocks(1);
 }
 
@@ -187,5 +212,6 @@ async function main(){
     await do_mine();
 }
 if (!process.browser)
-  main();
-module.exports = {do_start, do_mine};
+  do_tx();
+  //main();
+module.exports = {do_start, do_mine, do_tx};
