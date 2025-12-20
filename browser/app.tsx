@@ -30,9 +30,9 @@ async function start_lif_gen_run_test(){
   await do_test();
 }
 
-async function start_lif_gen_run_tx(){
+async function start_lif_tx(){
   console.log('loading gen.tx');
-  let {do_tx} = await import('./gen.js');
+  let {do_tx} = await import('./lif_node.js');
   await do_tx();
 }
 
@@ -43,7 +43,7 @@ const App = ()=>{
       <button onClick={()=>start_btc_node()}>Start bit-coin node</button>
       <button onClick={()=>start_lif_node()}>Start lif-coin node</button>
       <button onClick={()=>start_lif_gen_run_test()}>Start lif-gen</button>
-      <button onClick={()=>start_lif_gen_tx()}>Start lif-tx</button>
+      <button onClick={()=>start_lif_tx()}>Start lif-tx</button>
     </p>
     <small>
       Welcome. Your machine is currently validating the blockchain. The blocks
