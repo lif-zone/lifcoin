@@ -87,8 +87,8 @@ let mine_address = wallet1.address;
 console.log(`Mining address calculated: ${mine_address}`);
 
 async function mineBlocks(n){
-  let chain = node.chain;
-  let miner = new Miner({chain});
+  let chain = node.chain, mempool = node.mempool;
+  let miner = new Miner({chain, mempool});
   let entries = [];
   let miningAddress = new Address(mine_address);
   console.log(`Mining ${n} blocks to address: ${mine_address}`);
@@ -101,7 +101,6 @@ async function mineBlocks(n){
     let entry = await chain.add(block);
     entries.push(entry);
   }
-  
   console.log(`Successfully mined ${n} blocks!`);
   return entries;
 }
@@ -180,12 +179,25 @@ async function node_get_coins(addr){
   return coins;
 }
 
+function coins_print(coins, s){
+  s ||= '';
+  for (let c of coins)
+    console.log(s+'coin height', c.height, 'value', c.value);
+  let funds = coins.reduce((v, coin)=>v+coin.value, 0);
+  console.log(s+'total coins', coins.length, 'value', funds);
+}
+
+async function wallet_addr_coins_print(addr, s){
+  let coins = await node_get_coins(addr);
+  coins_print(coins, s);
+}
+
 async function mtx_send_create({from, from_key, to, value, change, fee}){
   let mtx = new MTX();
   let send = 10000;
   let coins = await node_get_coins(from);
-  let funds = coins.reduce((v, coin)=>v+coin.value, 0);
-  console.log(coins, funds);
+  wallet_addr_coins_print(from, 'wallet from: ');
+  wallet_addr_coins_print(to, 'wallet to: ');
   mtx.addOutput({address: to, value});
   change ||= from;
   mtx_fund(mtx, {coins, fee, change});
