@@ -161,13 +161,18 @@ function mtx_fund(mtx, {coins, fee, change}){
   }
 }
 
-function tx_get_coins_by_addr(txm, addr){
-  let coins = [];
+async function tx_get_coins_by_addr(txm, addr, unspent){
+  let coins = [], coin;
   for (let i = 0; i < txm.tx.outputs.length; i++) {
     let a = txm.tx.outputs[i].getAddress();
     if (!a||!a.equals(addr))
       continue;
-    coins.push(Coin.fromTX(txm.tx, i, txm.height));
+    if (unspent){
+      if (!(coin = await node.chain.getCoin(txm.tx.hash(), i)))
+        continue;
+    } else
+      coin = Coin.fromTX(txm.tx, i, txm.height);
+    coins.push(coin);
   }
   return coins;
 }
@@ -175,7 +180,7 @@ async function node_get_coins(addr){
   let txs = await node.getMetaByAddress(addr);
   let coins = [];
   for (let t of txs)
-    coins.push(...tx_get_coins_by_addr(t, addr));
+    coins.push(...await tx_get_coins_by_addr(t, addr, true));
   return coins;
 }
 
