@@ -12,6 +12,7 @@ const Block = require('../lib/primitives/block');
 const util = require('../lib/utils/util');
 const NetAddress = require('../lib/net/netaddress');
 const {createChecksum} = require("../lib/descriptor/common");
+const common = require('../lib/net/common');
 
 const ports = {
   p2p: 49331,
@@ -371,14 +372,15 @@ describe('RPC', function() {
 
       // Checking if the total bytes received in the p2p handshake equal to 259
       // The breakdown of the command vs bytes are as follows:
-      // version: 123
+      // version: 110+13('/bcoin.2.2.0/;) = 123
       // verack: 24
       // sendcmpct: 33
       // getaddr: 24
       // addr: 55
       // TOTAL: 259
-      assert.strictEqual(totals.totalbytesrecv, 259);
-      assert.strictEqual(totals.totalbytessent, 259);
+      let len = 246+common.USER_AGENT.length;
+      assert.strictEqual(totals.totalbytesrecv, len);
+      assert.strictEqual(totals.totalbytessent, len);
     });
 
     it('should rpc setban a peer', async () => {
