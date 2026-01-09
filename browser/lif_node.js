@@ -43,6 +43,7 @@ let node = new FullNode({
   'index-tx': true,
   'index-address': true,
   'reject-absurd-fees': false,
+  cors: true,
 });
 
 function bech32(mnemonic){
@@ -216,6 +217,7 @@ async function mtx_send_create({from, from_key, to, value, change, fee}){
 
 async function do_tx(){
   await do_start();
+  return;
   let mtx = await mtx_send_create({from: wallet1.a, from_key: wallet1.keyRing,
     to: wallet2.a, value: 10000, fee: 1000});
   let tx = mtx.toTX();
