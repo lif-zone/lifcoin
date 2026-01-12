@@ -155,9 +155,7 @@ function mtx_fund(mtx, {coins, fee, change}){
   }
   if (in_val>out_val){
     assert(change, 'tx change: missing change addr');
-    let output = new Output();
-    output.value = in_val-out_val;
-    output.script.fromAddress(change);
+    mtx.addOutput({address: change, value: in_val-out_val});
     mtx.changeIndex = mtx.outputs.length-1;
   }
 }
@@ -203,8 +201,8 @@ async function mtx_send_create({from, from_key, to, value, change, fee}){
   let mtx = new MTX();
   let send = 10000;
   let coins = await node_get_coins(from);
-  wallet_addr_coins_print(from, 'wallet from: ');
-  wallet_addr_coins_print(to, 'wallet to: ');
+  await wallet_addr_coins_print(from, 'wallet from: ');
+  await wallet_addr_coins_print(to, 'wallet to: ');
   mtx.addOutput({address: to, value});
   change ||= from;
   mtx_fund(mtx, {coins, fee, change});
@@ -217,7 +215,6 @@ async function mtx_send_create({from, from_key, to, value, change, fee}){
 
 async function do_tx(){
   await do_start();
-  return;
   let mtx = await mtx_send_create({from: wallet1.a, from_key: wallet1.keyRing,
     to: wallet2.a, value: 10000, fee: 1000});
   let tx = mtx.toTX();
