@@ -1,7 +1,9 @@
 import React from 'react';
 import {render} from 'react-dom';
 import {createRoot} from 'react-dom/client';
+import './node_env.js';
 import App from './app.tsx';
+import Wallet from './wallet.tsx';
 // set favicon
 let link = document.createElement('link');
 link.rel = 'icon';
@@ -15,4 +17,5 @@ document.head.appendChild(link);
 // start app
 let _root = document.body.appendChild(document.createElement('div'));
 let root = createRoot(_root);
-root.render(<App />);
+//root.render(<App />);
+root.render(<Wallet />);
