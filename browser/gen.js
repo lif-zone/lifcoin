@@ -40,7 +40,7 @@ function createGenesisBlock(options) {
       },
       script: new Script()
       .pushInt(0x1d00ffff) // ~4G hashing attempts needed
-      .pushPush(Buffer.from([options.net_type=='lif' ? 2 : 4])) // on avarage even 1 nonce cycle (32^2).
+      .pushPush(Buffer.from([options.net_type=='lifmain' ? 2 : 4])) // on avarage even 1 nonce cycle (32^2).
       .pushData(flags)
       .compile(),
       sequence: 0xffffffff
@@ -69,13 +69,13 @@ nets.main = createGenesisBlock({
   time: 1231006505,
   bits: 0x1d00ffff, nonce: 2083236893,
 });
-nets.lif = createGenesisBlock({
+nets.lifmain = createGenesisBlock({
   version: 1,
   time: 1753572481,
   //bits: 0x1d00ffff, nonce: ???, // 256*10sec = 1hour
   //bits: 0x1e00ffff, nonce: ???, // 10sec
   bits: 0x1f00ffff, nonce: 29664, // 0.1sec fast
-  net_type: 'lif',
+  net_type: 'lifmain',
 });
 
 nets.testnet = createGenesisBlock({
@@ -206,15 +206,15 @@ function do_mine(block){
 
 function do_test(){
   diff_block('main', nets.main, Networks.main);
-  Network.set('lif');
-  diff_block('lif', nets.lif, Networks.lif);
+  Network.set('lifmain');
+  diff_block('lifmain', nets.lifmain, Networks.lifmain);
   Network.set();
   diff_block('testnet', nets.testnet, Networks.testnet);
   diff_block('regtest', nets.regtest, Networks.regtest);
   diff_block('simnet', nets.simnet, Networks.simnet);
   0 && do_mine(nets.main);
-  Network.set('lif');
-  1 && do_mine(nets.lif);
+  Network.set('lifmain');
+  1 && do_mine(nets.lifmain);
   Network.set();
 }
 
@@ -240,7 +240,7 @@ let wallet2 = 'morning like hello gym core stage wood deposit artefact monster t
 let wallet2_a = bech32(wallet1);
 
 function do_tx(){
-  Network.set('lif');
+  Network.set('lifmain');
   Network.set();
 }
 

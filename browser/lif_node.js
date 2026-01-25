@@ -2,7 +2,7 @@
 'use strict'; /* eslint-env node */
 process.title = 'lif_node';
 const Network = require('../lib/protocol/network');
-Network.set('lif');
+Network.set('lifmain');
 const consensus = require('../lib/protocol/consensus');
 const FullNode = require('../lib/node/fullnode');
 const Miner = require('../lib/mining/miner');
@@ -27,7 +27,7 @@ const ewait = ()=>{
 };
 
 let node = new FullNode({
-  network: 'lif', // 'main'
+  network: 'lifmain', // 'main'
   file: false,
   argv: [],
   env: true,
@@ -77,7 +77,7 @@ function test(){
   };
   t('main', 'bc1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfqp76xr');
   t('testnet', 'tb1qe5trcka3qtt2ll8exe3xmt7qzyjjp6df289fas');
-  t('lif', 'lif1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfazcpj5');
+  t('lifmain', 'lif1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfazcpj5');
   Network.set(type);
 }
 test();
