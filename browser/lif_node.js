@@ -26,26 +26,6 @@ const ewait = ()=>{
   return promise;
 };
 
-let node = new FullNode({
-  network: 'lifmain', // 'main'
-  file: false,
-  argv: [],
-  env: true,
-  logFile: true,
-  logConsole: true,
-  logLevel: 'info',
-  memory: false,
-  workers: true,
-  listen: true,
-  //loader: require,
-  prefix: '~/lif.store',
-  coinbaseFlags: 'mined by lif-coin',
-  'index-tx': true,
-  'index-address': true,
-  'reject-absurd-fees': false,
-  cors: true,
-});
-
 function bech32(mnemonic){
   let _mnemonic = Mnemonic.fromPhrase(mnemonic);
   let hdPrivKey = HDPrivateKey.fromMnemonic(_mnemonic);
@@ -86,6 +66,27 @@ let dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPON
 let mine = 1; //process.argv.includes('mine');
 let mine_address = wallet1.address;
 console.log(`Mining address calculated: ${mine_address}`);
+
+let node = new FullNode({
+  network: 'lifmain', // 'main'
+  file: false,
+  argv: [],
+  env: true,
+  logFile: true,
+  logConsole: true,
+  logLevel: 'info',
+  memory: false,
+  workers: true,
+  listen: true,
+  //loader: require,
+  prefix: '~/lif.store',
+  coinbaseFlags: 'mined by lif-coin',
+  'index-tx': true,
+  'index-address': true,
+  'reject-absurd-fees': false,
+  cors: true,
+  'coinbase-address': [mine_address],
+});
 
 async function mineBlocks(n){
   let chain = node.chain, mempool = node.mempool;
