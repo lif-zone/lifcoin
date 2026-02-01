@@ -2,15 +2,60 @@
 import React, {useState, useEffect} from 'react';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
-import * as bip32 from 'bip32';
+import ecc from '@bitcoinerlab/secp256k1';
+import {BIP32Factory} from 'bip32';
+const bip32 = BIP32Factory(ecc);
+import {ECPairFactory} from 'ecpair';
+const ecpair = ECPairFactory(ecc);
 import ElectrumClient from '@aguycalled/electrum-client-js';
 
-const network = bitcoin.networks.bitcoin;
-const ELECTRUM_HOST = 'localhost';
-const ELECTRUM_PORT = 8432;
-const ELECTRUM_PROTOCOL = 'ws';
+// add Lif network, from lif-coin/lib/protocol/networks.js
+bitcoin.networks.lif = {
+  bech32: 'lif',
+  bip32: {
+    public: 0x019da4e0,
+    private: 0x019da380,
+  },
+  pubKeyHash: 0x00,
+  scriptHash: 0x05,
+  wif: 0x80,
+  messagePrefix: '\x18Bitcoin Signed Message:\n',
+};
+
+// Network configurations
+const NETWORKS = {
+  mainnet: {
+    name: 'Bitcoin Mainnet',
+    network: bitcoin.networks.bitcoin,
+    electrum: {
+      host: 'blockstream.info',
+      port: 700,
+      protocol: 'wss',
+    },
+  },
+  testnet: {
+    name: 'Bitcoin Testnet',
+    network: bitcoin.networks.testnet,
+    electrum: {
+      host: 'blockstream.info',
+      port: 993,
+      protocol: 'wss',
+    },
+  },
+  lif: {
+    name: 'Lif Mainnet',
+    network: bitcoin.networks.lif,
+    electrum: {
+      host: 'localhost',
+      port: 8432,
+      protocol: 'ws',
+    },
+  },
+};
+
 
 function App(){
+  const [_network, setNetwork] = useState('mainnet');
   const [mnemonic, setMnemonic] = useState('');
   const [address, setAddress] = useState('');
   const [balance, setBalance] = useState(0);
@@ -22,10 +67,15 @@ function App(){
   const [showRestoreInput, setShowRestoreInput] = useState(false);
   const [restoreMnemonicInput, setRestoreMnemonicInput] = useState('');
   const [restoreError, setRestoreError] = useState('');
+  const [_backup, setBackup] = useState(false);
+
+  const conf = NETWORKS[_network];
+  const network = conf.network;
 
   useEffect(()=>{
     const connectElectrum = async()=>{
-      const cl = new ElectrumClient(ELECTRUM_HOST, ELECTRUM_PORT, ELECTRUM_PROTOCOL);
+      let e = conf.electrum;
+      const cl = new ElectrumClient(e.host, e.port, e.protocol);
       try {
         await cl.connect('lif-coin-wallet', '26.1.29');
         setClient(cl);
@@ -39,7 +89,7 @@ function App(){
       if (client)
         client.close();
     };
-  }, []);
+  }, [_network]);
 
   const restoreWallet = ()=>{
     const cleaned = restoreMnemonicInput.trim().toLowerCase();
@@ -54,15 +104,15 @@ function App(){
     let seed;
     try {
       seed = bip39.mnemonicToSeedSync(mn);
-    } catch (err) {
+    } catch(err){
       console.error(err);
       setRestoreError('Failed to derive wallet. Invalid seed?');
     }
     const root = bip32.fromSeed(seed, network);
     const child = root.derivePath("m/84'/0'/0'/0/0"); // BIP84 native SegWit
-    const { address: addr } = bitcoin.payments.p2wpkh(
-      {pubkey: child.publicKey, network});
-    const keyPair = bitcoin.ECPair.fromPrivateKey(child.privateKey, {network});
+    const {address: addr} = bitcoin.payments.p2wpkh(
+      {pubkey: Buffer(child.publicKey), network});
+    const keyPair = ecpair.fromPrivateKey(child.privateKey, {network});
     setMnemonic(mn);
     setAddress(addr);
     setPrivateKey(keyPair);
@@ -147,12 +197,26 @@ function App(){
       <button onClick={()=>setShowRestoreInput(!showRestoreInput)}>
         {showRestoreInput ? 'Cancel' : 'Restore Wallet'}
       </button>
+      <div>
+        <label>Network: </label>
+        <select
+          value={_network}
+          onChange={e=>setNetwork(e.target.value)}
+        >
+          <option value="mainnet">Bitcoin Mainnet</option>
+          <option value="testnet">Bitcoin Testnet</option>
+          <option value="lif">Lif Mainnet</option>
+        </select>
+        <p>
+          Using: {conf.name} @ {conf.electrum.host}:{conf.electrum.port}
+        </p>
+      </div>
       {showRestoreInput && (
         <div>
           <h3>Restore from mnemonic</h3>
           <textarea
             rows={4}
-            style={{ width: '100%'}}
+            style={{width: '100%'}}
             placeholder="Enter wallet's 12/24 words"
             value={restoreMnemonicInput}
             onChange={e=>setRestoreMnemonicInput(e.target.value)}
@@ -161,8 +225,9 @@ function App(){
           {restoreError && <p style={{color: 'red'}}>{restoreError}</p>}
         </div>
       )}
-      <button>Backup Wallet</button>
-      {mnemonic && <p>Mnemonic: {mnemonic}</p>}
+      <button onClick={()=>setBackup(!_backup)}>{!_backup ? 'Backup/Show Wallet' : 'Hide Wallet'}</button>
+      {mnemonic && _backup && <p>Mnemonic: {mnemonic}</p>}
+      {!mnemonic && <p>No wallet set</p>}
       {address && <p>Address: {address}</p>}
       <p>Balance: {balance/1e8} BTC</p>
       <h2>Transactions</h2>
