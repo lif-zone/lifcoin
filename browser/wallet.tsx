@@ -27,32 +27,28 @@ const NETWORKS = {
   mainnet: {
     name: 'Bitcoin Mainnet',
     network: bitcoin.networks.bitcoin,
-    electrum: {
-      host: 'blockstream.info',
-      port: 700,
-      protocol: 'wss',
-    },
+    electrum: 'wss://electrumx.nimiq.com:443/electrumx',
   },
   testnet: {
     name: 'Bitcoin Testnet',
     network: bitcoin.networks.testnet,
-    electrum: {
-      host: 'blockstream.info',
-      port: 993,
-      protocol: 'wss',
-    },
+    electrum: 'wss://electrum.blockstream.info:993',
   },
   lif: {
     name: 'Lif Mainnet',
     network: bitcoin.networks.lif,
-    electrum: {
-      host: 'localhost',
-      port: 8432,
-      protocol: 'ws',
-    },
+    electrum: 'ws://localhost:8432',
   },
 };
 
+function ElectrumClient_connect(url){
+  let u = URL.parse(url);
+  let protocol = u.protocol.slice(0, -1); // 'wss:' -> 'wss'
+  let port = u.port || (protocol=='wss' ? '443' : protocol=='ws' ? '80' : '');
+  let host = u.hostname;
+  let path = u.pathname;
+  return new ElectrumClient(host, port+path, protocol);
+}
 
 function App(){
   const [_network, setNetwork] = useState('mainnet');
@@ -74,10 +70,9 @@ function App(){
 
   useEffect(()=>{
     const connectElectrum = async()=>{
-      let e = conf.electrum;
-      const cl = new ElectrumClient(e.host, e.port, e.protocol);
+      const cl = ElectrumClient_connect(conf.electrum);
       try {
-        await cl.connect('lif-coin-wallet', '26.1.29');
+        await cl.connect('lif-coin-wallet', '1.4');
         setClient(cl);
         console.log('Connected to Electrum');
       } catch (err) {
@@ -208,7 +203,7 @@ function App(){
           <option value="lif">Lif Mainnet</option>
         </select>
         <p>
-          Using: {conf.name} @ {conf.electrum.host}:{conf.electrum.port}
+          Using: {conf.name} {conf.electrum}
         </p>
       </div>
       {showRestoreInput && (
