@@ -27,7 +27,8 @@ const NETWORKS = {
   mainnet: {
     name: 'Bitcoin Mainnet',
     network: bitcoin.networks.bitcoin,
-    electrum: 'wss://electrumx.nimiq.com:443/electrumx',
+    //electrum: 'wss://electrumx.nimiq.com:443/electrumx', // restricted from localhost:5000
+    electrum: 'wss://bitcoinserver.nl:50004', // unrestricted
   },
   testnet: {
     name: 'Bitcoin Testnet',
