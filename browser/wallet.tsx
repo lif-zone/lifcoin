@@ -29,16 +29,22 @@ const NETWORKS = {
     network: bitcoin.networks.bitcoin,
     //electrum: 'wss://electrumx.nimiq.com:443/electrumx', // restricted from localhost:5000
     electrum: 'wss://bitcoinserver.nl:50004', // unrestricted
+    // electrum: 'wss://electrum.blockstream.info:700', // does not work
+    explorer_tx: 'https://mempool.space/tx/',
+    coin_type: 0,
   },
   testnet: {
     name: 'Bitcoin Testnet',
     network: bitcoin.networks.testnet,
     electrum: 'wss://electrum.blockstream.info:993',
+    explorer_tx: 'https://mempool.space/testnet/tx/',
+    coin_type: 1,
   },
   lif: {
     name: 'Lif Mainnet',
     network: bitcoin.networks.lif,
     electrum: 'ws://localhost:8432',
+    coin_type: 0,
   },
 };
 
@@ -52,7 +58,10 @@ function ElectrumClient_connect(url){
 }
 
 function App(){
-  const [_network, setNetwork] = useState('mainnet');
+  const [currentScreen, setCurrentScreen] = useState('home');
+  const [_network, setNetwork] = useState(
+    localStorage.getItem('wallet_network') || 'mainnet'
+  );
   const [mnemonic, setMnemonic] = useState('');
   const [address, setAddress] = useState('');
   const [balance, setBalance] = useState(0);
@@ -68,6 +77,12 @@ function App(){
 
   const conf = NETWORKS[_network];
   const network = conf.network;
+
+  useEffect(() => {
+    const saved = localStorage.getItem('wallet_mnemonic');
+    if (saved && bip39.validateMnemonic(saved))
+      deriveWalletFromMnemonic(saved);
+  }, []);
 
   useEffect(()=>{
     const connectElectrum = async()=>{
@@ -105,20 +120,33 @@ function App(){
       setRestoreError('Failed to derive wallet. Invalid seed?');
     }
     const root = bip32.fromSeed(seed, network);
-    const child = root.derivePath("m/84'/0'/0'/0/0"); // BIP84 native SegWit
+    const child = root.derivePath(`m/84'/${conf.coin_type}'/0'/0/0`); // BIP84 native SegWit
     const {address: addr} = bitcoin.payments.p2wpkh(
       {pubkey: Buffer(child.publicKey), network});
     const keyPair = ecpair.fromPrivateKey(child.privateKey, {network});
     setMnemonic(mn);
     setAddress(addr);
     setPrivateKey(keyPair);
+    localStorage.setItem('wallet_mnemonic', mn);
+    localStorage.setItem('wallet_network', _network);
     setRestoreError('');
     fetchBalanceAndHistory(addr);
   };
 
-  const generateWallet = ()=>{
+  const wallet_gen = ()=>{
     const mn = bip39.generateMnemonic(); // defaults to 12 words (128 bits)
     deriveWalletFromMnemonic(mn);
+  };
+  const wallet_del = ()=>{
+    if (!window.confirm('Delete stored mnemonic?'))
+      return;
+    localStorage.removeItem('wallet_mnemonic');
+    localStorage.removeItem('wallet_network');
+    setMnemonic('');
+    setAddress('');
+    setBalance(0);
+    setTransactions([]);
+    setPrivateKey(null);
   };
 
   const getScriptHash = addr=>{
@@ -189,10 +217,11 @@ function App(){
   return (
     <div>
       <h1>Simple Bitcoin Wallet</h1>
-      <button onClick={generateWallet}>Create New Wallet</button>
+      <button onClick={wallet_gen}>Generate New Wallet</button>
       <button onClick={()=>setShowRestoreInput(!showRestoreInput)}>
         {showRestoreInput ? 'Cancel' : 'Restore Wallet'}
       </button>
+      <button onClick={wallet_del}>Delete wallet</button>
       <div>
         <label>Network: </label>
         <select
