@@ -136,6 +136,7 @@ function App(){
   const wallet_gen = ()=>{
     const mn = bip39.generateMnemonic(); // defaults to 12 words (128 bits)
     deriveWalletFromMnemonic(mn);
+    setCurrentScreen('backup');
   };
   const wallet_del = ()=>{
     if (!window.confirm('Delete stored mnemonic?'))
@@ -147,6 +148,7 @@ function App(){
     setBalance(0);
     setTransactions([]);
     setPrivateKey(null);
+    setCurrentScreen('home');
   };
 
   const getScriptHash = addr=>{
@@ -214,6 +216,62 @@ function App(){
     }
   };
 
+  const commonProps = {
+    mnemonic,
+    address,
+    balance,
+    transactions,
+    currentScreen,
+    setCurrentScreen,
+    wallet_gen,
+    wallet_del,
+    _network,
+    setNetwork,
+    NETWORKS,
+  };
+  return (
+    <div>
+      <h1>Simple Bitcoin Wallet</h1>
+      <NavBar currentScreen={currentScreen}
+        setCurrentScreen={setCurrentScreen}
+        hasWallet={!!address} />
+      <main>
+        {currentScreen=='home' && (
+          <HomeScreen
+            {...commonProps}
+            fetchBalanceAndHistory={fetchBalanceAndHistory}
+            address={address}
+            balance={balance}
+            transactions={transactions}
+          />
+        )}
+        {currentScreen=='backup' && <BackupScreen mnemonic={mnemonic} />}
+        {currentScreen=='send' && (
+          <SendScreen
+            client={client}
+            privateKey={privateKey}
+            address={address}
+            network={network}
+            getScriptHash={getScriptHash}
+            conf={conf}
+          />
+        )}
+        {currentScreen=='restore' && (
+          <RestoreScreen deriveWalletFromMnemonic={deriveWalletFromMnemonic}
+            setCurrentScreen={setCurrentScreen} />
+        )}
+        {currentScreen=='settings' && (
+          <SettingsScreen
+            _network={_network}
+            setNetwork={setNetwork}
+            wallet_del={wallet_del}
+            NETWORKS={NETWORKS}
+          />
+        )}
+      </main>
+    </div>
+  );
+  /*
   return (
     <div>
       <h1>Simple Bitcoin Wallet</h1>
@@ -275,6 +333,184 @@ function App(){
         onChange={e=>setAmount(parseInt(e.target.value))}
       />
       <button onClick={sendBitcoin}>Send</button>
+    </div>
+  );
+  */
+}
+
+function NavBar({currentScreen, setCurrentScreen, hasWallet}){
+  return (
+    <nav style={{display: 'flex', flexWrap: 'wrap'}}>
+      <button
+        onClick={()=>setCurrentScreen('home')}
+        style={{ fontWeight: currentScreen === 'home' ? 'bold' : 'normal' }}
+      >Home</button>
+      <button
+        onClick={()=>setCurrentScreen('send')}
+        disabled={!hasWallet}
+        style={{opacity: !hasWallet ? 0.5 : 1}}
+      >Send</button>
+      <button
+        onClick={()=>setCurrentScreen('backup')}
+        disabled={!hasWallet}
+        style={{opacity: !hasWallet ? 0.5 : 1}}
+      >Backup</button>
+      <button onClick={()=>setCurrentScreen('restore')}>Restore</button>
+      <button onClick={()=>setCurrentScreen('settings')}>Settings</button>
+    </nav>
+  );
+}
+
+function HomeScreen({address, balance, transactions, wallet_gen}){
+  return (
+    <div>
+      <h2>Home</h2>
+      {address ? (
+        <>
+          <p><strong>Address:</strong> {address}</p>
+          <p><strong>Balance:</strong> {(balance / 1e8).toFixed(8)} BTC</p>
+          <h3>Recent Transactions</h3>
+          {!transactions.length ? (
+            <p>No transactions yet</p>
+          ) : (
+            <ul>
+              {transactions.map((tx, i)=>(
+                <li key={i}>
+                  {tx.tx_hash.slice(0, 12)}... {tx.height>0 ? `(${tx.height})` : '(unconfirmed)'}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : (
+        <>
+          <p>No wallet loaded yet.</p>
+          <button onClick={wallet_gen}>Generate New Wallet</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function BackupScreen({mnemonic}){
+  return (
+    <div>
+      <h2>Backup Mnemonic</h2>
+      <div>{mnemonic || 'No mnemonic available'}</div>
+    </div>
+  );
+}
+
+function SendScreen({client, privateKey, address, network, getScriptHash,
+  conf})
+{
+  const [toAddress, setToAddress] = useState('');
+  const [amountSat, setAmountSat] = useState('');
+  const handleSend = async()=>{
+    if (!client || !privateKey || !address)
+      return;
+    const amountValue = parseInt(amountSat, 10);
+    if (isNaN(amountValue) || amountValue <= 0)
+      return alert('Invalid amount');
+    const scripthash = getScriptHash(address);
+    let utxos;
+    try {
+      utxos = await client.blockchainScripthashListunspent(scripthash);
+    } catch(err){
+      return alert('Failed to fetch UTXOs');
+    }
+    if (!utxos?.length)
+      return alert('No funds available');
+    const utxo = utxos[0];
+    const fee = 2000;
+    if (utxo.value < amountValue+fee)
+      return alert('Insufficient balance');
+    const psbt = new bitcoin.Psbt({network});
+    psbt.addInput({
+      hash: utxo.tx_hash,
+      index: utxo.tx_pos,
+      witnessUtxo: { value: utxo.value, script: bitcoin.address.toOutputScript(address, network) },
+    });
+    psbt.addOutput({address: toAddress, value: amountValue});
+    const change = utxo.value - amountValue - fee;
+    if (change > 546)
+      psbt.addOutput({address, value: change});
+    psbt.signInput(0, privateKey);
+    psbt.finalizeAllInputs();
+    const txHex = psbt.extractTransaction().toHex();
+    try {
+      const txid = await client.blockchainTransactionBroadcast(txHex);
+      alert(`Transaction broadcast!\nTXID: ${txid}\n\n${conf.explorerTx}${txid}`);
+      setToAddress('');
+      setAmountSat('');
+    } catch (err) {
+      alert('Broadcast failed: ' + err.message);
+    }
+  };
+  return (
+    <div>
+      <h2>Send Bitcoin</h2>
+      <input
+        placeholder="Recipient address"
+        value={toAddress}
+        onChange={(e) => setToAddress(e.target.value)}
+        style={{width: '100%'}}
+      />
+      <input
+        type="number"
+        placeholder="Amount (satoshis)"
+        value={amountSat}
+        onChange={e=>setAmountSat(e.target.value)}
+        style={{width: '100%'}}
+      />
+      <button onClick={handleSend}>Send</button>
+    </div>
+  );
+}
+
+function RestoreScreen({deriveWalletFromMnemonic, setCurrentScreen}){
+  const [input, setInput] = useState('');
+  const handleRestore = () => {
+    const cleaned = input.trim().toLowerCase();
+    if (bip39.validateMnemonic(cleaned)) {
+      deriveWalletFromMnemonic(cleaned);
+      setCurrentScreen('home');
+    } else {
+      alert('Invalid mnemonic phrase');
+    }
+  };
+  return (
+    <div>
+      <h2>Restore from Mnemonic</h2>
+      <textarea
+        rows={4}
+        placeholder="Enter your 12/24 words (space separated)"
+        value={input}
+        onChange={e=>setInput(e.target.value)}
+        style={{width: '100%'}}
+      />
+      <button onClick={handleRestore}>Restore Wallet</button>
+    </div>
+  );
+}
+
+function SettingsScreen({_network, setNetwork, wallet_del, NETWORKS}){
+  return (
+    <div>
+      <h2>Settings</h2>
+      <label>Network:</label>
+      <select
+        value={_network}
+        onChange={e=>setNetwork(e.target.value)}
+        style={{display: 'block', width: '100%'}}
+      >
+        {Object.keys(NETWORKS).map(key=>(
+          <option key={key} value={key}>{NETWORKS[key].name}</option>
+        ))}
+      </select>
+      <button onClick={wallet_del}>
+        Delete Stored Wallet (Clear Mnemonic)
+      </button>
     </div>
   );
 }
