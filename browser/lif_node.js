@@ -178,7 +178,7 @@ async function tx_get_coins_by_addr(txm, addr, spent){
   return coins;
 }
 async function node_get_coins(addr){
-  let txs = await node.getMetaByAddress(addr, {limit: 10000});
+  let txs = await node.getMetaByAddrSH(addr, {limit: 10000});
   let coins = [];
   for (let t of txs)
     coins.push(...await tx_get_coins_by_addr(t, addr, false));
