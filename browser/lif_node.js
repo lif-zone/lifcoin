@@ -26,14 +26,13 @@ const ewait = ()=>{
   return promise;
 };
 
-function bech32(mnemonic){
+function bech32(mnemonic, net){
   let _mnemonic = Mnemonic.fromPhrase(mnemonic);
   let hdPrivKey = HDPrivateKey.fromMnemonic(_mnemonic);
   let derivedKey = hdPrivKey.derive(84, true)
   .derive(0, true).derive(0, true).derive(0).derive(0);
   let keyRing = new KeyRing({privateKey: derivedKey.privateKey,
     witness: true});
-  let net = Network.get();
   let address = keyRing.getKeyAddress('string', net);
   let a = new Address(address);
   return {
@@ -48,23 +47,23 @@ function bech32(mnemonic){
 
 let wallet1 = bech32('six clip senior spy fury aerobic volume sheriff critic number feature inside');
 let wallet2 = bech32('morning like hello gym core stage wood deposit artefact monster turn absorb');
+let wallet3 = bech32('all all all all all all all all all all all all');
 
 function test(){
-  let type = Network.type;
-  let t = (net, addr)=>{
-    Network.set(net);
-    assert.strictEqual(bech32(wallet1.mn).address. addr);
-  };
+  let t = (net, addr)=>assert.strictEqual(bech32(wallet1.mn, net).address, addr);
   t('main', 'bc1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfqp76xr');
   t('testnet', 'tb1qe5trcka3qtt2ll8exe3xmt7qzyjjp6df289fas');
   t('lifmain', 'lif1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfazcpj5');
-  Network.set(type);
+  t = (net, addr)=>assert.strictEqual(bech32(wallet3.mn, net).address, addr);
+  t('main', 'bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk');
+  t('lifmain', 'lif1qannfxke2tfd4l7vhepehpvt05y83v3qs5e4jzp');
+  let {a} = bech32(wallet3.mn, 'main');
 }
 test();
 
 let dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
 let mine = 1; //process.argv.includes('mine');
-let mine_address = wallet1.address;
+let mine_address = wallet3.address;
 console.log(`Mining address calculated: ${mine_address}`);
 
 let node = new FullNode({
@@ -83,6 +82,7 @@ let node = new FullNode({
   coinbaseFlags: 'mined by lif-coin',
   'index-tx': true,
   'index-address': true,
+  'index-addrsh': false,
   'reject-absurd-fees': false,
   cors: true,
   'coinbase-address': [mine_address],
@@ -216,7 +216,7 @@ async function mtx_send_create({from, from_key, to, value, change, fee}){
 
 async function do_tx(){
   await do_start();
-  let mtx = await mtx_send_create({from: wallet1.a, from_key: wallet1.keyRing,
+  let mtx = await mtx_send_create({from: wallet3.a, from_key: wallet3.keyRing,
     to: wallet2.a, value: 10000, fee: 1000});
   let tx = mtx.toTX();
   assert(tx.verify(mtx.view));

@@ -102,15 +102,6 @@ function App(){
     };
   }, [_network]);
 
-  const restoreWallet = ()=>{
-    const cleaned = restoreMnemonicInput.trim().toLowerCase();
-    if (!bip39.validateMnemonic(cleaned))
-      return void setRestoreError('Invalid mnemonic phrase (12/24 words)');
-    deriveWalletFromMnemonic(cleaned);
-    setShowRestoreInput(false);
-    setRestoreMnemonicInput('');
-  };
-
   const deriveWalletFromMnemonic = mn=>{
     let seed;
     try {
