@@ -11,6 +11,7 @@ const HDPrivateKey = require('../lib/hd/private');
 const KeyRing = require('../lib/primitives/keyring');
 const Address = require('../lib/primitives/address');
 const Output = require('../lib/primitives/output');
+const Script = require('../lib/script/script');
 const MTX = require('../lib/primitives/mtx');
 const Coin = require('../lib/primitives/coin');
 const assert = require('bsert');
@@ -48,7 +49,10 @@ function bech32(mnemonic, net){
 let wallet1 = bech32('six clip senior spy fury aerobic volume sheriff critic number feature inside');
 let wallet2 = bech32('morning like hello gym core stage wood deposit artefact monster turn absorb');
 let wallet3 = bech32('all all all all all all all all all all all all');
-
+const sha256 = require('bcrypto/lib/sha256');
+function electrum_from_addr(addr){
+  return Script.fromAddress(addr).sha256().reverse().toString('hex');
+}
 function test(){
   let t = (net, addr)=>assert.strictEqual(bech32(wallet1.mn, net).address, addr);
   t('main', 'bc1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfqp76xr');
@@ -57,7 +61,10 @@ function test(){
   t = (net, addr)=>assert.strictEqual(bech32(wallet3.mn, net).address, addr);
   t('main', 'bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk');
   t('lifmain', 'lif1qannfxke2tfd4l7vhepehpvt05y83v3qs5e4jzp');
-  let {a} = bech32(wallet3.mn, 'main');
+  t = (net, electrum_hash)=>assert.strictEqual(
+    electrum_from_addr(bech32(wallet3.mn, net).a), electrum_hash);
+  t('main', '4f7a209e53b64b1d720effb12f5896f5f923c5ba2e5c835c9a186f909d3b2c10');
+  t('lifmain', '4f7a209e53b64b1d720effb12f5896f5f923c5ba2e5c835c9a186f909d3b2c10');
 }
 test();
 
