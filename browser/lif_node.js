@@ -89,7 +89,7 @@ let node = new FullNode({
   coinbaseFlags: 'mined by lif-coin',
   'index-tx': true,
   'index-address': true,
-  'index-addrsh': false,
+  'index-addrsh': true,
   'reject-absurd-fees': false,
   cors: true,
   'coinbase-address': [mine_address],
@@ -135,7 +135,7 @@ async function wait_for_sync_full(){
 }
 async function do_start(){
   await node.ensure();
-  await node.open();
+  await node.open({addr_rescan: false});
   await node.connect();
   await node.startSync();
   //await wait_for_sync_full();
