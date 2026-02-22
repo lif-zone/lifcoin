@@ -53,6 +53,9 @@ const sha256 = require('bcrypto/lib/sha256');
 function electrum_from_addr(addr){
   return Script.fromAddress(addr).sha256().reverse().toString('hex');
 }
+function scripthash_from_addr(addr){
+  return Script.fromAddress(addr).sha256().toString('hex');
+}
 function test(){
   let t = (net, addr)=>assert.strictEqual(bech32(wallet1.mn, net).address, addr);
   t('main', 'bc1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfqp76xr');
@@ -65,6 +68,10 @@ function test(){
     electrum_from_addr(bech32(wallet3.mn, net).a), electrum_hash);
   t('main', '4f7a209e53b64b1d720effb12f5896f5f923c5ba2e5c835c9a186f909d3b2c10');
   t('lifmain', '4f7a209e53b64b1d720effb12f5896f5f923c5ba2e5c835c9a186f909d3b2c10');
+  t = (net, electrum_hash)=>assert.strictEqual(
+    scripthash_from_addr(bech32(wallet3.mn, net).a), electrum_hash);
+  t('main', '102c3b9d906f189a5c835c2ebac523f9f596582fb1ff0e721d4bb6539e207a4f');
+  t('lifmain', '102c3b9d906f189a5c835c2ebac523f9f596582fb1ff0e721d4bb6539e207a4f');
 }
 test();
 
