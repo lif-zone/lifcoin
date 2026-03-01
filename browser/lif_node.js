@@ -72,11 +72,15 @@ function test(){
     scripthash_from_addr(bech32(wallet3.mn, net).a), electrum_hash);
   t('main', '102c3b9d906f189a5c835c2ebac523f9f596582fb1ff0e721d4bb6539e207a4f');
   t('lifmain', '102c3b9d906f189a5c835c2ebac523f9f596582fb1ff0e721d4bb6539e207a4f');
+  assert.strictEqual(Script.fromJSON(
+    '6a24aa21a9ed2b4c76989d6e5898c6a68218351815f555842ce24410a1da74fa774d8836e60d')
+    .toASM(),
+    'OP_RETURN OP_PUSHBYTES36 aa21a9ed2b4c76989d6e5898c6a68218351815f555842ce24410a1da74fa774d8836e60d');
 }
 test();
 
 let dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
-let mine = 1; //process.argv.includes('mine');
+let mine = process.env.mine ? +process.env.mine : 1;
 let mine_address = wallet3.address;
 console.log(`Mining address calculated: ${mine_address}`);
 
@@ -100,6 +104,7 @@ let node = new FullNode({
   'reject-absurd-fees': false,
   cors: true,
   'coinbase-address': [mine_address],
+  'persistent-mempool': true,
 });
 
 async function mineBlocks(n){
@@ -235,7 +240,8 @@ async function do_tx(){
   let tx = mtx.toTX();
   assert(tx.verify(mtx.view));
   let res = await node.sendTX(tx);
-  await mineBlocks(1);
+  if (mine)
+    await mineBlocks(1);
 }
 
 async function main(){
