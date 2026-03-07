@@ -61,7 +61,7 @@ function Electrum_connect(url){
 
 function getNetworks(servers){
   const result = {};
-  for (const key of Object.keys(DEFAULT_NETWORKS)){
+  for (const key in DEFAULT_NETWORKS){
     result[key] = {...DEFAULT_NETWORKS[key]};
     if (servers[key])
       result[key].electrum = servers[key];
@@ -134,7 +134,7 @@ const newCardStyle = {
 };
 
 // Main App
-function App(){
+function BrightWallet(){
   const [wallets, setWallets] = useState(loadWallets);
   const [servers, setServers] = useState(loadServers);
   const [screen, setScreen] = useState('home');
@@ -157,7 +157,7 @@ function App(){
   return (
     <div style={{fontFamily: 'sans-serif', maxWidth: 960, margin: '0 auto', padding: 16}}>
       <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16}}>
-        <h1 style={{cursor: 'pointer', fontSize: 24, margin: 0}} onClick={goHome}>Lif Wallet</h1>
+        <h1 style={{cursor: 'pointer', fontSize: 24, margin: 0}} onClick={goHome}>Bright Wallet</h1>
         <button onClick={()=>setScreen('settings')}>⚙ Settings</button>
       </div>
 
@@ -294,8 +294,7 @@ function WalletCard({wallet, networks, onClick}){
   );
 }
 
-// ─── Add Wallet Screen ───────────────────────────────────────────────────────
-
+// Add Wallet Screen
 function AddWalletScreen({networks, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('mainnet');
   const [mode, setMode] = useState('generate'); // 'generate' | 'restore'
@@ -417,16 +416,17 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
       return;
     const {address, network, conf} = derived;
     const cl = Electrum_connect(conf.electrum);
-    cl.connect('lif-coin-wallet', '1.4').then(()=>{
-      setClient(cl);
-      fetchData(cl, address, network);
-    }).catch(e=>{
-      console.error('Connect error:', e);
-      setConnErr(true);
-    });
-    return ()=>{
-      try { cl.close(); } catch{};
-    };
+    (async()=>{
+      try {
+        await cl.connect('lif-coin-wallet', '1.4');
+        setClient(cl);
+        fetchData(cl, address, network);
+      } catch(e){
+        console.error('Connect error:', e);
+        setConnErr(true);
+      }
+    })();
+    return ()=>cl.close();
   }, [wallet.id, wallet.network]);
   if (!derived){
     return (
@@ -639,14 +639,14 @@ function SendScreen({client, privateKey, address, network, conf, getScriptHash, 
 function SettingsScreen({servers, networks, onSave, onBack}){
   const [values, setValues] = useState(()=>{
     const v = {};
-    for (const key of Object.keys(networks))
+    for (const key in networks)
       v[key] = servers[key] || networks[key].electrum;
     return v;
   });
 
   const handleSave = ()=>{
     const newServers = {};
-    for (const key of Object.keys(networks)){
+    for (const key in networks){
       const val = values[key]?.trim();
       if (val)
         newServers[key] = val;
@@ -684,4 +684,4 @@ function SettingsScreen({servers, networks, onSave, onBack}){
   );
 }
 
-export default App;
+export default BrightWallet;
