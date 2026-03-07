@@ -1,0 +1,41 @@
+Task list
+=========
+
+make wallet.tsx support multiple wallets
+----------------------------------------
+- today it is just a single wallet. It should be "boxes" of wallets,
+  and a box for "New wallet". So when starting it first time it only has
+  "New wallet" box. clicking on it - adds a new wallet, where you select
+  all the things you sellect in today's wallet.tsx implementation:
+  Network (Bitcoin, Bitcoin testnet, Lif), the wallet key etc...
+- Once a wallet is added, in its box is the amount of unspent coins it has,
+  and amount of BTC/LIF it has.
+- clicking on it - opens up the wallet's transactions, and allows you to
+  delete the wallet, and to send and receive from this wallet.
+- in the global settings, you can set the electrumx server for the different
+  networks (Bitcoin, Bitcoin testnet, Lif...)
+
+coding conventions:
+-------------------
+- no spaces around arrow functions:
+  GOOD: (a, b)=>code
+  BAD: (a, b) => code
+- no spaces around === and ==
+  GOOD: if (a===null)
+  BAD: if (a === null)
+- use == for string and simple number comparison
+  GOOD: if (a=='test')
+  BAD: if (a == 'test')
+  BAD: if (a === 'test')
+- dont use Promise(). dont use xxx.then(). Use await
+  GOOD: await do_long_work(arg)
+  BAD: do_long_work(arg).then()
+- no statements on same if () line:
+  GOOD:
+    if (x==1)
+      return;
+  BAD:
+    if (x==1) return;
+- no space after async arrow functions:
+  GOOD: async()=>...
+  BAD: async ()=>...
