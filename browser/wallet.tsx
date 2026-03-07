@@ -1,5 +1,5 @@
-// App.js
-import React, {useState, useEffect} from 'react';
+// wallet.tsx - bright wallet - BTC, LIF, multi-wallet support
+import React, {useState, useEffect, useMemo} from 'react';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import ecc from '@bitcoinerlab/secp256k1';
@@ -22,10 +22,10 @@ bitcoin.networks.lif = {
   messagePrefix: '\x18Bitcoin Signed Message:\n',
 };
 
-// Network configurations
-const NETWORKS = {
+const DEFAULT_NETWORKS = {
   mainnet: {
     name: 'Bitcoin Mainnet',
+    symbol: 'BTC',
     network: bitcoin.networks.bitcoin,
     //electrum: 'wss://electrumx.nimiq.com:443/electrumx', // restricted from localhost:5000
     electrum: 'wss://bitcoinserver.nl:50004', // unrestricted
@@ -35,6 +35,7 @@ const NETWORKS = {
   },
   testnet: {
     name: 'Bitcoin Testnet',
+    symbol: 'tBTC',
     network: bitcoin.networks.testnet,
     electrum: 'wss://electrum.blockstream.info:993',
     explorer_tx: 'https://mempool.space/testnet/tx/',
@@ -42,13 +43,14 @@ const NETWORKS = {
   },
   lif: {
     name: 'Lif Mainnet',
+    symbol: 'LIF',
     network: bitcoin.networks.lif,
     electrum: 'ws://localhost:8432',
     coin_type: 0,
   },
 };
 
-function ElectrumClient_connect(url){
+function Electrum_connect(url){
   let u = URL.parse(url);
   let protocol = u.protocol.slice(0, -1); // 'wss:' -> 'wss'
   let port = u.port || (protocol=='wss' ? '443' : protocol=='ws' ? '80' : '');
@@ -57,282 +59,513 @@ function ElectrumClient_connect(url){
   return new ElectrumClient(host, port+path, protocol);
 }
 
-function App(){
-  const [currentScreen, setCurrentScreen] = useState('home');
-  const [_network, setNetwork] = useState(
-    localStorage.getItem('wallet_network') || 'mainnet'
-  );
-  const [mnemonic, setMnemonic] = useState('');
-  const [address, setAddress] = useState('');
-  const [balance, setBalance] = useState(0);
-  const [transactions, setTransactions] = useState([]);
-  const [client, setClient] = useState(null);
-  const [toAddress, setToAddress] = useState('');
-  const [amount, setAmount] = useState(0);
-  const [privateKey, setPrivateKey] = useState(null); // ECPair
-  const [showRestoreInput, setShowRestoreInput] = useState(false);
-  const [restoreMnemonicInput, setRestoreMnemonicInput] = useState('');
-  const [restoreError, setRestoreError] = useState('');
-  const [_backup, setBackup] = useState(false);
+function getNetworks(servers){
+  const result = {};
+  for (const key of Object.keys(DEFAULT_NETWORKS)){
+    result[key] = {...DEFAULT_NETWORKS[key]};
+    if (servers[key])
+      result[key].electrum = servers[key];
+  }
+  return result;
+}
 
-  const conf = NETWORKS[_network];
+function deriveWallet(mnemonic, networkKey, networks){
+  const conf = networks[networkKey];
   const network = conf.network;
-
-  useEffect(() => {
-    const saved = localStorage.getItem('wallet_mnemonic');
-    if (saved && bip39.validateMnemonic(saved))
-      deriveWalletFromMnemonic(saved);
-  }, []);
-
-  useEffect(()=>{
-    const connectElectrum = async()=>{
-      const cl = ElectrumClient_connect(conf.electrum);
-      try {
-        await cl.connect('lif-coin-wallet', '1.4');
-        setClient(cl);
-        console.log('Connected to Electrum');
-      } catch (err) {
-        console.error('Failed to connect:', err);
-      }
-    };
-    connectElectrum();
-    return ()=>{
-      if (client)
-        client.close();
-    };
-  }, [_network]);
-
-  const deriveWalletFromMnemonic = mn=>{
-    let seed;
-    try {
-      seed = bip39.mnemonicToSeedSync(mn);
-    } catch(err){
-      console.error(err);
-      setRestoreError('Failed to derive wallet. Invalid seed?');
-    }
-    const root = bip32.fromSeed(seed, network);
-    const child = root.derivePath(`m/84'/${conf.coin_type}'/0'/0/0`); // BIP84 native SegWit
-    const {address: addr} = bitcoin.payments.p2wpkh(
-      {pubkey: Buffer(child.publicKey), network});
-    const keyPair = ecpair.fromPrivateKey(child.privateKey, {network});
-    setMnemonic(mn);
-    setAddress(addr);
-    setPrivateKey(keyPair);
-    localStorage.setItem('wallet_mnemonic', mn);
-    localStorage.setItem('wallet_network', _network);
-    setRestoreError('');
-    fetchBalanceAndHistory(addr);
-  };
-
-  const wallet_gen = ()=>{
-    const mn = bip39.generateMnemonic(); // defaults to 12 words (128 bits)
-    deriveWalletFromMnemonic(mn);
-    setCurrentScreen('backup');
-  };
-  const wallet_del = ()=>{
-    if (!window.confirm('Delete stored mnemonic?'))
-      return;
-    localStorage.removeItem('wallet_mnemonic');
-    localStorage.removeItem('wallet_network');
-    setMnemonic('');
-    setAddress('');
-    setBalance(0);
-    setTransactions([]);
-    setPrivateKey(null);
-    setCurrentScreen('home');
-  };
-
-  const getScriptHash = addr=>{
-    const script = bitcoin.address.toOutputScript(addr, network);
-    const hash = bitcoin.crypto.sha256(script);
-    const reversedHash = Buffer.from(hash.reverse());
-    return reversedHash.toString('hex');
-  };
-
-  const fetchBalanceAndHistory = async(addr)=>{
-    if (!client || !addr) return;
-    const scripthash = getScriptHash(addr);
-    try {
-      const bal = await client.blockchain_scripthash_getBalance(scripthash);
-      setBalance(bal.confirmed + bal.unconfirmed);
-      const hist = await client.blockchain_scripthash_getHistory(scripthash);
-      setTransactions(hist);
-    } catch (err){
-      console.error('Error fetching data:', err);
-    }
-  };
-
-  const sendBitcoin = async()=>{
-    if (!client || !privateKey || !address)
-      return;
-    // Simple send: assumes one UTXO, no change for simplicity. REAL WALLET NEEDS PROPER UTXO MANAGEMENT!
-    // This is VERY simplistic and may not work if no UTXOs or fees wrong.
-    const scripthash = getScriptHash(address);
-    const utxos = await client.blockchain_scripthash_listunspent(scripthash);
-    if (!utxos.length){
-      alert('No UTXOs');
-      return;
-    }
-    // Take first UTXO for simplicity
-    const utxo = utxos[0];
-    const fee = 1000; // Satoshi, arbitrary
-    const psbt = new bitcoin.Psbt({network});
-    psbt.addInput({
-      hash: utxo.tx_hash,
-      index: utxo.tx_pos,
-      witnessUtxo: {script: bitcoin.address.toOutputScript(address, network),
-        value: utxo.value},
-    });
-    psbt.addOutput({
-      address: toAddress,
-      value: amount,
-    });
-    const change = utxo.value - amount - fee;
-    if (change>0){
-      psbt.addOutput({
-        address: address,
-        value: change,
-      });
-    }
-    psbt.signInput(0, privateKey);
-    psbt.finalizeAllInputs();
-    const tx = psbt.extractTransaction().toHex();
-    try {
-      const txid = await client.blockchain_transaction_broadcast(tx);
-      alert(`Transaction sent: ${txid}`);
-      fetchBalanceAndHistory(address);
-    } catch(err){
-      console.error('Error broadcasting:', err);
-      alert('Failed to send');
-    }
-  };
-
-  const commonProps = {
-    mnemonic,
-    address,
-    balance,
-    transactions,
-    currentScreen,
-    setCurrentScreen,
-    wallet_gen,
-    wallet_del,
-    _network,
-    setNetwork,
-    NETWORKS,
-  };
-  return (
-    <div>
-      <h1>Simple Bitcoin Wallet</h1>
-      <NavBar currentScreen={currentScreen}
-        setCurrentScreen={setCurrentScreen}
-        hasWallet={!!address} />
-      <main>
-        {currentScreen=='home' && (
-          <HomeScreen
-            {...commonProps}
-            fetchBalanceAndHistory={fetchBalanceAndHistory}
-            address={address}
-            balance={balance}
-            transactions={transactions}
-          />
-        )}
-        {currentScreen=='backup' && <BackupScreen mnemonic={mnemonic} />}
-        {currentScreen=='send' && (
-          <SendScreen
-            client={client}
-            privateKey={privateKey}
-            address={address}
-            network={network}
-            getScriptHash={getScriptHash}
-            conf={conf}
-          />
-        )}
-        {currentScreen=='restore' && (
-          <RestoreScreen deriveWalletFromMnemonic={deriveWalletFromMnemonic}
-            setCurrentScreen={setCurrentScreen} />
-        )}
-        {currentScreen=='settings' && (
-          <SettingsScreen
-            _network={_network}
-            setNetwork={setNetwork}
-            wallet_del={wallet_del}
-            NETWORKS={NETWORKS}
-          />
-        )}
-      </main>
-    </div>
-  );
+  const seed = bip39.mnemonicToSeedSync(mnemonic);
+  const root = bip32.fromSeed(seed, network);
+  const child = root.derivePath(`m/84'/${conf.coin_type}'/0'/0/0`);
+  const {address} = bitcoin.payments.p2wpkh({pubkey: Buffer(child.publicKey), network});
+  const keyPair = ecpair.fromPrivateKey(child.privateKey, {network});
+  return {address, keyPair, network, conf};
 }
 
-function NavBar({currentScreen, setCurrentScreen, hasWallet}){
-  return (
-    <nav style={{display: 'flex', flexWrap: 'wrap'}}>
-      <button
-        onClick={()=>setCurrentScreen('home')}
-        style={{ fontWeight: currentScreen === 'home' ? 'bold' : 'normal' }}
-      >Home</button>
-      <button
-        onClick={()=>setCurrentScreen('send')}
-        disabled={!hasWallet}
-        style={{opacity: !hasWallet ? 0.5 : 1}}
-      >Send</button>
-      <button
-        onClick={()=>setCurrentScreen('backup')}
-        disabled={!hasWallet}
-        style={{opacity: !hasWallet ? 0.5 : 1}}
-      >Backup</button>
-      <button onClick={()=>setCurrentScreen('restore')}>Restore</button>
-      <button onClick={()=>setCurrentScreen('settings')}>Settings</button>
-    </nav>
-  );
+function getScriptHash(addr, network){
+  const script = bitcoin.address.toOutputScript(addr, network);
+  const hash = bitcoin.crypto.sha256(script);
+  return Buffer.from(hash.reverse()).toString('hex');
 }
 
-function HomeScreen({address, balance, transactions, wallet_gen}){
+function loadWallets(){
+  try {
+    const saved = localStorage.getItem('wallets');
+    if (saved)
+      return JSON.parse(saved);
+    // migrate old single-wallet format
+    const oldMnemonic = localStorage.getItem('wallet_mnemonic');
+    const oldNetwork = localStorage.getItem('wallet_network') || 'mainnet';
+    if (oldMnemonic && bip39.validateMnemonic(oldMnemonic))
+      return [{id: '1', name: '', network: oldNetwork, mnemonic: oldMnemonic}];
+    return [];
+  } catch { return []; }
+}
+
+function saveWallets(wallets){
+  localStorage.setItem('wallets', JSON.stringify(wallets));
+}
+
+function loadServers(){
+  try { return JSON.parse(localStorage.getItem('electrum_servers') || '{}'); }
+  catch { return {}; }
+}
+
+function saveServers(servers){
+  localStorage.setItem('electrum_servers', JSON.stringify(servers));
+}
+
+// Styles
+const cardStyle = {
+  border: '1px solid #ccc',
+  borderRadius: 8,
+  padding: 16,
+  width: 220,
+  cursor: 'pointer',
+  background: '#f9f9f9',
+  boxSizing: 'border-box',
+};
+
+const newCardStyle = {
+  ...cardStyle,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: '#eee',
+  color: '#666',
+};
+
+// Main App
+function App(){
+  const [wallets, setWallets] = useState(loadWallets);
+  const [servers, setServers] = useState(loadServers);
+  const [screen, setScreen] = useState('home');
+  const [activeWalletId, setActiveWalletId] = useState(null);
+  const networks = useMemo(()=>getNetworks(servers), [servers]);
+  const addWallet = (wallet)=>{
+    const updated = [...wallets, wallet];
+    setWallets(updated);
+    saveWallets(updated);
+  };
+  const deleteWallet = (id)=>{
+    const updated = wallets.filter(w=>w.id !== id);
+    setWallets(updated);
+    saveWallets(updated);
+    setScreen('home');
+    setActiveWalletId(null);
+  };
+  const activeWallet = wallets.find(w=>w.id===activeWalletId);
+  const goHome = ()=>setScreen('home');
   return (
-    <div>
-      <h2>Home</h2>
-      {address ? (
-        <>
-          <p><strong>Address:</strong> {address}</p>
-          <p><strong>Balance:</strong> {(balance / 1e8).toFixed(8)} BTC</p>
-          <h3>Recent Transactions</h3>
-          {!transactions.length ? (
-            <p>No transactions yet</p>
-          ) : (
-            <ul>
-              {transactions.map((tx, i)=>(
-                <li key={i}>
-                  {tx.tx_hash.slice(0, 12)}... {tx.height>0 ? `(${tx.height})` : '(unconfirmed)'}
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      ) : (
-        <>
-          <p>No wallet loaded yet.</p>
-          <button onClick={wallet_gen}>Generate New Wallet</button>
-        </>
+    <div style={{fontFamily: 'sans-serif', maxWidth: 960, margin: '0 auto', padding: 16}}>
+      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16}}>
+        <h1 style={{cursor: 'pointer', fontSize: 24, margin: 0}} onClick={goHome}>Lif Wallet</h1>
+        <button onClick={()=>setScreen('settings')}>⚙ Settings</button>
+      </div>
+
+      {screen=='home' && (
+        <HomeScreen
+          wallets={wallets}
+          networks={networks}
+          onSelect={(id)=>{ setActiveWalletId(id); setScreen('wallet-detail'); }}
+          onAddNew={()=>setScreen('add-wallet')}
+        />
+      )}
+      {screen=='add-wallet' && (
+        <AddWalletScreen
+          networks={networks}
+          onAdd={(w)=>{ addWallet(w); goHome(); }}
+          onCancel={goHome}
+        />
+      )}
+      {screen=='wallet-detail' && activeWallet && (
+        <WalletDetailScreen
+          wallet={activeWallet}
+          networks={networks}
+          onDelete={()=>deleteWallet(activeWallet.id)}
+          onBack={goHome}
+        />
+      )}
+      {screen=='settings' && (
+        <SettingsScreen
+          servers={servers}
+          networks={networks}
+          onSave={(s)=>{ setServers(s); saveServers(s); }}
+          onBack={goHome}
+        />
       )}
     </div>
   );
 }
 
-function BackupScreen({mnemonic}){
+// Home Screen
+function HomeScreen({wallets, networks, onSelect, onAddNew}){
   return (
     <div>
-      <h2>Backup Mnemonic</h2>
-      <div>{mnemonic || 'No mnemonic available'}</div>
+      <h2>My Wallets</h2>
+      <div style={{display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 16}}>
+        {wallets.map(wallet=>(
+          <WalletCard
+            key={wallet.id}
+            wallet={wallet}
+            networks={networks}
+            onClick={()=>onSelect(wallet.id)}
+          />
+        ))}
+        <div style={newCardStyle} onClick={onAddNew}>
+          <div style={{textAlign: 'center'}}>
+            <div style={{fontSize: 36, lineHeight: 1}}>+</div>
+            <div style={{fontSize: 13, marginTop: 4}}>New Wallet</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function SendScreen({client, privateKey, address, network, getScriptHash,
-  conf})
-{
+// Wallet Card (summary box on home screen)
+function WalletCard({wallet, networks, onClick}){
+  const [balance, setBalance] = useState(null);
+  const [utxoCount, setUtxoCount] = useState(null);
+  const [connErr, setConnErr] = useState(false);
+  const conf = networks[wallet.network] || Object.values(networks)[0];
+  const derived = useMemo(()=>{
+    try { return deriveWallet(wallet.mnemonic, wallet.network, networks); }
+    catch { return null; }
+  }, [wallet.id, wallet.network]);
+
+  useEffect(()=>{
+    if (!derived)
+      return;
+    const {address, network, conf} = derived;
+    let cl;
+    (async ()=>{
+      cl = Electrum_connect(conf.electrum);
+      try {
+        await cl.connect('lif-coin-wallet', '1.4');
+        const sh = getScriptHash(address, network);
+        const [bal, utxos] = await Promise.all([
+          cl.blockchain_scripthash_getBalance(sh),
+          cl.blockchain_scripthash_listunspent(sh),
+        ]);
+        setBalance(bal.confirmed + bal.unconfirmed);
+        setUtxoCount(utxos.length);
+      } catch(e){
+        console.error('WalletCard fetch error:', e);
+        setConnErr(true);
+      } finally {
+        try { cl?.close(); } catch {}
+      }
+    })();
+  }, [wallet.id, wallet.network, conf.electrum]);
+
+  if (!derived)
+    return (
+    <div style={{...cardStyle, color: 'red'}} onClick={onClick}>
+      <p>Invalid wallet</p>
+    </div>
+  );
+
+  const {address} = derived;
+  const label = wallet.name || (address.slice(0, 10) + '...');
+  const symbol = conf.symbol || 'BTC';
+  return (
+    <div style={cardStyle} onClick={onClick}>
+      <div style={{fontWeight: 'bold', fontSize: 15, wordBreak: 'break-all'}}>{label}</div>
+      <div style={{fontSize: 12, color: '#888', marginTop: 2}}>{conf.name}</div>
+      <div style={{fontSize: 11, color: '#aaa', fontFamily: 'monospace', marginTop: 4}}>
+        {address.slice(0, 22)}...
+      </div>
+      <div style={{marginTop: 10}}>
+        {connErr ? (
+          <span style={{color: '#c00', fontSize: 12}}>Connection error</span>
+        ) : balance===null ? (
+          <span style={{color: '#aaa', fontSize: 12}}>Loading…</span>
+        ) : (
+          <>
+            <div style={{fontWeight: 'bold'}}>
+              {(balance / 1e8).toFixed(8)} {symbol}
+            </div>
+            <div style={{fontSize: 12, color: '#666'}}>
+              {utxoCount} UTXO{utxoCount !== 1 ? 's' : ''}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Add Wallet Screen ───────────────────────────────────────────────────────
+
+function AddWalletScreen({networks, onAdd, onCancel}){
+  const [networkKey, setNetworkKey] = useState('mainnet');
+  const [mode, setMode] = useState('generate'); // 'generate' | 'restore'
+  const [mnemonicInput, setMnemonicInput] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const handleAdd = ()=>{
+    setError('');
+    let mnemonic;
+    if (mode=='generate'){
+      mnemonic = bip39.generateMnemonic();
+    } else {
+      const cleaned = mnemonicInput.trim().toLowerCase();
+      if (!bip39.validateMnemonic(cleaned)){
+        setError('Invalid mnemonic phrase');
+        return;
+      }
+      mnemonic = cleaned;
+    }
+    try {
+      deriveWallet(mnemonic, networkKey, networks);
+    } catch(e){
+      setError('Failed to derive wallet: ' + e.message);
+      return;
+    }
+    onAdd({id: Date.now().toString(), name: name.trim(), network: networkKey, mnemonic});
+  };
+  return (
+    <div style={{maxWidth: 480}}>
+      <h2>Add Wallet</h2>
+      <div style={{marginTop: 12}}>
+        <label>Name (optional):</label>
+        <input
+          value={name}
+          onChange={e=>setName(e.target.value)}
+          placeholder="My Wallet"
+          style={{display: 'block', width: '100%', marginTop: 4, boxSizing: 'border-box'}}
+        />
+      </div>
+      <div style={{marginTop: 12}}>
+        <label>Network:</label>
+        <select
+          value={networkKey}
+          onChange={e=>setNetworkKey(e.target.value)}
+          style={{display: 'block', width: '100%', marginTop: 4}}
+        >
+          {Object.entries(networks).map(([key, conf])=>(
+            <option key={key} value={key}>{conf.name}</option>
+          ))}
+        </select>
+      </div>
+      <div style={{marginTop: 12}}>
+        <label>Wallet key:</label>
+        <div style={{display: 'flex', gap: 8, marginTop: 4}}>
+          <button
+            onClick={()=>setMode('generate')}
+            style={{fontWeight: mode=='generate' ? 'bold' : 'normal'}}
+          >Generate new</button>
+          <button
+            onClick={()=>setMode('restore')}
+            style={{fontWeight: mode=='restore' ? 'bold' : 'normal'}}
+          >Restore from mnemonic</button>
+        </div>
+        {mode=='restore' && (
+          <textarea
+            rows={4}
+            placeholder="Enter your 12/24 words (space separated)"
+            value={mnemonicInput}
+            onChange={e=>setMnemonicInput(e.target.value)}
+            style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
+          />
+        )}
+        {mode=='generate' && (
+          <p style={{color: '#666', fontSize: 13, marginTop: 8}}>
+            A new mnemonic will be generated. Back it up after adding!
+          </p>
+        )}
+      </div>
+      {error && <p style={{color: 'red', marginTop: 8}}>{error}</p>}
+      <div style={{marginTop: 16, display: 'flex', gap: 8}}>
+        <button onClick={handleAdd}>Add Wallet</button>
+        <button onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// Wallet Detail Screen
+function WalletDetailScreen({wallet, networks, onDelete, onBack}){
+  const [client, setClient] = useState(null);
+  const [balance, setBalance] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [subscreen, setSubscreen] = useState('overview');
+  const [loading, setLoading] = useState(false);
+  const [connErr, setConnErr] = useState(false);
+  const derived = useMemo(()=>{
+    try { return deriveWallet(wallet.mnemonic, wallet.network, networks); }
+    catch { return null; }
+  }, [wallet.id, wallet.network]);
+  const fetchData = async (cl, address, network)=>{
+    setLoading(true);
+    try {
+      const sh = getScriptHash(address, network);
+      const [bal, hist] = await Promise.all([
+        cl.blockchain_scripthash_getBalance(sh),
+        cl.blockchain_scripthash_getHistory(sh),
+      ]);
+      setBalance(bal.confirmed + bal.unconfirmed);
+      setTransactions(hist);
+    } catch(e){
+      console.error('fetchData error:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(()=>{
+    if (!derived)
+      return;
+    const {address, network, conf} = derived;
+    const cl = Electrum_connect(conf.electrum);
+    cl.connect('lif-coin-wallet', '1.4').then(()=>{
+      setClient(cl);
+      fetchData(cl, address, network);
+    }).catch(e=>{
+      console.error('Connect error:', e);
+      setConnErr(true);
+    });
+    return ()=>{
+      try { cl.close(); } catch{};
+    };
+  }, [wallet.id, wallet.network]);
+  if (!derived){
+    return (
+      <div>
+        <button onClick={onBack}>← Back</button>
+        <p style={{color: 'red', marginTop: 8}}>Invalid wallet data</p>
+      </div>
+    );
+  }
+  const {address, keyPair, network, conf} = derived;
+  const symbol = conf.symbol || 'BTC';
+  const label = wallet.name || address;
+  const handleDelete = ()=>{
+    if (window.confirm(`Delete wallet "${label}"?\n\nMake sure you have backed up the mnemonic!`))
+      onDelete();
+  };
+  return (
+    <div>
+      <button onClick={onBack}>← Back</button>
+      <h2 style={{marginTop: 8}}>{label}</h2>
+      <div style={{color: '#888', fontSize: 13}}>{conf.name}</div>
+
+      {connErr && (
+        <p style={{color: '#c00', marginTop: 8}}>
+          Failed to connect to Electrum server ({conf.electrum})
+        </p>
+      )}
+
+      <div style={{marginTop: 10}}>
+        <strong>Address:</strong>
+        <div style={{fontFamily: 'monospace', wordBreak: 'break-all', fontSize: 14, marginTop: 2}}>
+          {address}
+        </div>
+      </div>
+      <div style={{marginTop: 6}}>
+        <strong>Balance:</strong>{' '}
+        {balance===null
+          ? (connErr ? 'unavailable' : 'loading…')
+          : `${(balance / 1e8).toFixed(8)} ${symbol}`
+        }
+      </div>
+
+      <div style={{display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center'}}>
+        <button
+          onClick={()=>setSubscreen('overview')}
+          style={{fontWeight: subscreen=='overview' ? 'bold' : 'normal'}}
+        >Overview</button>
+        <button
+          onClick={()=>setSubscreen('send')}
+          disabled={!client}
+          style={{fontWeight: subscreen=='send' ? 'bold' : 'normal'}}
+        >Send</button>
+        <button
+          onClick={()=>setSubscreen('backup')}
+          style={{fontWeight: subscreen=='backup' ? 'bold' : 'normal'}}
+        >Backup</button>
+        <button
+          onClick={handleDelete}
+          style={{marginLeft: 'auto', color: '#c00', border: '1px solid #c00', background: 'transparent'}}
+        >Delete Wallet</button>
+      </div>
+
+      {subscreen=='overview' && (
+        <div style={{marginTop: 16}}>
+          <h3>Transactions</h3>
+          {loading ? (
+            <p style={{color: '#aaa'}}>Loading…</p>
+          ) : !transactions.length ? (
+            <p>No transactions yet.</p>
+          ) : (
+            <ul style={{marginTop: 8, paddingLeft: 16}}>
+              {transactions.map((tx, i)=>(
+                <li key={i} style={{fontFamily: 'monospace', fontSize: 13, marginTop: 4}}>
+                  {conf.explorer_tx ? (
+                    <a href={conf.explorer_tx + tx.tx_hash} target="_blank" rel="noreferrer">
+                      {tx.tx_hash.slice(0, 24)}…
+                    </a>
+                  ) : (
+                    <span>{tx.tx_hash.slice(0, 24)}…</span>
+                  )}
+                  {' '}
+                  <span style={{color: '#888'}}>
+                    {tx.height > 0 ? `block ${tx.height}` : 'unconfirmed'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {client && (
+            <button style={{marginTop: 10}} onClick={()=>fetchData(client, address, network)}>
+              Refresh
+            </button>
+          )}
+        </div>
+      )}
+
+      {subscreen=='send' && client && (
+        <SendScreen
+          client={client}
+          privateKey={keyPair}
+          address={address}
+          network={network}
+          conf={conf}
+          getScriptHash={(addr)=>getScriptHash(addr, network)}
+          onSent={()=>{ setSubscreen('overview'); fetchData(client, address, network); }}
+        />
+      )}
+
+      {subscreen=='backup' && (
+        <div style={{marginTop: 16, maxWidth: 480}}>
+          <h3>Backup Mnemonic</h3>
+          <p style={{color: '#c00', fontSize: 13, marginTop: 4}}>
+            Keep this secret! Anyone with these words can steal your funds.
+          </p>
+          <div style={{
+            fontFamily: 'monospace',
+            background: '#f4f4f4',
+            border: '1px solid #ccc',
+            borderRadius: 4,
+            padding: 12,
+            marginTop: 8,
+            wordBreak: 'break-word',
+            fontSize: 15,
+            lineHeight: 1.8,
+          }}>
+            {wallet.mnemonic}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Send Screen
+function SendScreen({client, privateKey, address, network, conf, getScriptHash, onSent}){
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
-  const handleSend = async()=>{
+  const [sending, setSending] = useState(false);
+  const handleSend = async ()=>{
     if (!client || !privateKey || !address)
       return;
     const amountValue = parseInt(amountSat, 10);
@@ -341,7 +574,7 @@ function SendScreen({client, privateKey, address, network, getScriptHash,
     const scripthash = getScriptHash(address);
     let utxos;
     try {
-      utxos = await client.blockchainScripthashListunspent(scripthash);
+      utxos = await client.blockchain_scripthash_listunspent(scripthash);
     } catch(err){
       return alert('Failed to fetch UTXOs');
     }
@@ -349,13 +582,13 @@ function SendScreen({client, privateKey, address, network, getScriptHash,
       return alert('No funds available');
     const utxo = utxos[0];
     const fee = 2000;
-    if (utxo.value < amountValue+fee)
+    if (utxo.value < amountValue + fee)
       return alert('Insufficient balance');
     const psbt = new bitcoin.Psbt({network});
     psbt.addInput({
       hash: utxo.tx_hash,
       index: utxo.tx_pos,
-      witnessUtxo: { value: utxo.value, script: bitcoin.address.toOutputScript(address, network) },
+      witnessUtxo: {value: utxo.value, script: bitcoin.address.toOutputScript(address, network)},
     });
     psbt.addOutput({address: toAddress, value: amountValue});
     const change = utxo.value - amountValue - fee;
@@ -364,79 +597,89 @@ function SendScreen({client, privateKey, address, network, getScriptHash,
     psbt.signInput(0, privateKey);
     psbt.finalizeAllInputs();
     const txHex = psbt.extractTransaction().toHex();
+    setSending(true);
     try {
-      const txid = await client.blockchainTransactionBroadcast(txHex);
-      alert(`Transaction broadcast!\nTXID: ${txid}\n\n${conf.explorerTx}${txid}`);
+      const txid = await client.blockchain_transaction_broadcast(txHex);
+      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
+      alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
       setToAddress('');
       setAmountSat('');
-    } catch (err) {
+      onSent?.();
+    } catch(err){
       alert('Broadcast failed: ' + err.message);
+    } finally {
+      setSending(false);
     }
   };
+  const symbol = conf.symbol||'BTC';
   return (
-    <div>
-      <h2>Send Bitcoin</h2>
+    <div style={{marginTop: 16, maxWidth: 400}}>
+      <h3>Send {symbol}</h3>
       <input
         placeholder="Recipient address"
         value={toAddress}
-        onChange={(e) => setToAddress(e.target.value)}
-        style={{width: '100%'}}
+        onChange={e=>setToAddress(e.target.value)}
+        style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
       />
       <input
         type="number"
         placeholder="Amount (satoshis)"
         value={amountSat}
         onChange={e=>setAmountSat(e.target.value)}
-        style={{width: '100%'}}
+        style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
       />
-      <button onClick={handleSend}>Send</button>
+      <button onClick={handleSend} disabled={sending} style={{marginTop: 8}}>
+        {sending ? 'Sending…' : 'Send'}
+      </button>
     </div>
   );
 }
 
-function RestoreScreen({deriveWalletFromMnemonic, setCurrentScreen}){
-  const [input, setInput] = useState('');
-  const handleRestore = () => {
-    const cleaned = input.trim().toLowerCase();
-    if (bip39.validateMnemonic(cleaned)) {
-      deriveWalletFromMnemonic(cleaned);
-      setCurrentScreen('home');
-    } else {
-      alert('Invalid mnemonic phrase');
+// Settings Screen
+function SettingsScreen({servers, networks, onSave, onBack}){
+  const [values, setValues] = useState(()=>{
+    const v = {};
+    for (const key of Object.keys(networks))
+      v[key] = servers[key] || networks[key].electrum;
+    return v;
+  });
+
+  const handleSave = ()=>{
+    const newServers = {};
+    for (const key of Object.keys(networks)){
+      const val = values[key]?.trim();
+      if (val)
+        newServers[key] = val;
     }
+    onSave(newServers);
+    alert('Settings saved');
+  };
+  const handleReset = (key)=>{
+    setValues(v=>({...v, [key]: DEFAULT_NETWORKS[key]?.electrum || ''}));
   };
   return (
-    <div>
-      <h2>Restore from Mnemonic</h2>
-      <textarea
-        rows={4}
-        placeholder="Enter your 12/24 words (space separated)"
-        value={input}
-        onChange={e=>setInput(e.target.value)}
-        style={{width: '100%'}}
-      />
-      <button onClick={handleRestore}>Restore Wallet</button>
-    </div>
-  );
-}
-
-function SettingsScreen({_network, setNetwork, wallet_del, NETWORKS}){
-  return (
-    <div>
-      <h2>Settings</h2>
-      <label>Network:</label>
-      <select
-        value={_network}
-        onChange={e=>setNetwork(e.target.value)}
-        style={{display: 'block', width: '100%'}}
-      >
-        {Object.keys(NETWORKS).map(key=>(
-          <option key={key} value={key}>{NETWORKS[key].name}</option>
-        ))}
-      </select>
-      <button onClick={wallet_del}>
-        Delete Stored Wallet (Clear Mnemonic)
-      </button>
+    <div style={{maxWidth: 520}}>
+      <button onClick={onBack}>← Back</button>
+      <h2 style={{marginTop: 8}}>Settings</h2>
+      <h3 style={{marginTop: 16}}>ElectrumX Servers</h3>
+      <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
+        Configure the ElectrumX server URL for each network.
+      </p>
+      {Object.entries(networks).map(([key, conf])=>(
+        <div key={key} style={{marginTop: 14}}>
+          <label style={{fontWeight: 'bold'}}>{conf.name}:</label>
+          <div style={{display: 'flex', gap: 6, marginTop: 4}}>
+            <input
+              value={values[key] || ''}
+              onChange={e=>setValues(v=>({...v, [key]: e.target.value}))}
+              placeholder={DEFAULT_NETWORKS[key]?.electrum}
+              style={{flex: 1, fontFamily: 'monospace', fontSize: 12, boxSizing: 'border-box'}}
+            />
+            <button onClick={()=>handleReset(key)} title="Reset to default">↺</button>
+          </div>
+        </div>
+      ))}
+      <button onClick={handleSave} style={{marginTop: 20}}>Save Settings</button>
     </div>
   );
 }
