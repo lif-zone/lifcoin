@@ -157,7 +157,10 @@ function BrightWallet(){
   return (
     <div style={{fontFamily: 'sans-serif', maxWidth: 960, margin: '0 auto', padding: 16}}>
       <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16}}>
-        <h1 style={{cursor: 'pointer', fontSize: 24, margin: 0}} onClick={goHome}>Bright Wallet</h1>
+        <h1 style={{cursor: 'pointer', fontSize: 24, margin: 0, display: 'flex', alignItems: 'center', gap: 8}} onClick={goHome}>
+          <img src={import.meta.resolve('./bright.ico')} style={{width: 32, height: 32}} />
+          Bright Wallet
+        </h1>
         {(screen=='home' || screen=='settings') &&
           <button onClick={()=>setScreen('settings')}>⚙ Settings</button>
         }
