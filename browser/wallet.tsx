@@ -158,7 +158,9 @@ function BrightWallet(){
     <div style={{fontFamily: 'sans-serif', maxWidth: 960, margin: '0 auto', padding: 16}}>
       <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16}}>
         <h1 style={{cursor: 'pointer', fontSize: 24, margin: 0}} onClick={goHome}>Bright Wallet</h1>
-        <button onClick={()=>setScreen('settings')}>⚙ Settings</button>
+        {(screen=='home' || screen=='settings') &&
+          <button onClick={()=>setScreen('settings')}>⚙ Settings</button>
+        }
       </div>
 
       {screen=='home' && (
@@ -200,7 +202,6 @@ function BrightWallet(){
 function HomeScreen({wallets, networks, onSelect, onAddNew}){
   return (
     <div>
-      <h2>My Wallets</h2>
       <div style={{display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 16}}>
         {wallets.map(wallet=>(
           <WalletCard
@@ -324,6 +325,7 @@ function AddWalletScreen({networks, onAdd, onCancel}){
   };
   return (
     <div style={{maxWidth: 480}}>
+      <button onClick={onCancel}>← Back</button>
       <h2>Add Wallet</h2>
       <div style={{marginTop: 12}}>
         <label>Name (optional):</label>
