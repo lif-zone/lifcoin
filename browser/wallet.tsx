@@ -228,7 +228,7 @@ function HomeScreen({wallets, networks, onSelect, onAddNew}){
 // Wallet Card (summary box on home screen)
 function WalletCard({wallet, networks, onClick}){
   const [balance, setBalance] = useState(null);
-  const [utxoCount, setUtxoCount] = useState(null);
+  const [txCount, setTxCount] = useState(null);
   const [connErr, setConnErr] = useState(false);
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const derived = useMemo(()=>{
@@ -246,12 +246,13 @@ function WalletCard({wallet, networks, onClick}){
       try {
         await cl.connect('lif-coin-wallet', '1.4');
         const sh = getScriptHash(address, network);
-        const [bal, utxos] = await Promise.all([
+        const [bal, hist] = await Promise.all([
           cl.blockchain_scripthash_getBalance(sh),
+          cl.blockchain_scripthash_getHistory(sh),
           cl.blockchain_scripthash_listunspent(sh),
         ]);
         setBalance(bal.confirmed + bal.unconfirmed);
-        setUtxoCount(utxos.length);
+        setTxCount(hist.length);
       } catch(e){
         console.error('WalletCard fetch error:', e);
         setConnErr(true);
@@ -289,7 +290,7 @@ function WalletCard({wallet, networks, onClick}){
               {(balance / 1e8).toFixed(8)} {symbol}
             </div>
             <div style={{fontSize: 12, color: '#666'}}>
-              {utxoCount} UTXO{utxoCount !== 1 ? 's' : ''}
+              {txCount ? ''+txCount+' TXs' : 'No transactions'}
             </div>
           </>
         )}
