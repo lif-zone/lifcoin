@@ -214,6 +214,7 @@ function BrightWallet(){
       {screen=='add-wallet' && (
         <AddWalletScreen
           networks={networks}
+          wallets={wallets}
           onAdd={(w)=>{ addWallet(w); goHome(); }}
           onCancel={goHome}
         />
@@ -355,12 +356,21 @@ function WalletCard({wallet, networks, onClick}){
 }
 
 // Add Wallet Screen
-function AddWalletScreen({networks, onAdd, onCancel}){
+function AddWalletScreen({networks, wallets, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('mainnet');
   const [keyMode, setKeyMode] = useState('generate'); // 'generate' | 'restore'
   const [addrMode, setAddrMode] = useState('hd'); // 'single' | 'hd'
   const [mnemonicInput, setMnemonicInput] = useState('');
-  const [name, setName] = useState('');
+  const defaultName = (()=>{
+    let max = 0;
+    for (const w of wallets){
+      const m = w.name && w.name.match(/^Wallet #(\d+)$/);
+      if (m)
+        max = Math.max(max, parseInt(m[1], 10));
+    }
+    return 'Wallet #'+(max+1);
+  })();
+  const [name, setName] = useState(defaultName);
   const [usePassphrase, setUsePassphrase] = useState(false);
   const [passphrase, setPassphrase] = useState('');
   const [error, setError] = useState('');
@@ -390,7 +400,7 @@ function AddWalletScreen({networks, onAdd, onCancel}){
     <div style={{maxWidth: 480}}>
       <h2>Add Wallet</h2>
       <div style={{marginTop: 12}}>
-        <label>Name (optional):</label>
+        <label>Name:</label>
         <input
           value={name}
           onChange={e=>setName(e.target.value)}
