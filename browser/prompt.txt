@@ -194,3 +194,22 @@ Done. Notes on the implementation:
 USER: can you put to prompt.txt all the log of everything you displayed to me in this whole session? my prompts, your suggested code, your summaries ("Done. ...")?
 
 CLAUDE: [wrote this file]
+
+---
+
+USER: add a checkbox in create new wallet page to set a password ("passphrase"). if checked, a text field will appear for bech32 password entry.
+
+CLAUDE: [Added passphrase support to AddWalletScreen and all getRoot/deriveWallet callers]
+
+Done. Changes made:
+- getRoot(mnemonic, network, passphrase='') — passes passphrase to mnemonicToSeedSync
+- deriveWallet(...) — forwards passphrase to getRoot
+- WalletCard, WalletDetailScreen (fetchData + useEffect) — all pass wallet.passphrase||''
+- AddWalletScreen — added usePassphrase checkbox and conditional passphrase text input; passphrase saved in wallet object
+- Wallets without passphrase store passphrase: '' and behave identically to before
+
+---
+
+USER: always update also prompt.txt - please update it now (and in the future, once a task is Done)
+
+CLAUDE: [updated prompt.txt]

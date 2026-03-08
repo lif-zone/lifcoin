@@ -67,8 +67,8 @@ function getNetworks(servers){
   return result;
 }
 
-function getRoot(mnemonic, network){
-  return bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic), network);
+function getRoot(mnemonic, network, passphrase=''){
+  return bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic, passphrase), network);
 }
 
 function deriveAddrAt(root, conf, network, chain, index){
@@ -78,10 +78,10 @@ function deriveAddrAt(root, conf, network, chain, index){
   return {address, keyPair, chain, index};
 }
 
-function deriveWallet(mnemonic, networkKey, networks){
+function deriveWallet(mnemonic, networkKey, networks, passphrase=''){
   const conf = networks[networkKey];
   const network = conf.network;
-  const root = getRoot(mnemonic, network);
+  const root = getRoot(mnemonic, network, passphrase);
   const {address, keyPair} = deriveAddrAt(root, conf, network, 0, 0);
   return {address, keyPair, network, conf, root};
 }
@@ -265,7 +265,7 @@ function WalletCard({wallet, networks, onClick}){
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const isHD = wallet.mode=='hd';
   const derived = useMemo(()=>{
-    try { return deriveWallet(wallet.mnemonic, wallet.network, networks); }
+    try { return deriveWallet(wallet.mnemonic, wallet.network, networks, wallet.passphrase||''); }
     catch { return null; }
   }, [wallet.id, wallet.network]);
 
@@ -356,6 +356,8 @@ function AddWalletScreen({networks, onAdd, onCancel}){
   const [addrMode, setAddrMode] = useState('single'); // 'single' | 'hd'
   const [mnemonicInput, setMnemonicInput] = useState('');
   const [name, setName] = useState('');
+  const [usePassphrase, setUsePassphrase] = useState(false);
+  const [passphrase, setPassphrase] = useState('');
   const [error, setError] = useState('');
   const handleAdd = ()=>{
     setError('');
@@ -370,13 +372,14 @@ function AddWalletScreen({networks, onAdd, onCancel}){
       }
       mnemonic = cleaned;
     }
+    const pp = usePassphrase ? passphrase : '';
     try {
-      deriveWallet(mnemonic, networkKey, networks);
+      deriveWallet(mnemonic, networkKey, networks, pp);
     } catch(e){
       setError('Failed to derive wallet: '+e.message);
       return;
     }
-    onAdd({id: Date.now().toString(), name: name.trim(), network: networkKey, mnemonic, mode: addrMode});
+    onAdd({id: Date.now().toString(), name: name.trim(), network: networkKey, mnemonic, mode: addrMode, passphrase: pp});
   };
   return (
     <div style={{maxWidth: 480}}>
@@ -441,6 +444,25 @@ function AddWalletScreen({networks, onAdd, onCancel}){
           </p>
         )}
       </div>
+      <div style={{marginTop: 12}}>
+        <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
+          <input
+            type="checkbox"
+            checked={usePassphrase}
+            onChange={e=>setUsePassphrase(e.target.checked)}
+          />
+          Use passphrase (BIP39 25th word)
+        </label>
+        {usePassphrase && (
+          <input
+            type="text"
+            placeholder="Passphrase"
+            value={passphrase}
+            onChange={e=>setPassphrase(e.target.value)}
+            style={{display: 'block', width: '100%', marginTop: 6, boxSizing: 'border-box'}}
+          />
+        )}
+      </div>
       {error && <p style={{color: 'red', marginTop: 8}}>{error}</p>}
       <div style={{marginTop: 16, display: 'flex', gap: 8}}>
         <button onClick={handleAdd}>Add Wallet</button>
@@ -469,7 +491,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
   const fetchData = async (cl)=>{
     setLoading(true);
     try {
-      const root = getRoot(wallet.mnemonic, network);
+      const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
       let addrs, recvAddr, chgAddr;
       if (isHD){
         const [extRes, chgRes] = await Promise.all([
@@ -557,7 +579,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
   };
 
   useEffect(()=>{
-    try { getRoot(wallet.mnemonic, network); } catch(e){ return; }
+    try { getRoot(wallet.mnemonic, network, wallet.passphrase||''); } catch(e){ return; }
     const cl = Electrum_connect(conf.electrum);
     (async()=>{
       try {
