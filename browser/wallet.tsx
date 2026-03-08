@@ -358,7 +358,6 @@ function WalletCard({wallet, networks, onClick}){
 // Add Wallet Screen
 function AddWalletScreen({networks, wallets, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('mainnet');
-  const [keyMode, setKeyMode] = useState('generate'); // 'generate' | 'restore'
   const [addrMode, setAddrMode] = useState('hd'); // 'single' | 'hd'
   const [mnemonicInput, setMnemonicInput] = useState('');
   const defaultName = (()=>{
@@ -374,19 +373,17 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
   const [usePassphrase, setUsePassphrase] = useState(false);
   const [passphrase, setPassphrase] = useState('');
   const [error, setError] = useState('');
+  const handleGenerate = ()=>{
+    setMnemonicInput(bip39.generateMnemonic());
+  };
   const handleAdd = ()=>{
     setError('');
-    let mnemonic;
-    if (keyMode=='generate'){
-      mnemonic = bip39.generateMnemonic();
-    } else {
-      const cleaned = mnemonicInput.trim().toLowerCase();
-      if (!bip39.validateMnemonic(cleaned)){
-        setError('Invalid mnemonic phrase');
-        return;
-      }
-      mnemonic = cleaned;
+    const cleaned = mnemonicInput.trim().toLowerCase();
+    if (!bip39.validateMnemonic(cleaned)){
+      setError('Invalid mnemonic phrase');
+      return;
     }
+    const mnemonic = cleaned;
     const pp = usePassphrase ? passphrase : '';
     try {
       deriveWallet(mnemonic, networkKey, networks, pp);
@@ -432,31 +429,17 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
         </select>
       </div>
       <div style={{marginTop: 12}}>
-        <label>Wallet key:</label>
-        <div style={{display: 'flex', gap: 8, marginTop: 4}}>
-          <button
-            onClick={()=>setKeyMode('generate')}
-            style={{fontWeight: keyMode=='generate' ? 'bold' : 'normal'}}
-          >Generate new</button>
-          <button
-            onClick={()=>setKeyMode('restore')}
-            style={{fontWeight: keyMode=='restore' ? 'bold' : 'normal'}}
-          >Restore from mnemonic</button>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+          <label>Mnemonic:</label>
+          <button onClick={handleGenerate}>Generate</button>
         </div>
-        {keyMode=='restore' && (
-          <textarea
-            rows={4}
-            placeholder="Enter the wallet's secret 12/24 words"
-            value={mnemonicInput}
-            onChange={e=>setMnemonicInput(e.target.value)}
-            style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
-          />
-        )}
-        {keyMode=='generate' && (
-          <p style={{color: '#666', fontSize: 13, marginTop: 8}}>
-            A new mnemonic will be generated. Back it up after adding!
-          </p>
-        )}
+        <textarea
+          rows={4}
+          placeholder={'Enter the 12 or 24 words of your wallet, or click "Generate" to create a new wallet.'}
+          value={mnemonicInput}
+          onChange={e=>setMnemonicInput(e.target.value)}
+          style={{display: 'block', width: '100%', marginTop: 6, boxSizing: 'border-box'}}
+        />
       </div>
       <div style={{marginTop: 12}}>
         <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>

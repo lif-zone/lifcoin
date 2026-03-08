@@ -231,3 +231,9 @@ CLAUDE: Moved ← Back button into the header bar, left of the icon/title. Shows
 USER: in "new wallet" in name field: give a default "Wallet #1" "Wallet #2".. etc (find the last number used in existing wallets, and do plus 1)
 
 CLAUDE: Passed wallets to AddWalletScreen, computed default name by scanning existing wallet names for "Wallet #N" pattern and using max+1.
+
+---
+
+USER: in "new wallet" screen, always show the text box for the mnemonic. no need for the "restore" button. in the suggestion text write enter the 12 or 24 words of your wallet, or click "Generate" to create a new wallet. clicking on Generate will put there 12 random words.
+
+CLAUDE: Removed keyMode toggle and generate/restore buttons. Mnemonic textarea always visible with updated placeholder. Added Generate button inline next to the label that fills the textarea with a fresh mnemonic.
