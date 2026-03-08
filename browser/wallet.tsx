@@ -353,7 +353,7 @@ function WalletCard({wallet, networks, onClick}){
 function AddWalletScreen({networks, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('mainnet');
   const [keyMode, setKeyMode] = useState('generate'); // 'generate' | 'restore'
-  const [addrMode, setAddrMode] = useState('single'); // 'single' | 'hd'
+  const [addrMode, setAddrMode] = useState('hd'); // 'single' | 'hd'
   const [mnemonicInput, setMnemonicInput] = useState('');
   const [name, setName] = useState('');
   const [usePassphrase, setUsePassphrase] = useState(false);

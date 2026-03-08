@@ -213,3 +213,9 @@ Done. Changes made:
 USER: always update also prompt.txt - please update it now (and in the future, once a task is Done)
 
 CLAUDE: [updated prompt.txt]
+
+---
+
+USER: make unique address default for new wallets created
+
+CLAUDE: Changed addrMode initial state from 'single' to 'hd' in AddWalletScreen.
