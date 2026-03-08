@@ -418,7 +418,7 @@ function AddWalletScreen({networks, onAdd, onCancel}){
           style={{display: 'block', width: '100%', marginTop: 4}}
         >
           <option value="single">Same address for all transactions</option>
-          <option value="hd">Unique address for every transaction (BIP84)</option>
+          <option value="hd">Unique address for each transaction (BIP84)</option>
         </select>
       </div>
       <div style={{marginTop: 12}}>
