@@ -410,14 +410,42 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
         cl.blockchain_scripthash_getHistory(sh),
       ]);
       setBalance(bal.confirmed + bal.unconfirmed);
-      // fetch block headers to get timestamps for confirmed txs
+      // fetch verbose txs + block headers in parallel
       const heights = [...new Set(hist.filter(tx=>tx.height>0).map(tx=>tx.height))];
-      const headers = await Promise.all(heights.map(h=>cl.blockchain_block_header(h)));
+      const [verboseTxs, ...headers] = await Promise.all([
+        Promise.all(hist.map(tx=>cl.blockchain_transaction_get(tx.tx_hash, true))),
+        ...heights.map(h=>cl.blockchain_block_header(h)),
+      ]);
+      // timestamps
       const tsMap = {};
-      heights.forEach((h, i)=>{
-        tsMap[h] = Buffer.from(headers[i], 'hex').readUInt32LE(68);
-      });
-      setTransactions(hist.map(tx=>({...tx, timestamp: tx.height>0 ? tsMap[tx.height] : null})));
+      heights.forEach((h, i)=>{ tsMap[h] = Buffer.from(headers[i], 'hex').readUInt32LE(68); });
+      // fetch prev txs (for input resolution) - unique txids not already in our history
+      const histTxIds = new Set(hist.map(tx=>tx.tx_hash));
+      const prevTxIds = [...new Set(
+        verboseTxs.flatMap(vtx=>(vtx.vin||[]).map(vin=>vin.txid).filter(id=>id && !histTxIds.has(id)))
+      )];
+      const prevTxList = await Promise.all(prevTxIds.map(id=>cl.blockchain_transaction_get(id, true)));
+      const prevTxMap = {};
+      prevTxIds.forEach((id, i)=>{ prevTxMap[id] = prevTxList[i]; });
+      verboseTxs.forEach(vtx=>{ prevTxMap[vtx.txid] = vtx; });
+      // compute net amount per tx (satoshis, positive=received, negative=sent)
+      const txAddrAmount = (vouts, addr)=>
+        (vouts||[]).reduce((sum, vout)=>{
+          const addrs = vout.scriptPubKey?.addresses || (vout.scriptPubKey?.address ? [vout.scriptPubKey.address] : []);
+          return addrs.includes(addr) ? sum + Math.round(vout.value*1e8) : sum;
+        }, 0);
+      setTransactions(hist.map((tx, i)=>{
+        const vtx = verboseTxs[i];
+        const received = txAddrAmount(vtx.vout, address);
+        const spent = (vtx.vin||[]).reduce((sum, vin)=>{
+          if (!vin.txid) return sum; // coinbase
+          const prevVout = prevTxMap[vin.txid]?.vout?.[vin.vout];
+          if (!prevVout) return sum;
+          const addrs = prevVout.scriptPubKey?.addresses || (prevVout.scriptPubKey?.address ? [prevVout.scriptPubKey.address] : []);
+          return addrs.includes(address) ? sum + Math.round(prevVout.value*1e8) : sum;
+        }, 0);
+        return {...tx, timestamp: tx.height>0 ? tsMap[tx.height] : null, amount: received-spent};
+      }));
     } catch(e){
       console.error('fetchData error:', e);
     } finally {
@@ -512,18 +540,26 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
             <p>No transactions yet.</p>
           ) : (
             <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
-              {transactions.map((tx, i)=>(
-                <li key={i}
-                  onClick={()=>{ setSelectedTx(tx); setSubscreen('tx-detail'); }}
-                  style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
-                    borderBottom: '1px solid #eee'}}
-                >
-                  {tx.timestamp
-                    ? new Date(tx.timestamp*1000).toLocaleString()
-                    : <span style={{color: '#f90'}}>unconfirmed</span>
-                  }
-                </li>
-              ))}
+              {transactions.map((tx, i)=>{
+                const positive = tx.amount>=0;
+                return (
+                  <li key={i}
+                    onClick={()=>{ setSelectedTx(tx); setSubscreen('tx-detail'); }}
+                    style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
+                      borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between'}}
+                  >
+                    <span>
+                      {tx.timestamp
+                        ? new Date(tx.timestamp*1000).toLocaleString()
+                        : <span style={{color: '#f90'}}>unconfirmed</span>
+                      }
+                    </span>
+                    <span style={{fontFamily: 'monospace', color: positive ? 'green' : '#c00'}}>
+                      {positive ? '+' : ''}{(tx.amount/1e8).toFixed(8)} {symbol}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
           {client && (
@@ -581,6 +617,8 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
 // Tx Detail Screen
 function TxDetailScreen({tx, conf, onBack}){
   const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString() : null;
+  const positive = tx.amount>=0;
+  const symbol = conf.symbol||'BTC';
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
       <button onClick={onBack}>← Back</button>
@@ -590,6 +628,14 @@ function TxDetailScreen({tx, conf, onBack}){
       </div>
       {tx.height>0 &&
         <div style={{marginTop: 4}}><strong>Block:</strong> {tx.height}</div>
+      }
+      {tx.amount!==undefined &&
+        <div style={{marginTop: 4}}>
+          <strong>Amount:</strong>{' '}
+          <span style={{fontFamily: 'monospace', color: positive ? 'green' : '#c00'}}>
+            {positive ? '+' : ''}{(tx.amount/1e8).toFixed(8)} {symbol}
+          </span>
+        </div>
       }
       <div style={{marginTop: 8}}><strong>TXID:</strong></div>
       <div style={{fontFamily: 'monospace', wordBreak: 'break-all', fontSize: 13, marginTop: 2}}>
