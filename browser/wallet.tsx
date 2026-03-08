@@ -394,6 +394,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [subscreen, setSubscreen] = useState('overview');
+  const [selectedTx, setSelectedTx] = useState(null);
   const [loading, setLoading] = useState(false);
   const [connErr, setConnErr] = useState(false);
   const derived = useMemo(()=>{
@@ -409,7 +410,14 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
         cl.blockchain_scripthash_getHistory(sh),
       ]);
       setBalance(bal.confirmed + bal.unconfirmed);
-      setTransactions(hist);
+      // fetch block headers to get timestamps for confirmed txs
+      const heights = [...new Set(hist.filter(tx=>tx.height>0).map(tx=>tx.height))];
+      const headers = await Promise.all(heights.map(h=>cl.blockchain_block_header(h)));
+      const tsMap = {};
+      heights.forEach((h, i)=>{
+        tsMap[h] = Buffer.from(headers[i], 'hex').readUInt32LE(68);
+      });
+      setTransactions(hist.map(tx=>({...tx, timestamp: tx.height>0 ? tsMap[tx.height] : null})));
     } catch(e){
       console.error('fetchData error:', e);
     } finally {
@@ -503,20 +511,17 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
           ) : !transactions.length ? (
             <p>No transactions yet.</p>
           ) : (
-            <ul style={{marginTop: 8, paddingLeft: 16}}>
+            <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
               {transactions.map((tx, i)=>(
-                <li key={i} style={{fontFamily: 'monospace', fontSize: 13, marginTop: 4}}>
-                  {conf.explorer_tx ? (
-                    <a href={conf.explorer_tx + tx.tx_hash} target="_blank" rel="noreferrer">
-                      {tx.tx_hash.slice(0, 24)}…
-                    </a>
-                  ) : (
-                    <span>{tx.tx_hash.slice(0, 24)}…</span>
-                  )}
-                  {' '}
-                  <span style={{color: '#888'}}>
-                    {tx.height > 0 ? `block ${tx.height}` : 'unconfirmed'}
-                  </span>
+                <li key={i}
+                  onClick={()=>{ setSelectedTx(tx); setSubscreen('tx-detail'); }}
+                  style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
+                    borderBottom: '1px solid #eee'}}
+                >
+                  {tx.timestamp
+                    ? new Date(tx.timestamp*1000).toLocaleString()
+                    : <span style={{color: '#f90'}}>unconfirmed</span>
+                  }
                 </li>
               ))}
             </ul>
@@ -527,6 +532,13 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
             </button>
           )}
         </div>
+      )}
+      {subscreen=='tx-detail' && selectedTx && (
+        <TxDetailScreen
+          tx={selectedTx}
+          conf={conf}
+          onBack={()=>setSubscreen('overview')}
+        />
       )}
 
       {subscreen=='send' && client && (
@@ -560,6 +572,34 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
           }}>
             {wallet.mnemonic}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Tx Detail Screen
+function TxDetailScreen({tx, conf, onBack}){
+  const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString() : null;
+  return (
+    <div style={{marginTop: 16, maxWidth: 600}}>
+      <button onClick={onBack}>← Back</button>
+      <h3 style={{marginTop: 8}}>Transaction</h3>
+      <div style={{marginTop: 8}}>
+        <strong>Date:</strong> {date || <span style={{color: '#f90'}}>unconfirmed</span>}
+      </div>
+      {tx.height>0 &&
+        <div style={{marginTop: 4}}><strong>Block:</strong> {tx.height}</div>
+      }
+      <div style={{marginTop: 8}}><strong>TXID:</strong></div>
+      <div style={{fontFamily: 'monospace', wordBreak: 'break-all', fontSize: 13, marginTop: 2}}>
+        {tx.tx_hash}
+      </div>
+      {conf.explorer_tx && (
+        <div style={{marginTop: 12}}>
+          <a href={conf.explorer_tx+tx.tx_hash} target="_blank" rel="noreferrer">
+            View on block explorer
+          </a>
         </div>
       )}
     </div>
