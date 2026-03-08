@@ -243,3 +243,9 @@ CLAUDE: Removed keyMode toggle and generate/restore buttons. Mnemonic textarea a
 USER: Today "transaction" screen, is a sub-screen of wallet "Transactions" screen. this makes two "Back" buttons appear in the "Transaction" screen (one to go back to transactions, and one to exit the wallet back to main screen), and all the wallet headers still appear. Change it so that Transaction screen is a screen on its own, so that there is only one Back button, and you need to press the same button TWICE to go back to the main screen from within a specific transaction. The title in the page can be "<wallet name> transaction".
 
 CLAUDE: Promoted tx-detail to a top-level screen in BrightWallet. Header Back button now uses goBack() which goes wallet-detail→home for tx-detail screen, and home for all others. Removed selectedTx state and tx-detail subscreen from WalletDetailScreen; tx row click now calls onSelectTx({tx, conf, walletAddrs}). TxDetailScreen no longer has its own back button; title shows "<wallet name> transaction".
+
+---
+
+USER: in the Wallet page, add on the left (where "Delete Wallet") button is today, a "Settings" button. This will open a Wallet settings page, which will show all the wallet settings from "Create wallet" (what network it is, whether it has a passphrase or not, derivation path etc). In this page there will be on the left the red "Delete wallet" button, and on the right "Backup wallet" - clicking on it will change the text area mnemonic field (and passphrase if enabled) to show the actual text, not circles.
+
+CLAUDE: Replaced "Backup" and "Delete Wallet" buttons in the tab bar with a single "⚙ Settings" button. Added WalletSettingsSubscreen showing network, address mode, derivation path, and passphrase status. Mnemonic (and passphrase if set) shown as password fields initially; "Backup Wallet" button reveals them. "Delete Wallet" stays red on the left, "Backup Wallet" on the right.

@@ -646,13 +646,9 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack, onSelectTx}){
           style={{fontWeight: subscreen=='send' ? 'bold' : 'normal'}}
         >Send</button>
         <button
-          onClick={()=>setSubscreen('backup')}
-          style={{fontWeight: subscreen=='backup' ? 'bold' : 'normal'}}
-        >Backup</button>
-        <button
-          onClick={handleDelete}
-          style={{marginLeft: 'auto', color: '#c00', border: '1px solid #c00', background: 'transparent'}}
-        >Delete Wallet</button>
+          onClick={()=>setSubscreen('wallet-settings')}
+          style={{marginLeft: 'auto', fontWeight: subscreen=='wallet-settings' ? 'bold' : 'normal'}}
+        >⚙ Settings</button>
       </div>
 
       {subscreen=='overview' && (
@@ -710,27 +706,81 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack, onSelectTx}){
           onSent={()=>{ setSubscreen('overview'); fetchData(client); }}
         />
       )}
-      {subscreen=='backup' && (
-        <div style={{marginTop: 16, maxWidth: 480}}>
-          <h3>Backup Mnemonic</h3>
-          <p style={{color: '#c00', fontSize: 13, marginTop: 4}}>
-            Keep this secret! Anyone with these words can steal your funds.
-          </p>
-          <div style={{
-            fontFamily: 'monospace',
-            background: '#f4f4f4',
-            border: '1px solid #ccc',
-            borderRadius: 4,
-            padding: 12,
-            marginTop: 8,
-            wordBreak: 'break-word',
-            fontSize: 15,
-            lineHeight: 1.8,
-          }}>
-            {wallet.mnemonic}
-          </div>
+      {subscreen=='wallet-settings' && (
+        <WalletSettingsSubscreen
+          wallet={wallet}
+          conf={conf}
+          isHD={isHD}
+          onDelete={handleDelete}
+        />
+      )}
+    </div>
+  );
+}
+
+// Wallet Settings Subscreen
+function WalletSettingsSubscreen({wallet, conf, isHD, onDelete}){
+  const [revealed, setRevealed] = useState(false);
+  const hasPassphrase = !!wallet.passphrase;
+  const derivPath = isHD
+    ? `m/84'/${conf.coin_type}'/0'`
+    : `m/84'/${conf.coin_type}'/0'/0/0`;
+  return (
+    <div style={{marginTop: 16, maxWidth: 480}}>
+      <h3>Wallet Settings</h3>
+      <table style={{marginTop: 12, borderCollapse: 'collapse', width: '100%'}}>
+        <tbody>
+          <tr>
+            <td style={{padding: '5px 12px 5px 0', color: '#666', whiteSpace: 'nowrap'}}>Network</td>
+            <td style={{padding: '5px 0'}}>{conf.name}</td>
+          </tr>
+          <tr>
+            <td style={{padding: '5px 12px 5px 0', color: '#666', whiteSpace: 'nowrap'}}>Address mode</td>
+            <td style={{padding: '5px 0'}}>{isHD ? 'Unique address per transaction (BIP84)' : 'Single address'}</td>
+          </tr>
+          <tr>
+            <td style={{padding: '5px 12px 5px 0', color: '#666', whiteSpace: 'nowrap'}}>Derivation path</td>
+            <td style={{padding: '5px 0', fontFamily: 'monospace', fontSize: 13}}>{derivPath}</td>
+          </tr>
+          <tr>
+            <td style={{padding: '5px 12px 5px 0', color: '#666', whiteSpace: 'nowrap'}}>Passphrase</td>
+            <td style={{padding: '5px 0'}}>{hasPassphrase ? 'Yes' : 'No'}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style={{marginTop: 16}}>
+        <label style={{fontWeight: 'bold', fontSize: 13}}>Mnemonic</label>
+        <input
+          type={revealed ? 'text' : 'password'}
+          readOnly
+          value={wallet.mnemonic}
+          style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
+            fontSize: 13, boxSizing: 'border-box', background: '#f4f4f4', border: '1px solid #ccc',
+            borderRadius: 4, padding: 8}}
+        />
+      </div>
+      {hasPassphrase && (
+        <div style={{marginTop: 10}}>
+          <label style={{fontWeight: 'bold', fontSize: 13}}>Passphrase</label>
+          <input
+            type={revealed ? 'text' : 'password'}
+            readOnly
+            value={wallet.passphrase}
+            style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
+              fontSize: 13, boxSizing: 'border-box', background: '#f4f4f4', border: '1px solid #ccc',
+              borderRadius: 4, padding: 8}}
+          />
         </div>
       )}
+      <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 20}}>
+        <button
+          onClick={onDelete}
+          style={{color: '#c00', border: '1px solid #c00', background: 'transparent'}}
+        >Delete Wallet</button>
+        <button onClick={()=>setRevealed(r=>!r)}>
+          {revealed ? 'Hide backup' : 'Backup Wallet'}
+        </button>
+      </div>
     </div>
   );
 }
