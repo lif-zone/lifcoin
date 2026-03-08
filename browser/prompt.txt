@@ -237,3 +237,9 @@ CLAUDE: Passed wallets to AddWalletScreen, computed default name by scanning exi
 USER: in "new wallet" screen, always show the text box for the mnemonic. no need for the "restore" button. in the suggestion text write enter the 12 or 24 words of your wallet, or click "Generate" to create a new wallet. clicking on Generate will put there 12 random words.
 
 CLAUDE: Removed keyMode toggle and generate/restore buttons. Mnemonic textarea always visible with updated placeholder. Added Generate button inline next to the label that fills the textarea with a fresh mnemonic.
+
+---
+
+USER: Today "transaction" screen, is a sub-screen of wallet "Transactions" screen. this makes two "Back" buttons appear in the "Transaction" screen (one to go back to transactions, and one to exit the wallet back to main screen), and all the wallet headers still appear. Change it so that Transaction screen is a screen on its own, so that there is only one Back button, and you need to press the same button TWICE to go back to the main screen from within a specific transaction. The title in the page can be "<wallet name> transaction".
+
+CLAUDE: Promoted tx-detail to a top-level screen in BrightWallet. Header Back button now uses goBack() which goes wallet-detail→home for tx-detail screen, and home for all others. Removed selectedTx state and tx-detail subscreen from WalletDetailScreen; tx row click now calls onSelectTx({tx, conf, walletAddrs}). TxDetailScreen no longer has its own back button; title shows "<wallet name> transaction".

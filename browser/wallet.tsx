@@ -172,6 +172,7 @@ function BrightWallet(){
   const [servers, setServers] = useState(loadServers);
   const [screen, setScreen] = useState('home');
   const [activeWalletId, setActiveWalletId] = useState(null);
+  const [selectedTxData, setSelectedTxData] = useState(null);
   const networks = useMemo(()=>getNetworks(servers), [servers]);
   const addWallet = (wallet)=>{
     const updated = [...wallets, wallet];
@@ -187,12 +188,18 @@ function BrightWallet(){
   };
   const activeWallet = wallets.find(w=>w.id===activeWalletId);
   const goHome = ()=>setScreen('home');
+  const goBack = ()=>{
+    if (screen=='tx-detail')
+      setScreen('wallet-detail');
+    else
+      goHome();
+  };
   return (
     <div style={{fontFamily: 'sans-serif', maxWidth: 960, margin: '0 auto', padding: 16}}>
       <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16}}>
         <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
           {screen!='home' &&
-            <button onClick={goHome}>← Back</button>
+            <button onClick={goBack}>← Back</button>
           }
           <h1 style={{cursor: 'pointer', fontSize: 24, margin: 0, display: 'flex', alignItems: 'center', gap: 8}} onClick={goHome}>
             <img src={import.meta.resolve('./bright.ico')} style={{width: 32, height: 32}} />
@@ -225,6 +232,15 @@ function BrightWallet(){
           networks={networks}
           onDelete={()=>deleteWallet(activeWallet.id)}
           onBack={goHome}
+          onSelectTx={(data)=>{ setSelectedTxData(data); setScreen('tx-detail'); }}
+        />
+      )}
+      {screen=='tx-detail' && selectedTxData && activeWallet && (
+        <TxDetailScreen
+          tx={selectedTxData.tx}
+          conf={selectedTxData.conf}
+          walletAddrs={selectedTxData.walletAddrs}
+          walletName={activeWallet.name || (activeWallet.mode=='hd' ? 'HD Wallet' : 'Wallet')}
         />
       )}
       {screen=='settings' && (
@@ -470,7 +486,7 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
 }
 
 // Wallet Detail Screen
-function WalletDetailScreen({wallet, networks, onDelete, onBack}){
+function WalletDetailScreen({wallet, networks, onDelete, onBack, onSelectTx}){
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const network = conf.network;
   const isHD = wallet.mode=='hd';
@@ -478,7 +494,6 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [subscreen, setSubscreen] = useState('overview');
-  const [selectedTx, setSelectedTx] = useState(null);
   const [loading, setLoading] = useState(false);
   const [connErr, setConnErr] = useState(false);
   const [receiveAddress, setReceiveAddress] = useState(null);
@@ -653,7 +668,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
                 const positive = tx.amount>=0;
                 return (
                   <li key={i}
-                    onClick={()=>{ setSelectedTx(tx); setSubscreen('tx-detail'); }}
+                    onClick={()=>onSelectTx({tx, conf, walletAddrs: new Set(allAddrs.map(a=>a.address))})}
                     style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
                       borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between'}}
                   >
@@ -677,14 +692,6 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
             </button>
           )}
         </div>
-      )}
-      {subscreen=='tx-detail' && selectedTx && (
-        <TxDetailScreen
-          tx={selectedTx}
-          conf={conf}
-          walletAddrs={new Set(allAddrs.map(a=>a.address))}
-          onBack={()=>setSubscreen('overview')}
-        />
       )}
       {subscreen=='receive' && receiveAddress && (
         <ReceiveScreen
@@ -755,15 +762,14 @@ function ReceiveScreen({address, isHD, symbol}){
 }
 
 // Tx Detail Screen
-function TxDetailScreen({tx, conf, walletAddrs, onBack}){
+function TxDetailScreen({tx, conf, walletAddrs, walletName}){
   const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString() : null;
   const positive = tx.amount>=0;
   const symbol = conf.symbol||'BTC';
   const voutAddr = (vout)=>vout.scriptPubKey?.address || vout.scriptPubKey?.addresses?.[0] || '?';
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
-      <button onClick={onBack}>← Back</button>
-      <h3 style={{marginTop: 8}}>Transaction</h3>
+      <h3>{walletName} transaction</h3>
       <div style={{marginTop: 8}}>
         <strong>Date:</strong> {date || <span style={{color: '#f90'}}>unconfirmed</span>}
       </div>
