@@ -219,3 +219,9 @@ CLAUDE: [updated prompt.txt]
 USER: make unique address default for new wallets created
 
 CLAUDE: Changed addrMode initial state from 'single' to 'hd' in AddWalletScreen.
+
+---
+
+USER: move the back button in all sub pages to the top left (before the icon and "bright wallet")
+
+CLAUDE: Moved ← Back button into the header bar, left of the icon/title. Shows on all non-home screens. Removed individual back buttons from AddWalletScreen, WalletDetailScreen, SettingsScreen. TxDetailScreen's internal back button (navigates between sub-screens) remains in place.

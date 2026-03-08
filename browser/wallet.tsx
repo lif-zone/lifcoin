@@ -190,11 +190,16 @@ function BrightWallet(){
   return (
     <div style={{fontFamily: 'sans-serif', maxWidth: 960, margin: '0 auto', padding: 16}}>
       <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16}}>
-        <h1 style={{cursor: 'pointer', fontSize: 24, margin: 0, display: 'flex', alignItems: 'center', gap: 8}} onClick={goHome}>
-          <img src={import.meta.resolve('./bright.ico')} style={{width: 32, height: 32}} />
-          Bright Wallet
-        </h1>
-        {(screen=='home' || screen=='settings') &&
+        <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+          {screen!='home' &&
+            <button onClick={goHome}>← Back</button>
+          }
+          <h1 style={{cursor: 'pointer', fontSize: 24, margin: 0, display: 'flex', alignItems: 'center', gap: 8}} onClick={goHome}>
+            <img src={import.meta.resolve('./bright.ico')} style={{width: 32, height: 32}} />
+            Bright Wallet
+          </h1>
+        </div>
+        {screen=='home' &&
           <button onClick={()=>setScreen('settings')}>⚙ Settings</button>
         }
       </div>
@@ -383,7 +388,6 @@ function AddWalletScreen({networks, onAdd, onCancel}){
   };
   return (
     <div style={{maxWidth: 480}}>
-      <button onClick={onCancel}>← Back</button>
       <h2>Add Wallet</h2>
       <div style={{marginTop: 12}}>
         <label>Name (optional):</label>
@@ -413,8 +417,8 @@ function AddWalletScreen({networks, onAdd, onCancel}){
           onChange={e=>setAddrMode(e.target.value)}
           style={{display: 'block', width: '100%', marginTop: 4}}
         >
-          <option value="single">Single address</option>
-          <option value="hd">HD – unique addresses (BIP84)</option>
+          <option value="single">Same address for all transactions</option>
+          <option value="hd">Unique address for every transaction (BIP84)</option>
         </select>
       </div>
       <div style={{marginTop: 12}}>
@@ -432,7 +436,7 @@ function AddWalletScreen({networks, onAdd, onCancel}){
         {keyMode=='restore' && (
           <textarea
             rows={4}
-            placeholder="Enter your 12/24 words (space separated)"
+            placeholder="Enter the wallet's secret 12/24 words"
             value={mnemonicInput}
             onChange={e=>setMnemonicInput(e.target.value)}
             style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
@@ -451,7 +455,7 @@ function AddWalletScreen({networks, onAdd, onCancel}){
             checked={usePassphrase}
             onChange={e=>setUsePassphrase(e.target.checked)}
           />
-          Use passphrase (BIP39 25th word)
+          Passphrase (BIP39)
         </label>
         {usePassphrase && (
           <input
@@ -602,8 +606,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack}){
   };
   return (
     <div>
-      <button onClick={onBack}>← Back</button>
-      <h2 style={{marginTop: 8}}>{label}</h2>
+      <h2>{label}</h2>
       <div style={{color: '#888', fontSize: 13}}>
         {conf.name}{isHD ? ' · HD (BIP84)' : ' · Single address'}
       </div>
@@ -947,8 +950,7 @@ function SettingsScreen({servers, networks, onSave, onBack}){
   };
   return (
     <div style={{maxWidth: 520}}>
-      <button onClick={onBack}>← Back</button>
-      <h2 style={{marginTop: 8}}>Settings</h2>
+      <h2>Settings</h2>
       <h3 style={{marginTop: 16}}>ElectrumX Servers</h3>
       <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
         Configure the ElectrumX server URL for each network.
