@@ -249,3 +249,15 @@ CLAUDE: Promoted tx-detail to a top-level screen in BrightWallet. Header Back bu
 USER: in the Wallet page, add on the left (where "Delete Wallet") button is today, a "Settings" button. This will open a Wallet settings page, which will show all the wallet settings from "Create wallet" (what network it is, whether it has a passphrase or not, derivation path etc). In this page there will be on the left the red "Delete wallet" button, and on the right "Backup wallet" - clicking on it will change the text area mnemonic field (and passphrase if enabled) to show the actual text, not circles.
 
 CLAUDE: Replaced "Backup" and "Delete Wallet" buttons in the tab bar with a single "⚙ Settings" button. Added WalletSettingsSubscreen showing network, address mode, derivation path, and passphrase status. Mnemonic (and passphrase if set) shown as password fields initially; "Backup Wallet" button reveals them. "Delete Wallet" stays red on the left, "Backup Wallet" on the right.
+
+---
+
+USER: in Settings page, put the wallet name in an editable box - so it can be edited
+
+CLAUDE: Added editable name input at the top of WalletSettingsSubscreen. Saves on blur via onUpdate({name}), wired through WalletDetailScreen to updateWallet() in BrightWallet which persists to localStorage.
+
+---
+
+USER: in "new wallet" screen - add on top right an "Advanced" button, that will add advanced settings. When moving to advanced settings the "Advanced" button disappears, and there is an added field of Derivation path. Its a text box. When changing the network - it gets updated to the default derivation path of that network. But you can modify it, to change the derivation path.
+
+CLAUDE: Added defaultDerivPath(conf) helper. Refactored deriveAddrAt/scanAddresses to accept accountPath instead of conf. deriveWallet accepts optional derivPath. WalletCard, WalletDetailScreen fetchData, and WalletSettingsSubscreen all use wallet.derivPath||defaultDerivPath(conf). AddWalletScreen: "Advanced" button top-right shows derivation path field (monospace input, pre-filled from network default, resets on network change); saved as wallet.derivPath.

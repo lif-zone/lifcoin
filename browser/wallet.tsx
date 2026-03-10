@@ -71,30 +71,35 @@ function getRoot(mnemonic, network, passphrase=''){
   return bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic, passphrase), network);
 }
 
-function deriveAddrAt(root, conf, network, chain, index){
-  const child = root.derivePath(`m/84'/${conf.coin_type}'/0'/${chain}/${index}`);
+function defaultDerivPath(conf){
+  return `m/84'/${conf.coin_type}'/0'`;
+}
+
+function deriveAddrAt(root, accountPath, network, chain, index){
+  const child = root.derivePath(`${accountPath}/${chain}/${index}`);
   const {address} = bitcoin.payments.p2wpkh({pubkey: Buffer(child.publicKey), network});
   const keyPair = ecpair.fromPrivateKey(child.privateKey, {network});
   return {address, keyPair, chain, index};
 }
 
-function deriveWallet(mnemonic, networkKey, networks, passphrase=''){
+function deriveWallet(mnemonic, networkKey, networks, passphrase='', derivPath=null){
   const conf = networks[networkKey];
   const network = conf.network;
   const root = getRoot(mnemonic, network, passphrase);
-  const {address, keyPair} = deriveAddrAt(root, conf, network, 0, 0);
+  const accountPath = derivPath || defaultDerivPath(conf);
+  const {address, keyPair} = deriveAddrAt(root, accountPath, network, 0, 0);
   return {address, keyPair, network, conf, root};
 }
 
 // Scan used addresses on chain (0=external, 1=change) with gap limit of 20.
 // Returns {used: [{address, keyPair, chain, index, hist}], nextIndex}
-async function scanAddresses(cl, root, conf, network, chain){
+async function scanAddresses(cl, root, accountPath, network, chain){
   const GAP = 20;
   const used = [];
   let lastUsed = -1;
   let start = 0;
   while (true){
-    const entries = Array.from({length: GAP}, (_, i)=>deriveAddrAt(root, conf, network, chain, start+i));
+    const entries = Array.from({length: GAP}, (_, i)=>deriveAddrAt(root, accountPath, network, chain, start+i));
     const hists = await Promise.all(
       entries.map(e=>cl.blockchain_scripthash_getHistory(getScriptHash(e.address, network)))
     );
@@ -179,6 +184,11 @@ function BrightWallet(){
     setWallets(updated);
     saveWallets(updated);
   };
+  const updateWallet = (id, changes)=>{
+    const updated = wallets.map(w=>w.id===id ? {...w, ...changes} : w);
+    setWallets(updated);
+    saveWallets(updated);
+  };
   const deleteWallet = (id)=>{
     const updated = wallets.filter(w=>w.id!==id);
     setWallets(updated);
@@ -231,6 +241,7 @@ function BrightWallet(){
           wallet={activeWallet}
           networks={networks}
           onDelete={()=>deleteWallet(activeWallet.id)}
+          onUpdate={(changes)=>updateWallet(activeWallet.id, changes)}
           onBack={goHome}
           onSelectTx={(data)=>{ setSelectedTxData(data); setScreen('tx-detail'); }}
         />
@@ -287,7 +298,7 @@ function WalletCard({wallet, networks, onClick}){
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const isHD = wallet.mode=='hd';
   const derived = useMemo(()=>{
-    try { return deriveWallet(wallet.mnemonic, wallet.network, networks, wallet.passphrase||''); }
+    try { return deriveWallet(wallet.mnemonic, wallet.network, networks, wallet.passphrase||'', wallet.derivPath||null); }
     catch { return null; }
   }, [wallet.id, wallet.network]);
 
@@ -300,10 +311,11 @@ function WalletCard({wallet, networks, onClick}){
       cl = Electrum_connect(conf.electrum);
       try {
         await cl.connect('lif-coin-wallet', '1.4');
+        const accountPath = wallet.derivPath || defaultDerivPath(conf);
         if (isHD){
           const [extRes, chgRes] = await Promise.all([
-            scanAddresses(cl, root, conf, network, 0),
-            scanAddresses(cl, root, conf, network, 1),
+            scanAddresses(cl, root, accountPath, network, 0),
+            scanAddresses(cl, root, accountPath, network, 1),
           ]);
           const allUsed = [...extRes.used, ...chgRes.used];
           const bals = await Promise.all(
@@ -375,6 +387,8 @@ function WalletCard({wallet, networks, onClick}){
 function AddWalletScreen({networks, wallets, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('mainnet');
   const [addrMode, setAddrMode] = useState('hd'); // 'single' | 'hd'
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [derivPath, setDerivPath] = useState(()=>defaultDerivPath(networks['mainnet']));
   const [mnemonicInput, setMnemonicInput] = useState('');
   const defaultName = (()=>{
     let max = 0;
@@ -401,17 +415,23 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
     }
     const mnemonic = cleaned;
     const pp = usePassphrase ? passphrase : '';
+    const dp = showAdvanced ? derivPath.trim() : null;
     try {
-      deriveWallet(mnemonic, networkKey, networks, pp);
+      deriveWallet(mnemonic, networkKey, networks, pp, dp);
     } catch(e){
       setError('Failed to derive wallet: '+e.message);
       return;
     }
-    onAdd({id: Date.now().toString(), name: name.trim(), network: networkKey, mnemonic, mode: addrMode, passphrase: pp});
+    onAdd({id: Date.now().toString(), name: name.trim(), network: networkKey, mnemonic, mode: addrMode, passphrase: pp, derivPath: dp});
   };
   return (
     <div style={{maxWidth: 480}}>
-      <h2>Add Wallet</h2>
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+        <h2 style={{margin: 0}}>Add Wallet</h2>
+        {!showAdvanced &&
+          <button onClick={()=>setShowAdvanced(true)}>Advanced</button>
+        }
+      </div>
       <div style={{marginTop: 12}}>
         <label>Name:</label>
         <input
@@ -425,7 +445,7 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
         <label>Network:</label>
         <select
           value={networkKey}
-          onChange={e=>setNetworkKey(e.target.value)}
+          onChange={e=>{ setNetworkKey(e.target.value); setDerivPath(defaultDerivPath(networks[e.target.value])); }}
           style={{display: 'block', width: '100%', marginTop: 4}}
         >
           {Object.entries(networks).map(([key, conf])=>(
@@ -476,6 +496,17 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
           />
         )}
       </div>
+      {showAdvanced && (
+        <div style={{marginTop: 12}}>
+          <label>Derivation path:</label>
+          <input
+            value={derivPath}
+            onChange={e=>setDerivPath(e.target.value)}
+            style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
+              fontSize: 13, boxSizing: 'border-box'}}
+          />
+        </div>
+      )}
       {error && <p style={{color: 'red', marginTop: 8}}>{error}</p>}
       <div style={{marginTop: 16, display: 'flex', gap: 8}}>
         <button onClick={handleAdd}>Add Wallet</button>
@@ -486,7 +517,7 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
 }
 
 // Wallet Detail Screen
-function WalletDetailScreen({wallet, networks, onDelete, onBack, onSelectTx}){
+function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSelectTx}){
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const network = conf.network;
   const isHD = wallet.mode=='hd';
@@ -504,17 +535,18 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack, onSelectTx}){
     setLoading(true);
     try {
       const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
+      const accountPath = wallet.derivPath || defaultDerivPath(conf);
       let addrs, recvAddr, chgAddr;
       if (isHD){
         const [extRes, chgRes] = await Promise.all([
-          scanAddresses(cl, root, conf, network, 0),
-          scanAddresses(cl, root, conf, network, 1),
+          scanAddresses(cl, root, accountPath, network, 0),
+          scanAddresses(cl, root, accountPath, network, 1),
         ]);
         addrs = [...extRes.used, ...chgRes.used];
-        recvAddr = deriveAddrAt(root, conf, network, 0, extRes.nextIndex).address;
-        chgAddr = deriveAddrAt(root, conf, network, 1, chgRes.nextIndex);
+        recvAddr = deriveAddrAt(root, accountPath, network, 0, extRes.nextIndex).address;
+        chgAddr = deriveAddrAt(root, accountPath, network, 1, chgRes.nextIndex);
       } else {
-        const single = deriveAddrAt(root, conf, network, 0, 0);
+        const single = deriveAddrAt(root, accountPath, network, 0, 0);
         const hist = await cl.blockchain_scripthash_getHistory(getScriptHash(single.address, network));
         addrs = [{...single, hist}];
         recvAddr = single.address;
@@ -711,6 +743,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack, onSelectTx}){
           wallet={wallet}
           conf={conf}
           isHD={isHD}
+          onUpdate={onUpdate}
           onDelete={handleDelete}
         />
       )}
@@ -719,15 +752,23 @@ function WalletDetailScreen({wallet, networks, onDelete, onBack, onSelectTx}){
 }
 
 // Wallet Settings Subscreen
-function WalletSettingsSubscreen({wallet, conf, isHD, onDelete}){
+function WalletSettingsSubscreen({wallet, conf, isHD, onUpdate, onDelete}){
   const [revealed, setRevealed] = useState(false);
+  const [name, setName] = useState(wallet.name||'');
   const hasPassphrase = !!wallet.passphrase;
-  const derivPath = isHD
-    ? `m/84'/${conf.coin_type}'/0'`
-    : `m/84'/${conf.coin_type}'/0'/0/0`;
+  const derivPath = wallet.derivPath || defaultDerivPath(conf);
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Wallet Settings</h3>
+      <div style={{marginTop: 12}}>
+        <label style={{color: '#666'}}>Name</label>
+        <input
+          value={name}
+          onChange={e=>setName(e.target.value)}
+          onBlur={()=>onUpdate({name: name.trim()})}
+          style={{display: 'block', width: '100%', marginTop: 4, boxSizing: 'border-box'}}
+        />
+      </div>
       <table style={{marginTop: 12, borderCollapse: 'collapse', width: '100%'}}>
         <tbody>
           <tr>
