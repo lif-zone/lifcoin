@@ -279,3 +279,9 @@ CLAUDE: Removed the truncated address div from WalletCard.
 USER: remove from the wallet card and the wallet overview screen the "Bitcoin mainnet - single address" (the name of network and the single/multiple wallet address type). This info already appears when you click settings. No need for it in the wallet card and the wallet overview screens.
 
 CLAUDE: Removed the network name + HD/single subtitle div from WalletCard and WalletDetailScreen.
+
+---
+
+USER: in the wallet receive page, when clicking on the address - it should copy it to clipboard, and give a 2 second popup - copied to clipboard.
+
+CLAUDE: Added click-to-copy on the address div in ReceiveScreen using navigator.clipboard.writeText; shows "Copied to clipboard" in green for 2 seconds via setTimeout.

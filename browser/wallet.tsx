@@ -818,6 +818,12 @@ function WalletSettingsSubscreen({wallet, conf, isHD, onUpdate, onDelete}){
 
 // Receive Screen
 function ReceiveScreen({address, isHD, symbol}){
+  const [copied, setCopied] = useState(false);
+  const handleCopy = ()=>{
+    navigator.clipboard.writeText(address);
+    setCopied(true);
+    setTimeout(()=>setCopied(false), 2000);
+  };
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Receive {symbol}</h3>
@@ -826,18 +832,25 @@ function ReceiveScreen({address, isHD, symbol}){
           Fresh address — a new one will appear after it receives funds.
         </p>
       )}
-      <div style={{
-        fontFamily: 'monospace',
-        background: '#f4f4f4',
-        border: '1px solid #ccc',
-        borderRadius: 4,
-        padding: 12,
-        marginTop: 8,
-        wordBreak: 'break-all',
-        fontSize: 14,
-      }}>
+      <div
+        onClick={handleCopy}
+        style={{
+          fontFamily: 'monospace',
+          background: '#f4f4f4',
+          border: '1px solid #ccc',
+          borderRadius: 4,
+          padding: 12,
+          marginTop: 8,
+          wordBreak: 'break-all',
+          fontSize: 14,
+          cursor: 'pointer',
+        }}
+      >
         {address}
       </div>
+      {copied && (
+        <div style={{marginTop: 8, color: 'green', fontSize: 13}}>Copied to clipboard</div>
+      )}
     </div>
   );
 }
