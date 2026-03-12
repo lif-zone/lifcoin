@@ -29,13 +29,14 @@ const ewait = ()=>{
 
 function bech32(mnemonic, net){
   let _mnemonic = Mnemonic.fromPhrase(mnemonic);
+  let coinType = Network.get(net).keyPrefix.coinType;
   let hdPrivKey = HDPrivateKey.fromMnemonic(_mnemonic);
   let derivedKey = hdPrivKey.derive(84, true)
-  .derive(0, true).derive(0, true).derive(0).derive(0);
+  .derive(coinType, true).derive(0, true).derive(0).derive(0);
   let keyRing = new KeyRing({privateKey: derivedKey.privateKey,
     witness: true});
   let address = keyRing.getKeyAddress('string', net);
-  let a = new Address(address);
+  let a = new Address(address, net);
   return {
     mn: mnemonic, // for dev
     privateKey: derivedKey.privateKey.toString('hex'),
@@ -59,19 +60,21 @@ function scripthash_from_addr(addr){
 function test(){
   let t = (net, addr)=>assert.strictEqual(bech32(wallet1.mn, net).address, addr);
   t('main', 'bc1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfqp76xr');
-  t('testnet', 'tb1qe5trcka3qtt2ll8exe3xmt7qzyjjp6df289fas');
-  t('lifmain', 'lif1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfazcpj5');
+  t('testnet', 'tb1q6slygtjxpnuh4dck09wpgq254q6wu86ahuc7dc');
+  //t('lifmain', 'lif1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfazcpj5'); // coinType 0
+  t('lifmain', 'lif1qsut4mudgtnrelzssdtnh48ep8nyz8nrlzjqw0g');
   t = (net, addr)=>assert.strictEqual(bech32(wallet3.mn, net).address, addr);
   t('main', 'bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk');
-  t('lifmain', 'lif1qannfxke2tfd4l7vhepehpvt05y83v3qs5e4jzp');
+  //t('lifmain', 'lif1qannfxke2tfd4l7vhepehpvt05y83v3qs5e4jzp'); // coinType 0
+  t('lifmain', 'lif1qt59xsv4dwu2pwqkyxxcwrc3atlwwcjajhzhvze');
   t = (net, electrum_hash)=>assert.strictEqual(
     electrum_from_addr(bech32(wallet3.mn, net).a), electrum_hash);
   t('main', '4f7a209e53b64b1d720effb12f5896f5f923c5ba2e5c835c9a186f909d3b2c10');
-  t('lifmain', '4f7a209e53b64b1d720effb12f5896f5f923c5ba2e5c835c9a186f909d3b2c10');
+  t('lifmain', '29780aa1a0a98fb08a252f3ec9b02ec95197e9321186e48398d409b11e39b83d');
   t = (net, electrum_hash)=>assert.strictEqual(
     scripthash_from_addr(bech32(wallet3.mn, net).a), electrum_hash);
   t('main', '102c3b9d906f189a5c835c2ebac523f9f596582fb1ff0e721d4bb6539e207a4f');
-  t('lifmain', '102c3b9d906f189a5c835c2ebac523f9f596582fb1ff0e721d4bb6539e207a4f');
+  t('lifmain', '3db8391eb109d49883e4861132e99751c92eb0c93e2f258ab08fa9a0a10a7829');
   assert.strictEqual(Script.fromJSON(
     '6a24aa21a9ed2b4c76989d6e5898c6a68218351815f555842ce24410a1da74fa774d8836e60d')
     .toASM(),
@@ -235,6 +238,8 @@ async function mtx_send_create({from, from_key, to, value, change, fee}){
 
 async function do_tx(){
   await do_start();
+  if (mine)
+    await mineBlocks(1);
   let mtx = await mtx_send_create({from: wallet3.a, from_key: wallet3.keyRing,
     to: wallet2.a, value: 10000, fee: 1000});
   let tx = mtx.toTX();
