@@ -267,3 +267,9 @@ CLAUDE: Added defaultDerivPath(conf) helper. Refactored deriveAddrAt/scanAddress
 USER: fix a bug: when the wallet name does not exist - it currently shows the first address of the wallet (due to historic reasons). instead it should just show blank - for blank name.
 
 CLAUDE: Simplified label computation in WalletCard and WalletDetailScreen to wallet.name||'' — no fallback to address or mode string.
+
+---
+
+USER: in the wallet cards - do not show anymore the address. it was shown historically when each wallet was a single address. but now wallets use multiple BIP84 addresses - so a single address no longer defines a wallet.
+
+CLAUDE: Removed the truncated address div from WalletCard.

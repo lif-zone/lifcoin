@@ -42,11 +42,11 @@ const DEFAULT_NETWORKS = {
     coin_type: 1,
   },
   lif: {
-    name: 'Lif Mainnet',
+    name: 'Life Mainnet', // Hi Life
     symbol: 'LIF',
     network: bitcoin.networks.lif,
     electrum: 'ws://localhost:8432',
-    coin_type: 0,
+    coin_type: 1842,
   },
 };
 
@@ -358,11 +358,7 @@ function WalletCard({wallet, networks, onClick}){
       <div style={{fontSize: 12, color: '#888', marginTop: 2}}>
         {conf.name}{isHD ? ' · HD' : ''}
       </div>
-      {!isHD && (
-        <div style={{fontSize: 11, color: '#aaa', fontFamily: 'monospace', marginTop: 4}}>
-          {address.slice(0, 22)}...
-        </div>
-      )}
+
       <div style={{marginTop: 10}}>
         {connErr ? (
           <span style={{color: '#c00', fontSize: 12}}>Connection error</span>
