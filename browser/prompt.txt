@@ -273,3 +273,9 @@ CLAUDE: Simplified label computation in WalletCard and WalletDetailScreen to wal
 USER: in the wallet cards - do not show anymore the address. it was shown historically when each wallet was a single address. but now wallets use multiple BIP84 addresses - so a single address no longer defines a wallet.
 
 CLAUDE: Removed the truncated address div from WalletCard.
+
+---
+
+USER: remove from the wallet card and the wallet overview screen the "Bitcoin mainnet - single address" (the name of network and the single/multiple wallet address type). This info already appears when you click settings. No need for it in the wallet card and the wallet overview screens.
+
+CLAUDE: Removed the network name + HD/single subtitle div from WalletCard and WalletDetailScreen.

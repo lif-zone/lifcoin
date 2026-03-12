@@ -355,9 +355,6 @@ function WalletCard({wallet, networks, onClick}){
   return (
     <div style={cardStyle} onClick={onClick}>
       <div style={{fontWeight: 'bold', fontSize: 15}}>{label}</div>
-      <div style={{fontSize: 12, color: '#888', marginTop: 2}}>
-        {conf.name}{isHD ? ' · HD' : ''}
-      </div>
 
       <div style={{marginTop: 10}}>
         {connErr ? (
@@ -643,9 +640,6 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
   return (
     <div>
       <h2>{label}</h2>
-      <div style={{color: '#888', fontSize: 13}}>
-        {conf.name}{isHD ? ' · HD (BIP84)' : ' · Single address'}
-      </div>
       {connErr && (
         <p style={{color: '#c00', marginTop: 8}}>
           Failed to connect to Electrum server ({conf.electrum})
