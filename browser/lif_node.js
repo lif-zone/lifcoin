@@ -61,11 +61,9 @@ function test(){
   let t = (net, addr)=>assert.strictEqual(bech32(wallet1.mn, net).address, addr);
   t('main', 'bc1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfqp76xr');
   t('testnet', 'tb1q6slygtjxpnuh4dck09wpgq254q6wu86ahuc7dc');
-  //t('lifmain', 'lif1qe5trcka3qtt2ll8exe3xmt7qzyjjp6dfazcpj5'); // coinType 0
   t('lifmain', 'lif1qsut4mudgtnrelzssdtnh48ep8nyz8nrlzjqw0g');
   t = (net, addr)=>assert.strictEqual(bech32(wallet3.mn, net).address, addr);
   t('main', 'bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk');
-  //t('lifmain', 'lif1qannfxke2tfd4l7vhepehpvt05y83v3qs5e4jzp'); // coinType 0
   t('lifmain', 'lif1qt59xsv4dwu2pwqkyxxcwrc3atlwwcjajhzhvze');
   t = (net, electrum_hash)=>assert.strictEqual(
     electrum_from_addr(bech32(wallet3.mn, net).a), electrum_hash);
