@@ -261,3 +261,9 @@ CLAUDE: Added editable name input at the top of WalletSettingsSubscreen. Saves o
 USER: in "new wallet" screen - add on top right an "Advanced" button, that will add advanced settings. When moving to advanced settings the "Advanced" button disappears, and there is an added field of Derivation path. Its a text box. When changing the network - it gets updated to the default derivation path of that network. But you can modify it, to change the derivation path.
 
 CLAUDE: Added defaultDerivPath(conf) helper. Refactored deriveAddrAt/scanAddresses to accept accountPath instead of conf. deriveWallet accepts optional derivPath. WalletCard, WalletDetailScreen fetchData, and WalletSettingsSubscreen all use wallet.derivPath||defaultDerivPath(conf). AddWalletScreen: "Advanced" button top-right shows derivation path field (monospace input, pre-filled from network default, resets on network change); saved as wallet.derivPath.
+
+---
+
+USER: fix a bug: when the wallet name does not exist - it currently shows the first address of the wallet (due to historic reasons). instead it should just show blank - for blank name.
+
+CLAUDE: Simplified label computation in WalletCard and WalletDetailScreen to wallet.name||'' — no fallback to address or mode string.

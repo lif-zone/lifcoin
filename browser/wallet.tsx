@@ -351,7 +351,7 @@ function WalletCard({wallet, networks, onClick}){
 
   const {address} = derived;
   const symbol = conf.symbol||'BTC';
-  const label = wallet.name || (isHD ? 'HD Wallet' : address.slice(0, 10)+'...');
+  const label = wallet.name || '';
   return (
     <div style={cardStyle} onClick={onClick}>
       <div style={{fontWeight: 'bold', fontSize: 15}}>{label}</div>
@@ -639,7 +639,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
   }, [wallet.id, wallet.network]);
 
   const symbol = conf.symbol||'BTC';
-  const label = wallet.name || (isHD ? 'HD Wallet' : (receiveAddress||'…').slice(0, 12)+'…');
+  const label = wallet.name || '';
   const handleDelete = ()=>{
     if (window.confirm(`Delete wallet "${label}"?\n\nMake sure you have backed up the mnemonic!`))
       onDelete();
