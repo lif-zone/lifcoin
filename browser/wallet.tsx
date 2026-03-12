@@ -342,12 +342,13 @@ function WalletCard({wallet, networks, onClick}){
     })();
   }, [wallet.id, wallet.network, wallet.mode, conf.electrum]);
 
-  if (!derived)
+  if (!derived){
     return (
       <div style={{...cardStyle, color: 'red'}} onClick={onClick}>
         <p>Invalid wallet</p>
       </div>
     );
+  }
 
   const {address} = derived;
   const symbol = conf.symbol||'BTC';
@@ -592,12 +593,14 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
         const vtx = verboseTxs[i];
         // enrich vin with prev vout for TxDetailScreen
         const enrichedVin = (vtx.vin||[]).map(vin=>{
-          if (!vin.txid) return vin; // coinbase
+          if (!vin.txid)
+            return vin; // coinbase
           return {...vin, _prevVout: prevMap[vin.txid]?.vout?.[vin.vout]};
         });
         const received = voutToOurAmt(vtx.vout);
         const spent = enrichedVin.reduce((sum, vin)=>{
-          if (!vin._prevVout) return sum;
+          if (!vin._prevVout)
+            return sum;
           const as = vin._prevVout.scriptPubKey?.addresses || (vin._prevVout.scriptPubKey?.address ? [vin._prevVout.scriptPubKey.address] : []);
           return as.some(a=>walletAddrSet.has(a)) ? sum+Math.round(vin._prevVout.value*1e8) : sum;
         }, 0);
