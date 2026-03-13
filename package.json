@@ -68,7 +68,7 @@
     "webapp": "./browser/main.tsx",
     "globDependencies": {
       "assert": "^1.5.1",
-      "buffer": "~6.0.3",
+      "buffer": "6.0.3",
       "x child-process": "npm:_empty",
       "x cluster": "npm:_empty",
       "console": "npm:console-browserify@1.1.0",
