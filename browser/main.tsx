@@ -3,7 +3,8 @@ import {render} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import './node_env.js';
 import App from './app.tsx';
-import Wallet from './wallet.tsx';
+//import Wallet from './wallet.tsx';
+let Wallet = (await import('./wallet.tsx')).default;
 // set favicon
 let link = document.createElement('link');
 link.rel = 'icon';

@@ -37,7 +37,7 @@
     "ecpair": "3.0.0",
     "bip32": "5.0.0",
     "bip39": "3.1.0",
-    "bitcoinjs-lib": "6.1.7",
+    "bitcoinjs-lib": "7.0.1",
     "blgr": "git+https://github.com/bcoin-org/blgr.git#semver:~0.2.0",
     "blru": "git+https://github.com/bcoin-org/blru.git#semver:~0.1.6",
     "blst": "git+https://github.com/bcoin-org/blst.git#semver:~0.1.5",
@@ -68,7 +68,7 @@
     "webapp": "./browser/main.tsx",
     "globDependencies": {
       "assert": "^1.5.1",
-      "buffer": "~5.2.1",
+      "buffer": "~6.0.3",
       "x child-process": "npm:_empty",
       "x cluster": "npm:_empty",
       "console": "npm:console-browserify@1.1.0",

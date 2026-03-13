@@ -285,3 +285,15 @@ CLAUDE: Removed the network name + HD/single subtitle div from WalletCard and Wa
 USER: in the wallet receive page, when clicking on the address - it should copy it to clipboard, and give a 2 second popup - copied to clipboard.
 
 CLAUDE: Added click-to-copy on the address div in ReceiveScreen using navigator.clipboard.writeText; shows "Copied to clipboard" in green for 2 seconds via setTimeout.
+
+---
+
+USER: it crashes on psbt.signInput(i, selected[i].addrInfo.keyPair) — Buffer.isBuffer(keyPair.publicKey) returns false, wrong Buffer implementation in browser.
+
+CLAUDE: Fixed at source in deriveAddrAt: wrap child.publicKey and child.privateKey with Buffer.from() immediately after bip32 derivePath call, and patch keyPair.publicKey = Buffer.from(keyPair.publicKey). Reverted the sign-time workaround.
+
+---
+
+USER: Please implement blockchain.transaction.broadcast in http.js
+
+CLAUDE: Replaced the stub with a proper implementation: parses raw hex with TX.fromRaw(), broadcasts via this.node.sendTX(tx), returns tx.rhash() (the txid in display order). Also fixed the method name from the incorrect 'blockchain.scripthash.blockchain_transaction_broadcast' to 'blockchain.transaction.broadcast'.

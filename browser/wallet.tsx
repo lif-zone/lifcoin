@@ -10,7 +10,7 @@ const ecpair = ECPairFactory(ecc);
 import ElectrumClient from '@aguycalled/electrum-client-js';
 
 // add Lif network, from lif-coin/lib/protocol/networks.js
-bitcoin.networks.lif = {
+let networks_lif = {
   bech32: 'lif',
   bip32: {
     public: 0x019da4e0,
@@ -44,7 +44,7 @@ const DEFAULT_NETWORKS = {
   lif: {
     name: 'Life Mainnet', // Hi Life
     symbol: 'LIF',
-    network: bitcoin.networks.lif,
+    network: networks_lif,
     electrum: 'ws://localhost:8432',
     coin_type: 1842,
   },
@@ -77,7 +77,8 @@ function defaultDerivPath(conf){
 
 function deriveAddrAt(root, accountPath, network, chain, index){
   const child = root.derivePath(`${accountPath}/${chain}/${index}`);
-  const {address} = bitcoin.payments.p2wpkh({pubkey: Buffer(child.publicKey), network});
+  const pubkey = child.publicKey;
+  const {address} = bitcoin.payments.p2wpkh({pubkey, network});
   const keyPair = ecpair.fromPrivateKey(child.privateKey, {network});
   return {address, keyPair, chain, index};
 }
@@ -972,15 +973,15 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
         hash: utxo.tx_hash,
         index: utxo.tx_pos,
         witnessUtxo: {
-          value: utxo.value,
+          value: BigInt(utxo.value),
           script: bitcoin.address.toOutputScript(utxo.addrInfo.address, network),
         },
       });
     }
-    psbt.addOutput({address: toAddress, value: amountValue});
+    psbt.addOutput({address: toAddress, value: BigInt(amountValue)});
     const change = total-amountValue-fee;
     if (change>546)
-      psbt.addOutput({address: changeAddrInfo.address, value: change});
+      psbt.addOutput({address: changeAddrInfo.address, value: BigInt(change)});
     for (let i=0; i<selected.length; i++)
       psbt.signInput(i, selected[i].addrInfo.keyPair);
     psbt.finalizeAllInputs();
