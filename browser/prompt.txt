@@ -297,3 +297,9 @@ CLAUDE: Fixed at source in deriveAddrAt: wrap child.publicKey and child.privateK
 USER: Please implement blockchain.transaction.broadcast in http.js
 
 CLAUDE: Replaced the stub with a proper implementation: parses raw hex with TX.fromRaw(), broadcasts via this.node.sendTX(tx), returns tx.rhash() (the txid in display order). Also fixed the method name from the incorrect 'blockchain.scripthash.blockchain_transaction_broadcast' to 'blockchain.transaction.broadcast'.
+
+---
+
+USER: I want to create a LIF key/value inscription transaction (like ordinals but without Taproot). First output value=0 with OP_RETURN OP_FALSE OP_IF OP_PUSH 'lif' OP_PUSH 'key' OP_PUSH <key> OP_PUSH 'val' OP_PUSH <value> OP_ENDIF. Second output is change back to self. Add UI in wallet.tsx.
+
+CLAUDE: Added InscribeScreen component and "Inscribe" nav button in WalletDetailScreen. Script built with bitcoin.script.compile([OP_RETURN, OP_FALSE, OP_IF, 'lif', 'key', key, 'val', value, OP_ENDIF]). Output 0: inscription script value=0. Output 1: change to changeAddrInfo.address. UTXOs collected from all addresses, signed and broadcast same as SendScreen.

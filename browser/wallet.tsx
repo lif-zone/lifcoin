@@ -42,10 +42,11 @@ const DEFAULT_NETWORKS = {
     coin_type: 1,
   },
   lif: {
-    name: 'Life Mainnet', // Hi Life
+    name: 'Lif Mainnet', // Life Chai
     symbol: 'LIF',
     network: networks_lif,
     electrum: 'ws://localhost:8432',
+    explorer_tx: 'http://localhost:5000/tx/',
     coin_type: 1842,
   },
 };
@@ -672,6 +673,11 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
           style={{fontWeight: subscreen=='send' ? 'bold' : 'normal'}}
         >Send</button>
         <button
+          onClick={()=>setSubscreen('inscribe')}
+          disabled={!client || !allAddrs.length}
+          style={{fontWeight: subscreen=='inscribe' ? 'bold' : 'normal'}}
+        >Inscribe</button>
+        <button
           onClick={()=>setSubscreen('wallet-settings')}
           style={{marginLeft: 'auto', fontWeight: subscreen=='wallet-settings' ? 'bold' : 'normal'}}
         >⚙ Settings</button>
@@ -724,6 +730,16 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
       )}
       {subscreen=='send' && client && allAddrs.length>0 && (
         <SendScreen
+          client={client}
+          addrs={allAddrs}
+          changeAddrInfo={changeAddrInfo}
+          network={network}
+          conf={conf}
+          onSent={()=>{ setSubscreen('overview'); fetchData(client); }}
+        />
+      )}
+      {subscreen=='inscribe' && client && allAddrs.length>0 && (
+        <InscribeScreen
           client={client}
           addrs={allAddrs}
           changeAddrInfo={changeAddrInfo}
@@ -1019,6 +1035,115 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
       />
       <button onClick={handleSend} disabled={sending} style={{marginTop: 8}}>
         {sending ? 'Sending…' : 'Send'}
+      </button>
+    </div>
+  );
+}
+
+// Inscribe Screen
+function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
+  const [inscKey, setInscKey] = useState('');
+  const [inscVal, setInscVal] = useState('');
+  const [sending, setSending] = useState(false);
+  const handleInscribe = async()=>{
+    if (!inscKey.trim())
+      return alert('Key is required');
+    if (!inscVal.trim())
+      return alert('Value is required');
+    const inscriptionScript = bitcoin.script.compile([
+      bitcoin.opcodes.OP_RETURN,
+      Buffer.from('lif'),
+      Buffer.from('key'),
+      Buffer.from(inscKey.trim()),
+      Buffer.from('val'),
+      Buffer.from(inscVal.trim()),
+    ]);
+    let allUTXOs = [];
+    try {
+      const lists = await Promise.all(
+        addrs.map(async(addrInfo)=>{
+          const sh = getScriptHash(addrInfo.address, network);
+          const utxos = await client.blockchain_scripthash_listunspent(sh);
+          return utxos.map(u=>({...u, addrInfo}));
+        })
+      );
+      allUTXOs = lists.flat();
+    } catch(err){
+      return alert('Failed to fetch UTXOs');
+    }
+    if (!allUTXOs.length)
+      return alert('No funds available');
+    allUTXOs.sort((a, b)=>b.value-a.value);
+    const fee = 2000;
+    const selected = [];
+    let total = 0;
+    for (const utxo of allUTXOs){
+      selected.push(utxo);
+      total += utxo.value;
+      if (total >= fee)
+        break;
+    }
+    if (total < fee)
+      return alert('Insufficient balance to cover fee');
+    const psbt = new bitcoin.Psbt({network});
+    for (const utxo of selected){
+      psbt.addInput({
+        hash: utxo.tx_hash,
+        index: utxo.tx_pos,
+        witnessUtxo: {
+          value: BigInt(utxo.value),
+          script: bitcoin.address.toOutputScript(utxo.addrInfo.address, network),
+        },
+      });
+    }
+    psbt.addOutput({script: inscriptionScript, value: 0n});
+    psbt.addOutput({address: changeAddrInfo.address, value: BigInt(total-fee)});
+    for (let i=0; i<selected.length; i++)
+      psbt.signInput(i, selected[i].addrInfo.keyPair);
+    psbt.finalizeAllInputs();
+    const txHex = psbt.extractTransaction().toHex();
+    setSending(true);
+    try {
+      const txid = await client.blockchain_transaction_broadcast(txHex);
+      alert(`Inscription sent!\nTXID: ${txid}`);
+      setInscKey('');
+      setInscVal('');
+      onSent?.();
+    } catch(err){
+      alert('Broadcast failed: '+err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+  return (
+    <div style={{marginTop: 16, maxWidth: 480}}>
+      <h3>Inscribe Key/Value</h3>
+      <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
+        Writes a LIF key/value inscription to the blockchain.
+      </p>
+      <div style={{marginTop: 12}}>
+        <label>Key:</label>
+        <input
+          placeholder="e.g. dns/jungo"
+          value={inscKey}
+          onChange={e=>setInscKey(e.target.value)}
+          style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
+            fontSize: 13, boxSizing: 'border-box'}}
+        />
+      </div>
+      <div style={{marginTop: 12}}>
+        <label>Value:</label>
+        <textarea
+          rows={5}
+          placeholder={'{"site": "lif:git/..."}'}
+          value={inscVal}
+          onChange={e=>setInscVal(e.target.value)}
+          style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
+            fontSize: 13, boxSizing: 'border-box'}}
+        />
+      </div>
+      <button onClick={handleInscribe} disabled={sending} style={{marginTop: 12}}>
+        {sending ? 'Inscribing…' : 'Inscribe'}
       </button>
     </div>
   );

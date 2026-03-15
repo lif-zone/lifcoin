@@ -73,10 +73,11 @@ function test(){
     scripthash_from_addr(bech32(wallet3.mn, net).a), electrum_hash);
   t('main', '102c3b9d906f189a5c835c2ebac523f9f596582fb1ff0e721d4bb6539e207a4f');
   t('lifmain', '3db8391eb109d49883e4861132e99751c92eb0c93e2f258ab08fa9a0a10a7829');
-  assert.strictEqual(Script.fromJSON(
-    '6a24aa21a9ed2b4c76989d6e5898c6a68218351815f555842ce24410a1da74fa774d8836e60d')
-    .toASM(),
+  t = (hex, asm)=>assert.strictEqual(Script.fromJSON(hex).toASM(), asm);
+  t('6a24aa21a9ed2b4c76989d6e5898c6a68218351815f555842ce24410a1da74fa774d8836e60d',
     'OP_RETURN OP_PUSHBYTES36 aa21a9ed2b4c76989d6e5898c6a68218351815f555842ce24410a1da74fa774d8836e60d');
+  t('6a036c6966036b657901610376616c0162',
+    'OP_RETURN OP_PUSHBYTES3 6c6966 OP_PUSHBYTES3 6b6579 OP_PUSHBYTES1 61 OP_PUSHBYTES3 76616c OP_PUSHBYTES1 62');
 }
 test();
 
