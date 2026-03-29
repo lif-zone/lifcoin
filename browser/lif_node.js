@@ -103,7 +103,7 @@ let node = new FullNode({
   'index-tx': true,
   'index-address': true,
   'index-addrsh': true,
-  lif_kv_idx: false,
+  lif_kv_idx: true,
   'reject-absurd-fees': false,
   cors: true,
   'coinbase-address': [mine_address],
