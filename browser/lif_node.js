@@ -103,6 +103,7 @@ let node = new FullNode({
   'index-tx': true,
   'index-address': true,
   'index-addrsh': true,
+  lif_kv_idx: false,
   'reject-absurd-fees': false,
   cors: true,
   'coinbase-address': [mine_address],
@@ -115,7 +116,7 @@ async function mineBlocks(n){
   let entries = [];
   let miningAddress = new Address(mine_address);
   console.log(`Mining ${n} blocks to address: ${mine_address}`);
-  for (let i = 0; i < n; i++){
+  for (let i=0; i < n; i++){
     let job = await miner.cpu.createJob(null, miningAddress);
     // Mine blocks all ten minutes apart from regtest genesis
     //job.attempt.time = chain.tip.time + (60 * 10); // fake time
