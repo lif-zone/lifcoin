@@ -303,3 +303,23 @@ CLAUDE: Replaced the stub with a proper implementation: parses raw hex with TX.f
 USER: I want to create a LIF key/value inscription transaction (like ordinals but without Taproot). First output value=0 with OP_RETURN OP_FALSE OP_IF OP_PUSH 'lif' OP_PUSH 'key' OP_PUSH <key> OP_PUSH 'val' OP_PUSH <value> OP_ENDIF. Second output is change back to self. Add UI in wallet.tsx.
 
 CLAUDE: Added InscribeScreen component and "Inscribe" nav button in WalletDetailScreen. Script built with bitcoin.script.compile([OP_RETURN, OP_FALSE, OP_IF, 'lif', 'key', key, 'val', value, OP_ENDIF]). Output 0: inscription script value=0. Output 1: change to changeAddrInfo.address. UTXOs collected from all addresses, signed and broadcast same as SendScreen.
+
+---
+
+USER: Where is the code that removes a spent coin from the UTXO database (the del() command)?
+
+CLAUDE: Located in lib/blockchain/chaindb.js:1522, inside saveView(). When iterating the CoinView, if coin.spent is true it calls this.del(layout.c.encode(hash, index)) to remove it; otherwise this.put() saves/updates it.
+
+---
+
+USER: Add to txindexer.js to store and retrieve a JSON string in an additional field in the TxRecord (same 't' table).
+
+CLAUDE: Added `extra` string field to TxRecord. constructor gets `this.extra = options.extra || ''`. toRaw() switched to dynamic bio.write() and appends bw.writeVarString(this.extra, 'utf8'). fromRaw() reads it back with br.readVarString('utf8') guarded by br.left() > 0 for backward compatibility with old records.
+
+---
+
+USER: Why did you forget to update prompt.txt and how to make it permanent in memory?
+
+CLAUDE: Updated prompt.txt now. Strengthened the memory rule to CRITICAL priority in MEMORY.md so it cannot be missed.
+
+---
