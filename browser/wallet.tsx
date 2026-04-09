@@ -296,6 +296,7 @@ function HomeScreen({wallets, networks, onSelect, onAddNew}){
 function WalletCard({wallet, networks, onClick}){
   const [balance, setBalance] = useState(null);
   const [txCount, setTxCount] = useState(null);
+  const [keysOwned, setKeysOwned] = useState(0);
   const [connErr, setConnErr] = useState(false);
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const isHD = wallet.mode=='hd';
@@ -323,7 +324,10 @@ function WalletCard({wallet, networks, onClick}){
           const bals = await Promise.all(
             allUsed.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address, network)))
           );
+          for (let bal of bals)
+            if (bal.lif_kv) debugger;
           setBalance(bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0));
+          setKeysOwned(bals.reduce((s, b)=>s+(b.lif_kv?.confirmed?.length||0)+(b.lif_kv?.unconfirmed?.length||0), 0));
           const allTxHashes = new Set(allUsed.flatMap(a=>(a.hist||[]).map(tx=>tx.tx_hash)));
           setTxCount(allTxHashes.size);
         } else {
@@ -333,6 +337,7 @@ function WalletCard({wallet, networks, onClick}){
             cl.blockchain_scripthash_getHistory(sh),
           ]);
           setBalance(bal.confirmed+bal.unconfirmed);
+          setKeysOwned((bal.lif_kv?.confirmed?.length||0)+(bal.lif_kv?.unconfirmed?.length||0));
           setTxCount(hist.length);
         }
       } catch(e){
@@ -372,6 +377,11 @@ function WalletCard({wallet, networks, onClick}){
             <div style={{fontSize: 12, color: '#666'}}>
               {txCount ? ''+txCount+' TXs' : 'No transactions'}
             </div>
+            {keysOwned > 0 && (
+              <div style={{fontSize: 12, color: '#666'}}>
+                {keysOwned} {keysOwned===1?'Key':'Keys'}
+              </div>
+            )}
           </>
         )}
       </div>
