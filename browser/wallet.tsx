@@ -136,14 +136,7 @@ function getScriptHash(addr, network){
 function loadWallets(){
   try {
     const saved = localStorage.getItem('wallets');
-    if (saved)
-      return JSON.parse(saved);
-    // migrate old single-wallet format
-    const oldMnemonic = localStorage.getItem('wallet_mnemonic');
-    const oldNetwork = localStorage.getItem('wallet_network') || 'mainnet';
-    if (oldMnemonic && bip39.validateMnemonic(oldMnemonic))
-      return [{id: '1', name: '', network: oldNetwork, mnemonic: oldMnemonic, mode: 'single'}];
-    return [];
+    return saved ? JSON.parse(saved) : [];
   } catch { return []; }
 }
 
@@ -315,7 +308,6 @@ function WalletCard({wallet, networks, onClick}){
   const [keysOwned, setKeysOwned] = useState(0);
   const [connErr, setConnErr] = useState(false);
   const conf = networks[wallet.network] || Object.values(networks)[0];
-  const isHD = wallet.mode=='hd';
   const derived = useMemo(()=>{
     try { return deriveWallet(wallet.mnemonic, wallet.network, networks, wallet.passphrase||'', wallet.derivPath||null); }
     catch { return null; }
@@ -324,36 +316,25 @@ function WalletCard({wallet, networks, onClick}){
   useEffect(()=>{
     if (!derived)
       return;
-    const {root, address, network, conf} = derived;
+    const {root, network, conf} = derived;
     let cl;
     (async()=>{
       cl = Electrum_connect(conf.electrum);
       try {
         await cl.connect('lif-coin-wallet', '1.4');
         const accountPath = wallet.derivPath || defaultDerivPath(conf);
-        if (isHD){
-          const [extRes, chgRes] = await Promise.all([
-            scanAddresses(cl, root, accountPath, network, 0),
-            scanAddresses(cl, root, accountPath, network, 1),
-          ]);
-          const allUsed = [...extRes.used, ...chgRes.used];
-          const bals = await Promise.all(
-            allUsed.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address, network)))
-          );
-          setBalance(bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0));
-          setKeysOwned(bals.reduce((s, b)=>s+(b.lif_kv?.confirmed?.length||0)+(b.lif_kv?.unconfirmed?.length||0), 0));
-          const allTxHashes = new Set(allUsed.flatMap(a=>(a.hist||[]).map(tx=>tx.tx_hash)));
-          setTxCount(allTxHashes.size);
-        } else {
-          const sh = getScriptHash(address, network);
-          const [bal, hist] = await Promise.all([
-            cl.blockchain_scripthash_getBalance(sh),
-            cl.blockchain_scripthash_getHistory(sh),
-          ]);
-          setBalance(bal.confirmed+bal.unconfirmed);
-          setKeysOwned((bal.lif_kv?.confirmed?.length||0)+(bal.lif_kv?.unconfirmed?.length||0));
-          setTxCount(hist.length);
-        }
+        const [extRes, chgRes] = await Promise.all([
+          scanAddresses(cl, root, accountPath, network, 0),
+          scanAddresses(cl, root, accountPath, network, 1),
+        ]);
+        const allUsed = [...extRes.used, ...chgRes.used];
+        const bals = await Promise.all(
+          allUsed.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address, network)))
+        );
+        setBalance(bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0));
+        setKeysOwned(bals.reduce((s, b)=>s+(b.lif_kv?.confirmed?.length||0)+(b.lif_kv?.unconfirmed?.length||0), 0));
+        const allTxHashes = new Set(allUsed.flatMap(a=>(a.hist||[]).map(tx=>tx.tx_hash)));
+        setTxCount(allTxHashes.size);
       } catch(e){
         console.error('WalletCard fetch error:', e);
         setConnErr(true);
@@ -361,7 +342,7 @@ function WalletCard({wallet, networks, onClick}){
         try { cl?.close(); } catch {}
       }
     })();
-  }, [wallet.id, wallet.network, wallet.mode, conf.electrum]);
+  }, [wallet.id, wallet.network, conf.electrum]);
 
   if (!derived){
     return (
@@ -371,7 +352,6 @@ function WalletCard({wallet, networks, onClick}){
     );
   }
 
-  const {address} = derived;
   const symbol = conf.symbol||'BTC';
   const label = wallet.name || '';
   return (
@@ -406,7 +386,6 @@ function WalletCard({wallet, networks, onClick}){
 // Add Wallet Screen
 function AddWalletScreen({networks, wallets, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('mainnet');
-  const [addrMode, setAddrMode] = useState('hd'); // 'single' | 'hd'
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [derivPath, setDerivPath] = useState(()=>defaultDerivPath(networks['mainnet']));
   const [mnemonicInput, setMnemonicInput] = useState('');
@@ -442,7 +421,7 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
       setError('Failed to derive wallet: '+e.message);
       return;
     }
-    onAdd({id: Date.now().toString(), name: name.trim(), network: networkKey, mnemonic, mode: addrMode, passphrase: pp, derivPath: dp});
+    onAdd({id: Date.now().toString(), name: name.trim(), network: networkKey, mnemonic, passphrase: pp, derivPath: dp});
   };
   return (
     <div style={{maxWidth: 480}}>
@@ -471,17 +450,6 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
           {Object.entries(networks).map(([key, conf])=>(
             <option key={key} value={key}>{conf.name}</option>
           ))}
-        </select>
-      </div>
-      <div style={{marginTop: 12}}>
-        <label>Address mode:</label>
-        <select
-          value={addrMode}
-          onChange={e=>setAddrMode(e.target.value)}
-          style={{display: 'block', width: '100%', marginTop: 4}}
-        >
-          <option value="single">Same address for all transactions</option>
-          <option value="hd">Unique address for each transaction (BIP84)</option>
         </select>
       </div>
       <div style={{marginTop: 12}}>
@@ -540,7 +508,6 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
 function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSelectTx, onSelectKey}){
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const network = conf.network;
-  const isHD = wallet.mode=='hd';
   const [client, setClient] = useState(null);
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -557,22 +524,13 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
     try {
       const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
       const accountPath = wallet.derivPath || defaultDerivPath(conf);
-      let addrs, recvAddr, chgAddr;
-      if (isHD){
-        const [extRes, chgRes] = await Promise.all([
-          scanAddresses(cl, root, accountPath, network, 0),
-          scanAddresses(cl, root, accountPath, network, 1),
-        ]);
-        addrs = [...extRes.used, ...chgRes.used];
-        recvAddr = deriveAddrAt(root, accountPath, network, 0, extRes.nextIndex).address;
-        chgAddr = deriveAddrAt(root, accountPath, network, 1, chgRes.nextIndex);
-      } else {
-        const single = deriveAddrAt(root, accountPath, network, 0, 0);
-        const hist = await cl.blockchain_scripthash_getHistory(getScriptHash(single.address, network));
-        addrs = [{...single, hist}];
-        recvAddr = single.address;
-        chgAddr = single;
-      }
+      const [extRes, chgRes] = await Promise.all([
+        scanAddresses(cl, root, accountPath, network, 0),
+        scanAddresses(cl, root, accountPath, network, 1),
+      ]);
+      const addrs = [...extRes.used, ...chgRes.used];
+      const recvAddr = deriveAddrAt(root, accountPath, network, 0, extRes.nextIndex).address;
+      const chgAddr = deriveAddrAt(root, accountPath, network, 1, chgRes.nextIndex);
       setReceiveAddress(recvAddr);
       setAllAddrs(addrs);
       setChangeAddrInfo(chgAddr);
@@ -772,7 +730,6 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
       {subscreen=='receive' && receiveAddress && (
         <ReceiveScreen
           address={receiveAddress}
-          isHD={isHD}
           symbol={symbol}
         />
       )}
@@ -800,7 +757,6 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
         <WalletSettingsSubscreen
           wallet={wallet}
           conf={conf}
-          isHD={isHD}
           onUpdate={onUpdate}
           onDelete={handleDelete}
         />
@@ -810,7 +766,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
 }
 
 // Wallet Settings Subscreen
-function WalletSettingsSubscreen({wallet, conf, isHD, onUpdate, onDelete}){
+function WalletSettingsSubscreen({wallet, conf, onUpdate, onDelete}){
   const [revealed, setRevealed] = useState(false);
   const [name, setName] = useState(wallet.name||'');
   const hasPassphrase = !!wallet.passphrase;
@@ -832,10 +788,6 @@ function WalletSettingsSubscreen({wallet, conf, isHD, onUpdate, onDelete}){
           <tr>
             <td style={{padding: '5px 12px 5px 0', color: '#666', whiteSpace: 'nowrap'}}>Network</td>
             <td style={{padding: '5px 0'}}>{conf.name}</td>
-          </tr>
-          <tr>
-            <td style={{padding: '5px 12px 5px 0', color: '#666', whiteSpace: 'nowrap'}}>Address mode</td>
-            <td style={{padding: '5px 0'}}>{isHD ? 'Unique address per transaction (BIP84)' : 'Single address'}</td>
           </tr>
           <tr>
             <td style={{padding: '5px 12px 5px 0', color: '#666', whiteSpace: 'nowrap'}}>Derivation path</td>
@@ -885,7 +837,7 @@ function WalletSettingsSubscreen({wallet, conf, isHD, onUpdate, onDelete}){
 }
 
 // Receive Screen
-function ReceiveScreen({address, isHD, symbol}){
+function ReceiveScreen({address, symbol}){
   const [copied, setCopied] = useState(false);
   const handleCopy = ()=>{
     navigator.clipboard.writeText(address);
@@ -895,11 +847,9 @@ function ReceiveScreen({address, isHD, symbol}){
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Receive {symbol}</h3>
-      {isHD && (
-        <p style={{color: '#666', fontSize: 13, marginTop: 4}}>
-          Fresh address — a new one will appear after it receives funds.
-        </p>
-      )}
+      <p style={{color: '#666', fontSize: 13, marginTop: 4}}>
+        Fresh address — a new one will appear after it receives funds.
+      </p>
       <div
         onClick={handleCopy}
         style={{

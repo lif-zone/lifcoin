@@ -347,3 +347,11 @@ USER: In KeyDetailScreen, show date/time of the transaction and add a link to go
 CLAUDE: Enriched keyData on click with _tx (matched from transactions by tx_hash) and _walletAddrs. KeyDetailScreen now accepts conf and onViewTx props; shows date (or "unconfirmed") and "View Transaction" button that navigates to tx-detail screen. App passes onViewTx callback that sets selectedTxData and switches to tx-detail.
 
 ---
+
+---
+
+USER: Remove all non-HD wallet support. HD (unique address per transaction) is always the case now.
+
+CLAUDE: Removed all single-address wallet code: loadWallets migration removed; WalletCard isHD/else branch removed; AddWalletScreen addrMode state and dropdown removed (always hd, mode field dropped from wallet object); WalletDetailScreen isHD/else branch in fetchData removed; WalletSettingsSubscreen isHD prop and Address mode row removed; ReceiveScreen isHD prop removed, fresh address message always shown. deriveWallet kept for root/conf derivation and AddWalletScreen validation.
+
+---
