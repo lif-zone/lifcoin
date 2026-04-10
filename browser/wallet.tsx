@@ -51,6 +51,13 @@ const DEFAULT_NETWORKS = {
   },
 };
 
+function json(o){
+  return JSON.stringify(o);
+}
+function trunc(s, len){
+  return s.length>len ? s.slice(0, len)+'…' : s;
+}
+
 function Electrum_connect(url){
   let u = URL.parse(url);
   let protocol = u.protocol.slice(0, -1);
@@ -180,6 +187,7 @@ function BrightWallet(){
   const [screen, setScreen] = useState('home');
   const [activeWalletId, setActiveWalletId] = useState(null);
   const [selectedTxData, setSelectedTxData] = useState(null);
+  const [selectedKeyData, setSelectedKeyData] = useState(null);
   const networks = useMemo(()=>getNetworks(servers), [servers]);
   const addWallet = (wallet)=>{
     const updated = [...wallets, wallet];
@@ -201,7 +209,7 @@ function BrightWallet(){
   const activeWallet = wallets.find(w=>w.id===activeWalletId);
   const goHome = ()=>setScreen('home');
   const goBack = ()=>{
-    if (screen=='tx-detail')
+    if (screen=='tx-detail' || screen=='key-detail')
       setScreen('wallet-detail');
     else
       goHome();
@@ -246,6 +254,7 @@ function BrightWallet(){
           onUpdate={(changes)=>updateWallet(activeWallet.id, changes)}
           onBack={goHome}
           onSelectTx={(data)=>{ setSelectedTxData(data); setScreen('tx-detail'); }}
+          onSelectKey={(data)=>{ setSelectedKeyData(data); setScreen('key-detail'); }}
         />
       )}
       {screen=='tx-detail' && selectedTxData && activeWallet && (
@@ -255,6 +264,9 @@ function BrightWallet(){
           walletAddrs={selectedTxData.walletAddrs}
           walletName={activeWallet.name || (activeWallet.mode=='hd' ? 'HD Wallet' : 'Wallet')}
         />
+      )}
+      {screen=='key-detail' && selectedKeyData && (
+        <KeyDetailScreen keyData={selectedKeyData} />
       )}
       {screen=='settings' && (
         <SettingsScreen
@@ -324,8 +336,6 @@ function WalletCard({wallet, networks, onClick}){
           const bals = await Promise.all(
             allUsed.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address, network)))
           );
-          for (let bal of bals)
-            if (bal.lif_kv) debugger;
           setBalance(bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0));
           setKeysOwned(bals.reduce((s, b)=>s+(b.lif_kv?.confirmed?.length||0)+(b.lif_kv?.unconfirmed?.length||0), 0));
           const allTxHashes = new Set(allUsed.flatMap(a=>(a.hist||[]).map(tx=>tx.tx_hash)));
@@ -523,13 +533,14 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
 }
 
 // Wallet Detail Screen
-function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSelectTx}){
+function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSelectTx, onSelectKey}){
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const network = conf.network;
   const isHD = wallet.mode=='hd';
   const [client, setClient] = useState(null);
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [ownedKeys, setOwnedKeys] = useState([]);
   const [subscreen, setSubscreen] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [connErr, setConnErr] = useState(false);
@@ -567,6 +578,12 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
         addrs.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address, network)))
       );
       setBalance(bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0));
+      const allKeys = [
+        ...bals.flatMap(b=>b.lif_kv?.confirmed||[]),
+        ...bals.flatMap(b=>b.lif_kv?.unconfirmed||[]),
+      ];
+      const seenKeys = new Set();
+      setOwnedKeys(allKeys.filter(k=>{ if(seenKeys.has(k.key)) return false; seenKeys.add(k.key); return true; }));
       // Deduplicate txs across all addresses, sort by height desc
       const txByHash = new Map();
       for (const a of addrs){
@@ -695,6 +712,23 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
 
       {subscreen=='overview' && (
         <div style={{marginTop: 16}}>
+          {ownedKeys.length > 0 && (<>
+            <h3>Keys</h3>
+            <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
+              {ownedKeys.map((k, i)=>(
+                <li key={i}
+                  onClick={()=>onSelectKey(k)}
+                  style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
+                    borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', gap: 8}}
+                >
+                  <span style={{fontFamily: 'monospace'}}>{k.key}</span>
+                  <span style={{color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220}}>
+                    {trunc(json(k.val), 40)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>)}
           <h3>Transactions</h3>
           {loading ? (
             <p style={{color: '#aaa'}}>Loading…</p>
@@ -886,6 +920,22 @@ function ReceiveScreen({address, isHD, symbol}){
 }
 
 // Tx Detail Screen
+function KeyDetailScreen({keyData}){
+  return (
+    <div style={{marginTop: 16, maxWidth: 600}}>
+      <h3>Key</h3>
+      <div style={{marginTop: 8}}>
+        <strong>Key:</strong>
+        <div style={{fontFamily: 'monospace', wordBreak: 'break-all', marginTop: 2}}>{keyData.key}</div>
+      </div>
+      <div style={{marginTop: 12}}>
+        <strong>Value:</strong>
+        <div style={{fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 2}}>{keyData.val}</div>
+      </div>
+    </div>
+  );
+}
+
 function TxDetailScreen({tx, conf, walletAddrs, walletName}){
   const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString() : null;
   const positive = tx.amount>=0;

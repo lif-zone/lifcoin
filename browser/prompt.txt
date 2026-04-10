@@ -331,3 +331,11 @@ USER: In WalletCard, display number of lif_kv keys owned (only if > 0). getBalan
 CLAUDE: Added keysOwned state to WalletCard. For HD wallets, summed (lif_kv?.confirmed?.length||0)+(lif_kv?.unconfirmed?.length||0) across all address balances. For single wallet, same on the single bal result. Rendered "{N} key(s) owned" below TX count only when keysOwned > 0.
 
 ---
+
+---
+
+USER: In the main wallet detail page, if lif_kv keys are owned, show a "Keys" section before "Transactions" listing key name + truncated value. Clicking a key opens a KeyDetailScreen with full key and value.
+
+CLAUDE: Added ownedKeys state to WalletDetailScreen, populated from bals lif_kv.confirmed/unconfirmed arrays (deduped by key name, confirmed first). Added Keys section in overview subscreen before Transactions — each row shows key name (monospace) and truncated value (40 chars + …). Added KeyDetailScreen component showing full key and value. Wired onSelectKey prop through WalletDetailScreen → App, with selectedKeyData state and key-detail screen. goBack handles key-detail → wallet-detail.
+
+---
