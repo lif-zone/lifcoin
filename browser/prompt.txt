@@ -355,3 +355,11 @@ USER: Remove all non-HD wallet support. HD (unique address per transaction) is a
 CLAUDE: Removed all single-address wallet code: loadWallets migration removed; WalletCard isHD/else branch removed; AddWalletScreen addrMode state and dropdown removed (always hd, mode field dropped from wallet object); WalletDetailScreen isHD/else branch in fetchData removed; WalletSettingsSubscreen isHD prop and Address mode row removed; ReceiveScreen isHD prop removed, fresh address message always shown. deriveWallet kept for root/conf derivation and AddWalletScreen validation.
 
 ---
+
+---
+
+USER: Rename Key/Keys to Name/Names in UI labels (not code variables).
+
+CLAUDE: Changed UI strings only: wallet card "Key/Keys" → "Name/Names", detail screen "Keys" section heading → "Names", KeyDetailScreen "Key" heading and label → "Name", InscribeScreen "Inscribe Key/Value" → "Inscribe Name/Value" and "Key:" label → "Name:".
+
+---

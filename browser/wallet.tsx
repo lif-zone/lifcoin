@@ -373,7 +373,7 @@ function WalletCard({wallet, networks, onClick}){
             </div>
             {keysOwned > 0 && (
               <div style={{fontSize: 12, color: '#666'}}>
-                {keysOwned} {keysOwned===1?'Key':'Keys'}
+                {keysOwned} {keysOwned===1?'Name':'Names'}
               </div>
             )}
           </>
@@ -675,7 +675,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
       {subscreen=='overview' && (
         <div style={{marginTop: 16}}>
           {ownedKeys.length > 0 && (<>
-            <h3>Keys</h3>
+            <h3>Names</h3>
             <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
               {ownedKeys.map((k, i)=>(
                 <li key={i}
@@ -880,9 +880,9 @@ function KeyDetailScreen({keyData, conf, onViewTx}){
   const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString() : null;
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
-      <h3>Key</h3>
+      <h3>Name</h3>
       <div style={{marginTop: 8}}>
-        <strong>Key:</strong>
+        <strong>Name:</strong>
         <div style={{fontFamily: 'monospace', wordBreak: 'break-all', marginTop: 2}}>{keyData.key}</div>
       </div>
       <div style={{marginTop: 12}}>
@@ -1144,12 +1144,12 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
   };
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
-      <h3>Inscribe Key/Value</h3>
+      <h3>Inscribe Name/Value</h3>
       <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
         Writes a LIF key/value inscription to the blockchain.
       </p>
       <div style={{marginTop: 12}}>
-        <label>Key:</label>
+        <label>Name:</label>
         <input
           placeholder="e.g. dns/jungo"
           value={inscKey}
