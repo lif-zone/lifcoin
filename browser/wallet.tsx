@@ -930,7 +930,7 @@ function KeyDetailScreen({keyData}){
       </div>
       <div style={{marginTop: 12}}>
         <strong>Value:</strong>
-        <div style={{fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 2}}>{keyData.val}</div>
+        <div style={{fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 2}}>{json(keyData.val)}</div>
       </div>
     </div>
   );
