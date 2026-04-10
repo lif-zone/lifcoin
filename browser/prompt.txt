@@ -363,3 +363,11 @@ USER: Rename Key/Keys to Name/Names in UI labels (not code variables).
 CLAUDE: Changed UI strings only: wallet card "Key/Keys" → "Name/Names", detail screen "Keys" section heading → "Names", KeyDetailScreen "Key" heading and label → "Name", InscribeScreen "Inscribe Key/Value" → "Inscribe Name/Value" and "Key:" label → "Name:".
 
 ---
+
+---
+
+USER: Add Transfer button on Key detail page. Opens NameTransferScreen: recipient address input, builds tx with name UTXO (keyData.tx:keyData.vout) as first input, recipient as first output, change as second. Extra UTXO inputs added only if name UTXO value < fee.
+
+CLAUDE: Added NameTransferScreen component: creates own electrum connection, scans addresses for keyPairs, uses keyData.tx/keyData.vout as first input. If nameValue >= fee: single output to recipient (nameValue-fee). If nameValue < fee: fetches extra UTXOs for fee, output 0 = recipient with full nameValue, output 1 = change. Transfer button in KeyDetailScreen alongside View Transaction. App wires name-transfer screen, goBack from name-transfer returns to key-detail.
+
+---

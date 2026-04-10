@@ -202,7 +202,9 @@ function BrightWallet(){
   const activeWallet = wallets.find(w=>w.id===activeWalletId);
   const goHome = ()=>setScreen('home');
   const goBack = ()=>{
-    if (screen=='tx-detail' || screen=='key-detail')
+    if (screen=='name-transfer')
+      setScreen('key-detail');
+    else if (screen=='tx-detail' || screen=='key-detail')
       setScreen('wallet-detail');
     else
       goHome();
@@ -263,6 +265,15 @@ function BrightWallet(){
           keyData={selectedKeyData}
           conf={networks[activeWallet.network] || Object.values(networks)[0]}
           onViewTx={(tx)=>{ setSelectedTxData({tx, conf: networks[activeWallet.network]||Object.values(networks)[0], walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx-detail'); }}
+          onTransfer={()=>setScreen('name-transfer')}
+        />
+      )}
+      {screen=='name-transfer' && selectedKeyData && activeWallet && (
+        <NameTransferScreen
+          wallet={activeWallet}
+          networks={networks}
+          keyData={selectedKeyData}
+          onSent={()=>setScreen('wallet-detail')}
         />
       )}
       {screen=='settings' && (
@@ -874,8 +885,7 @@ function ReceiveScreen({address, symbol}){
 }
 
 // Key Detail Screen
-function KeyDetailScreen({keyData, conf, onViewTx}){
-  console.log(keyData);
+function KeyDetailScreen({keyData, conf, onViewTx, onTransfer}){
   const tx = keyData._tx;
   const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString() : null;
   return (
@@ -894,10 +904,142 @@ function KeyDetailScreen({keyData, conf, onViewTx}){
           <strong>Date:</strong>{' '}
           {date || <span style={{color: '#f90'}}>unconfirmed</span>}
         </div>
-        <div style={{marginTop: 8}}>
+        <div style={{marginTop: 8, display: 'flex', gap: 8}}>
           <button onClick={()=>onViewTx(tx)}>View Transaction</button>
+          <button onClick={onTransfer}>Transfer</button>
         </div>
       </>)}
+    </div>
+  );
+}
+
+// Name Transfer Screen
+function NameTransferScreen({wallet, networks, keyData, onSent}){
+  const conf = networks[wallet.network] || Object.values(networks)[0];
+  const network = conf.network;
+  const [toAddress, setToAddress] = useState('');
+  const [sending, setSending] = useState(false);
+  const [client, setClient] = useState(null);
+  const [addrs, setAddrs] = useState([]);
+  const [changeAddrInfo, setChangeAddrInfo] = useState(null);
+  const [connErr, setConnErr] = useState(false);
+
+  useEffect(()=>{
+    const cl = Electrum_connect(conf.electrum);
+    (async()=>{
+      try {
+        await cl.connect('lif-coin-wallet', '1.4');
+        setClient(cl);
+        const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
+        const accountPath = wallet.derivPath || defaultDerivPath(conf);
+        const [extRes, chgRes] = await Promise.all([
+          scanAddresses(cl, root, accountPath, network, 0),
+          scanAddresses(cl, root, accountPath, network, 1),
+        ]);
+        setAddrs([...extRes.used, ...chgRes.used]);
+        setChangeAddrInfo(deriveAddrAt(root, accountPath, network, 1, chgRes.nextIndex));
+      } catch(e){
+        console.error('NameTransfer connect error:', e);
+        setConnErr(true);
+      }
+    })();
+    return ()=>{ try { cl.close(); } catch {} };
+  }, []);
+
+  const handleTransfer = async()=>{
+    if (!toAddress.trim())
+      return alert('Enter recipient address');
+    if (!client)
+      return alert('Not connected');
+    const nameVout = keyData._tx._vtx.vout[keyData.vout];
+    const nameValue = Math.round(nameVout.value*1e8);
+    const nameAddr = nameVout.scriptPubKey?.address || nameVout.scriptPubKey?.addresses?.[0];
+    const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
+    if (!nameAddrInfo)
+      return alert('Name UTXO address not found in wallet');
+    const fee = 2000;
+    const psbt = new bitcoin.Psbt({network});
+    psbt.addInput({
+      hash: keyData.tx,
+      index: keyData.vout,
+      witnessUtxo: {
+        value: BigInt(nameValue),
+        script: bitcoin.address.toOutputScript(nameAddr, network),
+      },
+    });
+    const signers = [nameAddrInfo];
+    let extraTotal = 0;
+    if (nameValue < fee){
+      let allUTXOs = [];
+      try {
+        const lists = await Promise.all(
+          addrs.map(async(addrInfo)=>{
+            const sh = getScriptHash(addrInfo.address, network);
+            const utxos = await client.blockchain_scripthash_listunspent(sh);
+            return utxos.map(u=>({...u, addrInfo}));
+          })
+        );
+        allUTXOs = lists.flat().filter(u=>!(u.tx_hash==keyData.tx && u.tx_pos==keyData.vout));
+      } catch(err){
+        return alert('Failed to fetch UTXOs');
+      }
+      allUTXOs.sort((a, b)=>b.value-a.value);
+      for (const utxo of allUTXOs){
+        psbt.addInput({
+          hash: utxo.tx_hash,
+          index: utxo.tx_pos,
+          witnessUtxo: {
+            value: BigInt(utxo.value),
+            script: bitcoin.address.toOutputScript(utxo.addrInfo.address, network),
+          },
+        });
+        signers.push(utxo.addrInfo);
+        extraTotal += utxo.value;
+        if (extraTotal >= fee)
+          break;
+      }
+      if (extraTotal < fee)
+        return alert('Insufficient balance to cover fees');
+      psbt.addOutput({address: toAddress.trim(), value: BigInt(nameValue)});
+      const change = extraTotal-fee;
+      if (change>546)
+        psbt.addOutput({address: changeAddrInfo.address, value: BigInt(change)});
+    } else {
+      psbt.addOutput({address: toAddress.trim(), value: BigInt(nameValue-fee)});
+    }
+    for (let i=0; i<signers.length; i++)
+      psbt.signInput(i, signers[i].keyPair);
+    psbt.finalizeAllInputs();
+    const txHex = psbt.extractTransaction().toHex();
+    setSending(true);
+    try {
+      const txid = await client.blockchain_transaction_broadcast(txHex);
+      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
+      alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
+      onSent?.();
+    } catch(err){
+      alert('Broadcast failed: '+err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{marginTop: 16, maxWidth: 400}}>
+      <h3>Transfer Name</h3>
+      <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
+        Transferring: <span style={{fontFamily: 'monospace'}}>{keyData.key}</span>
+      </div>
+      {connErr && <p style={{color: '#c00'}}>Connection error</p>}
+      <input
+        placeholder="Recipient address"
+        value={toAddress}
+        onChange={e=>setToAddress(e.target.value)}
+        style={{display: 'block', width: '100%', marginTop: 12, boxSizing: 'border-box'}}
+      />
+      <button onClick={handleTransfer} disabled={sending||!client} style={{marginTop: 8}}>
+        {sending ? 'Transferring…' : 'Transfer'}
+      </button>
     </div>
   );
 }
