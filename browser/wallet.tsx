@@ -265,8 +265,12 @@ function BrightWallet(){
           walletName={activeWallet.name || (activeWallet.mode=='hd' ? 'HD Wallet' : 'Wallet')}
         />
       )}
-      {screen=='key-detail' && selectedKeyData && (
-        <KeyDetailScreen keyData={selectedKeyData} />
+      {screen=='key-detail' && selectedKeyData && activeWallet && (
+        <KeyDetailScreen
+          keyData={selectedKeyData}
+          conf={networks[activeWallet.network] || Object.values(networks)[0]}
+          onViewTx={(tx)=>{ setSelectedTxData({tx, conf: networks[activeWallet.network]||Object.values(networks)[0], walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx-detail'); }}
+        />
       )}
       {screen=='settings' && (
         <SettingsScreen
@@ -717,7 +721,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
             <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
               {ownedKeys.map((k, i)=>(
                 <li key={i}
-                  onClick={()=>onSelectKey(k)}
+                  onClick={()=>onSelectKey({...k, _tx: transactions.find(t=>t.tx_hash==k.tx), _walletAddrs: new Set(allAddrs.map(a=>a.address))})}
                   style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
                     borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', gap: 8}}
                 >
@@ -919,8 +923,11 @@ function ReceiveScreen({address, isHD, symbol}){
   );
 }
 
-// Tx Detail Screen
-function KeyDetailScreen({keyData}){
+// Key Detail Screen
+function KeyDetailScreen({keyData, conf, onViewTx}){
+  console.log(keyData);
+  const tx = keyData._tx;
+  const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString() : null;
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
       <h3>Key</h3>
@@ -932,10 +939,20 @@ function KeyDetailScreen({keyData}){
         <strong>Value:</strong>
         <div style={{fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 2}}>{json(keyData.val)}</div>
       </div>
+      {tx && (<>
+        <div style={{marginTop: 12}}>
+          <strong>Date:</strong>{' '}
+          {date || <span style={{color: '#f90'}}>unconfirmed</span>}
+        </div>
+        <div style={{marginTop: 8}}>
+          <button onClick={()=>onViewTx(tx)}>View Transaction</button>
+        </div>
+      </>)}
     </div>
   );
 }
 
+// Tx Detail Screen
 function TxDetailScreen({tx, conf, walletAddrs, walletName}){
   const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString() : null;
   const positive = tx.amount>=0;

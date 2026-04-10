@@ -339,3 +339,11 @@ USER: In the main wallet detail page, if lif_kv keys are owned, show a "Keys" se
 CLAUDE: Added ownedKeys state to WalletDetailScreen, populated from bals lif_kv.confirmed/unconfirmed arrays (deduped by key name, confirmed first). Added Keys section in overview subscreen before Transactions — each row shows key name (monospace) and truncated value (40 chars + …). Added KeyDetailScreen component showing full key and value. Wired onSelectKey prop through WalletDetailScreen → App, with selectedKeyData state and key-detail screen. goBack handles key-detail → wallet-detail.
 
 ---
+
+---
+
+USER: In KeyDetailScreen, show date/time of the transaction and add a link to go to the transaction page.
+
+CLAUDE: Enriched keyData on click with _tx (matched from transactions by tx_hash) and _walletAddrs. KeyDetailScreen now accepts conf and onViewTx props; shows date (or "unconfirmed") and "View Transaction" button that navigates to tx-detail screen. App passes onViewTx callback that sets selectedTxData and switches to tx-detail.
+
+---
