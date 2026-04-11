@@ -1245,6 +1245,30 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
   const [inscKey, setInscKey] = useState('');
   const [inscVal, setInscVal] = useState('');
   const [sending, setSending] = useState(false);
+  const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
+
+  useEffect(()=>{
+    const key = inscKey.trim();
+    if (!key || !client){
+      setNameStatus(null);
+      return;
+    }
+    setNameStatus('checking');
+    const timer = setTimeout(()=>{
+      (async()=>{
+        try {
+          let kv = await client.request('blockchain.lif_kv.get', [key]);
+          if (kv===undefined) // this electrumx client returns undefined for error responses
+            setNameStatus('available');
+          else
+            setNameStatus('taken');
+        } catch(e){
+          setNameStatus('error');
+        }
+      })();
+    }, 500);
+    return ()=>clearTimeout(timer);
+  }, [inscKey, client]);
   const handleInscribe = async()=>{
     if (!inscKey.trim())
       return alert('Key is required');
@@ -1317,7 +1341,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
   };
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
-      <h3>Inscribe Name/Value</h3>
+      <h3>Inscribe new name</h3>
       <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
         Writes a LIF key/value inscription to the blockchain.
       </p>
@@ -1330,6 +1354,9 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
           style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
             fontSize: 13, boxSizing: 'border-box'}}
         />
+        {nameStatus=='checking' && <div style={{fontSize: 12, color: '#aaa', marginTop: 3}}>Checking…</div>}
+        {nameStatus=='available' && <div style={{fontSize: 12, color: 'green', marginTop: 3}}>Available</div>}
+        {nameStatus=='taken' && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Already inscribed</div>}
       </div>
       <div style={{marginTop: 12}}>
         <label>Value:</label>
@@ -1342,7 +1369,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
             fontSize: 13, boxSizing: 'border-box'}}
         />
       </div>
-      <button onClick={handleInscribe} disabled={sending} style={{marginTop: 12}}>
+      <button onClick={handleInscribe} disabled={sending||nameStatus=='taken'} style={{marginTop: 12}}>
         {sending ? 'Inscribing…' : 'Inscribe'}
       </button>
     </div>
