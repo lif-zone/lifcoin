@@ -379,3 +379,11 @@ USER: Color names in wallet overview: green=confirmed unspent, orange=unconfirme
 CLAUDE: Replaced bals.lif_kv approach for ownedKeys with scanning verboseTxs vouts after they're fetched. For each vout with lif_kv at our address, determines _kstatus: 'confirmed' (unspent+confirmed), 'receiving' (unspent+unconfirmed), 'spent' (vout.spent==true). Most recent tx per key wins (unconfirmed=Infinity priority). Key name colored green/orange/red accordingly.
 
 ---
+
+---
+
+USER: In the name detail page, also show the status with same color coding as overview (green/orange/red).
+
+CLAUDE: Added statusColor and statusLabel derived from keyData._kstatus in KeyDetailScreen. Name text colored with statusColor, and a status label ("Confirmed" / "Unconfirmed" / "Spent") shown below in the same color.
+
+---

@@ -613,8 +613,6 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
       setTransactions(enrichedTxs);
       // Build ownedKeys from vouts — most recent tx per key wins (unconfirmed > higher height)
       const keyMap = new Map();
-      debugger;
-      console.log(enrichedTxs); // XXX
       for (const enrichedTx of enrichedTxs){
         const vouts = enrichedTx._vtx?.vout || [];
         for (let i=0; i<vouts.length; i++){
@@ -642,9 +640,6 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
           }
         }
       }
-      console.log(keyMap);
-      console.log(keyMap.values());
-      debugger;
       setOwnedKeys([...keyMap.values()]);
     } catch(e){
       console.error('fetchData error:', e);
@@ -921,13 +916,16 @@ function ReceiveScreen({address, symbol}){
 function KeyDetailScreen({keyData, conf, onViewTx, onTransfer}){
   const tx = keyData._tx;
   const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString() : null;
+  const statusColor = keyData._kstatus=='confirmed'?'green':keyData._kstatus=='receiving'?'#f90':'#c00';
+  const statusLabel = keyData._kstatus=='confirmed'?'Confirmed':keyData._kstatus=='receiving'?'Unconfirmed':'Spent';
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
       <h3>Name</h3>
       <div style={{marginTop: 8}}>
         <strong>Name:</strong>
-        <div style={{fontFamily: 'monospace', wordBreak: 'break-all', marginTop: 2}}>{keyData.key}</div>
+        <div style={{fontFamily: 'monospace', wordBreak: 'break-all', marginTop: 2, color: statusColor}}>{keyData.key}</div>
       </div>
+      <div style={{marginTop: 6, fontSize: 13, color: statusColor}}>{statusLabel}</div>
       <div style={{marginTop: 12}}>
         <strong>Value:</strong>
         <div style={{fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 2}}>{json(keyData.val)}</div>
