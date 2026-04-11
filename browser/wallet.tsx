@@ -1246,6 +1246,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
   const [inscVal, setInscVal] = useState('');
   const [sending, setSending] = useState(false);
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
+  const [valError, setValError] = useState(false);
 
   useEffect(()=>{
     const key = inscKey.trim();
@@ -1364,12 +1365,13 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
           rows={5}
           placeholder={'{"site": "lif:git/..."}'}
           value={inscVal}
-          onChange={e=>setInscVal(e.target.value)}
+          onChange={e=>{ setInscVal(e.target.value); try { JSON.parse(e.target.value); setValError(false); } catch { setValError(true); } }}
           style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
             fontSize: 13, boxSizing: 'border-box'}}
         />
+        {valError && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Invalid JSON</div>}
       </div>
-      <button onClick={handleInscribe} disabled={sending||nameStatus=='taken'} style={{marginTop: 12}}>
+      <button onClick={handleInscribe} disabled={sending||nameStatus=='taken'||valError} style={{marginTop: 12}}>
         {sending ? 'Inscribing…' : 'Inscribe'}
       </button>
     </div>

@@ -403,3 +403,11 @@ USER: Inscribe screen shows blank when clicking the Inscribe button.
 CLAUDE: Fixed subscreen mismatch — button set 'inscribe' but render condition checked 'inscribe name'. Changed render condition to 'inscribe'.
 
 ---
+
+---
+
+USER: Add JSON validation for the value field in Inscribe screen — red "Invalid JSON" message below if invalid, and disable Inscribe button.
+
+CLAUDE: Added valError state, validated inline in onChange with JSON.parse try/catch. Shows "Invalid JSON" in red below textarea, Inscribe button also disabled when valError is true.
+
+---
