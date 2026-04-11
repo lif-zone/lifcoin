@@ -52,6 +52,8 @@ const DEFAULT_NETWORKS = {
 };
 
 function json(o){
+  if (!o) debugger;
+  if (!o) return '';
   return JSON.stringify(o);
 }
 function trunc(s, len){
@@ -551,12 +553,6 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
         addrs.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address, network)))
       );
       setBalance(bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0));
-      const allKeys = [
-        ...bals.flatMap(b=>b.lif_kv?.confirmed||[]),
-        ...bals.flatMap(b=>b.lif_kv?.unconfirmed||[]),
-      ];
-      const seenKeys = new Set();
-      setOwnedKeys(allKeys.filter(k=>{ if(seenKeys.has(k.key)) return false; seenKeys.add(k.key); return true; }));
       // Deduplicate txs across all addresses, sort by height desc
       const txByHash = new Map();
       for (const a of addrs){
@@ -566,6 +562,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
       const hist = [...txByHash.values()].sort((a, b)=>(b.height||1e9)-(a.height||1e9));
       if (!hist.length){
         setTransactions([]);
+        setOwnedKeys([]);
         return;
       }
       // Fetch verbose txs + block headers in parallel
@@ -591,7 +588,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
           const as = vout.scriptPubKey?.addresses || (vout.scriptPubKey?.address ? [vout.scriptPubKey.address] : []);
           return as.some(a=>walletAddrSet.has(a)) ? sum+Math.round(vout.value*1e8) : sum;
         }, 0);
-      setTransactions(hist.map((tx, i)=>{
+      const enrichedTxs = hist.map((tx, i)=>{
         const vtx = verboseTxs[i];
         // enrich vin with prev vout for TxDetailScreen
         const enrichedVin = (vtx.vin||[]).map(vin=>{
@@ -612,7 +609,43 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
           amount: received-spent,
           _vtx: {...vtx, vin: enrichedVin},
         };
-      }));
+      });
+      setTransactions(enrichedTxs);
+      // Build ownedKeys from vouts — most recent tx per key wins (unconfirmed > higher height)
+      const keyMap = new Map();
+      debugger;
+      console.log(enrichedTxs); // XXX
+      for (const enrichedTx of enrichedTxs){
+        const vouts = enrichedTx._vtx?.vout || [];
+        for (let i=0; i<vouts.length; i++){
+          const vout = vouts[i];
+          if (!vout.lif_kv)
+            continue;
+          const addr = vout.scriptPubKey?.address || vout.scriptPubKey?.addresses?.[0];
+          if (!walletAddrSet.has(addr))
+            continue;
+          for (let kv of vout.lif_kv){
+            const keyName = kv.key;
+            const isUnconfirmed = enrichedTx.height<=0;
+            const priority = isUnconfirmed ? Infinity : enrichedTx.height;
+            const existing = keyMap.get(keyName);
+            if (!existing || priority>=existing._priority){
+              let _kstatus;
+              if (vout.spent)
+                _kstatus = 'spent';
+              else if (isUnconfirmed)
+                _kstatus = 'receiving';
+              else
+                _kstatus = 'confirmed';
+              keyMap.set(keyName, {key: keyName, val: kv.val, tx: enrichedTx.tx_hash, vout: i, _kstatus, _priority: priority});
+            }
+          }
+        }
+      }
+      console.log(keyMap);
+      console.log(keyMap.values());
+      debugger;
+      setOwnedKeys([...keyMap.values()]);
     } catch(e){
       console.error('fetchData error:', e);
     } finally {
@@ -694,7 +727,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
                   style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
                     borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', gap: 8}}
                 >
-                  <span style={{fontFamily: 'monospace'}}>{k.key}</span>
+                  <span style={{fontFamily: 'monospace', color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>{k.key}</span>
                   <span style={{color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220}}>
                     {trunc(json(k.val), 40)}
                   </span>

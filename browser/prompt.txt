@@ -371,3 +371,11 @@ USER: Add Transfer button on Key detail page. Opens NameTransferScreen: recipien
 CLAUDE: Added NameTransferScreen component: creates own electrum connection, scans addresses for keyPairs, uses keyData.tx/keyData.vout as first input. If nameValue >= fee: single output to recipient (nameValue-fee). If nameValue < fee: fetches extra UTXOs for fee, output 0 = recipient with full nameValue, output 1 = change. Transfer button in KeyDetailScreen alongside View Transaction. App wires name-transfer screen, goBack from name-transfer returns to key-detail.
 
 ---
+
+---
+
+USER: Color names in wallet overview: green=confirmed unspent, orange=unconfirmed receiving, red=spent (confirmed or unconfirmed spending).
+
+CLAUDE: Replaced bals.lif_kv approach for ownedKeys with scanning verboseTxs vouts after they're fetched. For each vout with lif_kv at our address, determines _kstatus: 'confirmed' (unspent+confirmed), 'receiving' (unspent+unconfirmed), 'spent' (vout.spent==true). Most recent tx per key wins (unconfirmed=Infinity priority). Key name colored green/orange/red accordingly.
+
+---
