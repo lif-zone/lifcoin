@@ -419,3 +419,11 @@ USER: Disable Transfer button on Name detail page for spent names.
 CLAUDE: Added disabled={keyData._kstatus=='spent'} to the Transfer button in KeyDetailScreen.
 
 ---
+
+---
+
+USER: On Name detail page: remove "Name:" label, put key inline with "Name" h3 title (key colored, same font size), move confirmed/unconfirmed status to the date line in parentheses.
+
+CLAUDE: Merged key into h3: "Name <key>" with key in statusColor/monospace. Removed "Name:" div and standalone status div. Added status label inline on date line as "(Confirmed/Unconfirmed/Spent)" in statusColor.
+
+---

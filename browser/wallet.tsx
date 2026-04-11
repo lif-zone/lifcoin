@@ -920,12 +920,7 @@ function KeyDetailScreen({keyData, conf, onViewTx, onTransfer}){
   const statusLabel = keyData._kstatus=='confirmed'?'Confirmed':keyData._kstatus=='receiving'?'Unconfirmed':'Spent';
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
-      <h3>Name</h3>
-      <div style={{marginTop: 8}}>
-        <strong>Name:</strong>
-        <div style={{fontFamily: 'monospace', wordBreak: 'break-all', marginTop: 2, color: statusColor}}>{keyData.key}</div>
-      </div>
-      <div style={{marginTop: 6, fontSize: 13, color: statusColor}}>{statusLabel}</div>
+      <h3>Name <span style={{color: statusColor, fontFamily: 'monospace'}}>{keyData.key}</span></h3>
       <div style={{marginTop: 12}}>
         <strong>Value:</strong>
         <div style={{fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 2}}>{json(keyData.val)}</div>
@@ -934,6 +929,7 @@ function KeyDetailScreen({keyData, conf, onViewTx, onTransfer}){
         <div style={{marginTop: 12}}>
           <strong>Date:</strong>{' '}
           {date || <span style={{color: '#f90'}}>unconfirmed</span>}
+          {' '}<span style={{color: statusColor, fontSize: 13}}>({statusLabel})</span>
         </div>
         <div style={{marginTop: 8, display: 'flex', gap: 8}}>
           <button onClick={()=>onViewTx(tx)}>View Transaction</button>
