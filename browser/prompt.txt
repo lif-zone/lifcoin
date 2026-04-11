@@ -411,3 +411,11 @@ USER: Add JSON validation for the value field in Inscribe screen — red "Invali
 CLAUDE: Added valError state, validated inline in onChange with JSON.parse try/catch. Shows "Invalid JSON" in red below textarea, Inscribe button also disabled when valError is true.
 
 ---
+
+---
+
+USER: Disable Transfer button on Name detail page for spent names.
+
+CLAUDE: Added disabled={keyData._kstatus=='spent'} to the Transfer button in KeyDetailScreen.
+
+---

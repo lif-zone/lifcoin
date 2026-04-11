@@ -937,7 +937,7 @@ function KeyDetailScreen({keyData, conf, onViewTx, onTransfer}){
         </div>
         <div style={{marginTop: 8, display: 'flex', gap: 8}}>
           <button onClick={()=>onViewTx(tx)}>View Transaction</button>
-          <button onClick={onTransfer}>Transfer</button>
+          <button onClick={onTransfer} disabled={keyData._kstatus=='spent'}>Transfer</button>
         </div>
       </>)}
     </div>
