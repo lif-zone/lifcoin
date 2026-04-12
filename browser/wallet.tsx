@@ -1144,6 +1144,14 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
       return alert('Name UTXO address not found in wallet');
     const fee = 2000;
     const dest = changeAddrInfo.address;
+    const inscriptionScript = bitcoin.script.compile([
+      bitcoin.opcodes.OP_RETURN,
+      Buffer.from('lif'),
+      Buffer.from('key'),
+      Buffer.from(keyData.key),
+      Buffer.from('val'),
+      Buffer.from(keyData._editVal),
+    ]);
     const psbt = new bitcoin.Psbt({network});
     psbt.addInput({
       hash: keyData.tx,
@@ -1186,11 +1194,13 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
       }
       if (extraTotal < fee)
         return alert('Insufficient balance to cover fees');
+      psbt.addOutput({script: inscriptionScript, value: 0n});
       psbt.addOutput({address: dest, value: BigInt(nameValue)});
       const change = extraTotal-fee;
       if (change>546)
         psbt.addOutput({address: changeAddrInfo.address, value: BigInt(change)});
     } else {
+      psbt.addOutput({script: inscriptionScript, value: 0n});
       psbt.addOutput({address: dest, value: BigInt(nameValue-fee)});
     }
     for (let i=0; i<signers.length; i++)

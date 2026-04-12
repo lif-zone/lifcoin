@@ -435,3 +435,11 @@ USER: Add Edit button next to "Value:" in Name detail page. Shows textarea pre-f
 CLAUDE: Added editing state + editVal to KeyDetailScreen; Edit button (hidden for spent names) toggles textarea with current value pre-filled and Save/Cancel buttons. Save calls onEdit(newVal) which stores _editVal in selectedKeyData and navigates to 'name-edit' screen. Added NameEditScreen (mirrors NameTransferScreen exactly but uses changeAddrInfo.address as destination instead of external address input). goBack from name-edit returns to key-detail.
 
 ---
+
+---
+
+USER: NameEditScreen was missing OP_RETURN inscription as first output (like InscribeScreen).
+
+CLAUDE: Added inscriptionScript built from keyData.key and keyData._editVal (same compile as InscribeScreen). Added psbt.addOutput({script: inscriptionScript, value: 0n}) as first output in both fee branches, before the coin transfer output.
+
+---
