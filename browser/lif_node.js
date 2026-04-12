@@ -82,7 +82,6 @@ function test(){
 test();
 
 let dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
-let mine = process.env.mine ? +process.env.mine : 1;
 let mine_address = wallet3.address;
 console.log(`Mining address calculated: ${mine_address}`);
 
@@ -110,7 +109,7 @@ let node = new FullNode({
   'persistent-mempool': true,
 });
 
-async function mineBlocks(n){
+async function mine_blocks(n){
   let chain = node.chain, mempool = node.mempool;
   let miner = new Miner({chain, mempool});
   let entries = [];
@@ -148,16 +147,12 @@ async function wait_for_sync_full(){
   let ret = await Ewait(node, 'full');
   console.log('got full');
 }
-async function do_start(){
+async function start(){
   await node.ensure();
   await node.open({addr_rescan: false});
   await node.connect();
   await node.startSync();
   //await wait_for_sync_full();
-}
-
-async function do_mine(){
-  await mineBlocks(5);
 }
 
 function mtx_fund(mtx, {coins, fee, change}){
@@ -236,25 +231,23 @@ async function mtx_send_create({from, from_key, to, value, change, fee}){
   return mtx;
 }
 
-async function do_tx(){
-  await do_start();
-  if (mine)
-    await mineBlocks(1);
+async function send_tx(){
   let mtx = await mtx_send_create({from: wallet3.a, from_key: wallet3.keyRing,
     to: wallet2.a, value: 10000, fee: 1000});
   let tx = mtx.toTX();
   assert(tx.verify(mtx.view));
   let res = await node.sendTX(tx);
-  if (mine)
-    await mineBlocks(1);
+  if (+process.env.mine)
+    await mine_blocks(1);
 }
 
 async function main(){
-  await do_start();
-  if (mine)
-    await do_mine();
+  await start();
+  if (+process.env.mine)
+    await mine_blocks(1);
+  if (+process.env.tx)
+    await send_tx();
 }
 if (!process.browser)
-  do_tx();
-  //main();
-module.exports = {do_start, do_mine, do_tx};
+  main();
+module.exports = {start, main, mine_blocks, send_tx};

@@ -204,7 +204,7 @@ function BrightWallet(){
   const activeWallet = wallets.find(w=>w.id===activeWalletId);
   const goHome = ()=>setScreen('home');
   const goBack = ()=>{
-    if (screen=='name-transfer')
+    if (screen=='name-transfer' || screen=='name-edit')
       setScreen('key-detail');
     else if (screen=='tx-detail' || screen=='key-detail')
       setScreen('wallet-detail');
@@ -268,10 +268,19 @@ function BrightWallet(){
           conf={networks[activeWallet.network] || Object.values(networks)[0]}
           onViewTx={(tx)=>{ setSelectedTxData({tx, conf: networks[activeWallet.network]||Object.values(networks)[0], walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx-detail'); }}
           onTransfer={()=>setScreen('name-transfer')}
+          onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _editVal: newVal})); setScreen('name-edit'); }}
         />
       )}
       {screen=='name-transfer' && selectedKeyData && activeWallet && (
         <NameTransferScreen
+          wallet={activeWallet}
+          networks={networks}
+          keyData={selectedKeyData}
+          onSent={()=>setScreen('wallet-detail')}
+        />
+      )}
+      {screen=='name-edit' && selectedKeyData && activeWallet && (
+        <NameEditScreen
           wallet={activeWallet}
           networks={networks}
           keyData={selectedKeyData}
@@ -913,17 +922,38 @@ function ReceiveScreen({address, symbol}){
 }
 
 // Key Detail Screen
-function KeyDetailScreen({keyData, conf, onViewTx, onTransfer}){
+function KeyDetailScreen({keyData, conf, onViewTx, onTransfer, onEdit}){
   const tx = keyData._tx;
   const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString() : null;
   const statusColor = keyData._kstatus=='confirmed'?'green':keyData._kstatus=='receiving'?'#f90':'#c00';
   const statusLabel = keyData._kstatus=='confirmed'?'Confirmed':keyData._kstatus=='receiving'?'Unconfirmed':'Spent';
+  const [editing, setEditing] = useState(false);
+  const [editVal, setEditVal] = useState('');
+  const startEdit = ()=>{ setEditVal(json(keyData.val)); setEditing(true); };
+  const isSpent = keyData._kstatus=='spent';
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
       <h3>Name <span style={{color: statusColor, fontFamily: 'monospace'}}>{keyData.key}</span></h3>
       <div style={{marginTop: 12}}>
-        <strong>Value:</strong>
-        <div style={{fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 2}}>{json(keyData.val)}</div>
+        <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+          <strong>Value:</strong>
+          {!editing && !isSpent && <button onClick={startEdit} style={{fontSize: 12}}>Edit</button>}
+        </div>
+        {editing ? (<>
+          <textarea
+            rows={5}
+            value={editVal}
+            onChange={e=>setEditVal(e.target.value)}
+            style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
+              fontSize: 13, boxSizing: 'border-box'}}
+          />
+          <div style={{display: 'flex', gap: 8, marginTop: 6}}>
+            <button onClick={()=>{ onEdit(editVal); setEditing(false); }}>Save</button>
+            <button onClick={()=>setEditing(false)}>Cancel</button>
+          </div>
+        </>) : (
+          <div style={{fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 2}}>{json(keyData.val)}</div>
+        )}
       </div>
       {tx && (<>
         <div style={{marginTop: 12}}>
@@ -933,7 +963,7 @@ function KeyDetailScreen({keyData, conf, onViewTx, onTransfer}){
         </div>
         <div style={{marginTop: 8, display: 'flex', gap: 8}}>
           <button onClick={()=>onViewTx(tx)}>View Transaction</button>
-          <button onClick={onTransfer} disabled={keyData._kstatus=='spent'}>Transfer</button>
+          <button onClick={onTransfer} disabled={isSpent}>Transfer</button>
         </div>
       </>)}
     </div>
@@ -1066,6 +1096,132 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
       />
       <button onClick={handleTransfer} disabled={sending||!client} style={{marginTop: 8}}>
         {sending ? 'Transferring…' : 'Transfer'}
+      </button>
+    </div>
+  );
+}
+
+// Name Edit Screen
+function NameEditScreen({wallet, networks, keyData, onSent}){
+  const conf = networks[wallet.network] || Object.values(networks)[0];
+  const network = conf.network;
+  const [sending, setSending] = useState(false);
+  const [client, setClient] = useState(null);
+  const [addrs, setAddrs] = useState([]);
+  const [changeAddrInfo, setChangeAddrInfo] = useState(null);
+  const [connErr, setConnErr] = useState(false);
+
+  useEffect(()=>{
+    const cl = Electrum_connect(conf.electrum);
+    (async()=>{
+      try {
+        await cl.connect('lif-coin-wallet', '1.4');
+        setClient(cl);
+        const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
+        const accountPath = wallet.derivPath || defaultDerivPath(conf);
+        const [extRes, chgRes] = await Promise.all([
+          scanAddresses(cl, root, accountPath, network, 0),
+          scanAddresses(cl, root, accountPath, network, 1),
+        ]);
+        setAddrs([...extRes.used, ...chgRes.used]);
+        setChangeAddrInfo(deriveAddrAt(root, accountPath, network, 1, chgRes.nextIndex));
+      } catch(e){
+        console.error('NameEdit connect error:', e);
+        setConnErr(true);
+      }
+    })();
+    return ()=>{ try { cl.close(); } catch {} };
+  }, []);
+
+  const handleSave = async()=>{
+    if (!client)
+      return alert('Not connected');
+    const nameVout = keyData._tx._vtx.vout[keyData.vout];
+    const nameValue = Math.round(nameVout.value*1e8);
+    const nameAddr = nameVout.scriptPubKey?.address || nameVout.scriptPubKey?.addresses?.[0];
+    const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
+    if (!nameAddrInfo)
+      return alert('Name UTXO address not found in wallet');
+    const fee = 2000;
+    const dest = changeAddrInfo.address;
+    const psbt = new bitcoin.Psbt({network});
+    psbt.addInput({
+      hash: keyData.tx,
+      index: keyData.vout,
+      witnessUtxo: {
+        value: BigInt(nameValue),
+        script: bitcoin.address.toOutputScript(nameAddr, network),
+      },
+    });
+    const signers = [nameAddrInfo];
+    let extraTotal = 0;
+    if (nameValue < fee){
+      let allUTXOs = [];
+      try {
+        const lists = await Promise.all(
+          addrs.map(async(addrInfo)=>{
+            const sh = getScriptHash(addrInfo.address, network);
+            const utxos = await client.blockchain_scripthash_listunspent(sh);
+            return utxos.map(u=>({...u, addrInfo}));
+          })
+        );
+        allUTXOs = lists.flat().filter(u=>!(u.tx_hash==keyData.tx && u.tx_pos==keyData.vout));
+      } catch(err){
+        return alert('Failed to fetch UTXOs');
+      }
+      allUTXOs.sort((a, b)=>b.value-a.value);
+      for (const utxo of allUTXOs){
+        psbt.addInput({
+          hash: utxo.tx_hash,
+          index: utxo.tx_pos,
+          witnessUtxo: {
+            value: BigInt(utxo.value),
+            script: bitcoin.address.toOutputScript(utxo.addrInfo.address, network),
+          },
+        });
+        signers.push(utxo.addrInfo);
+        extraTotal += utxo.value;
+        if (extraTotal >= fee)
+          break;
+      }
+      if (extraTotal < fee)
+        return alert('Insufficient balance to cover fees');
+      psbt.addOutput({address: dest, value: BigInt(nameValue)});
+      const change = extraTotal-fee;
+      if (change>546)
+        psbt.addOutput({address: changeAddrInfo.address, value: BigInt(change)});
+    } else {
+      psbt.addOutput({address: dest, value: BigInt(nameValue-fee)});
+    }
+    for (let i=0; i<signers.length; i++)
+      psbt.signInput(i, signers[i].keyPair);
+    psbt.finalizeAllInputs();
+    const txHex = psbt.extractTransaction().toHex();
+    setSending(true);
+    try {
+      const txid = await client.blockchain_transaction_broadcast(txHex);
+      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
+      alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
+      onSent?.();
+    } catch(err){
+      alert('Broadcast failed: '+err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{marginTop: 16, maxWidth: 400}}>
+      <h3>Edit Name</h3>
+      <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
+        Name: <span style={{fontFamily: 'monospace'}}>{keyData.key}</span>
+      </div>
+      <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
+        New value: <span style={{fontFamily: 'monospace'}}>{keyData._editVal}</span>
+      </div>
+      {connErr && <p style={{color: '#c00'}}>Connection error</p>}
+      <button onClick={handleSave} disabled={sending||!client} style={{marginTop: 12}}>
+        {sending ? 'Saving…' : 'Save'}
       </button>
     </div>
   );
