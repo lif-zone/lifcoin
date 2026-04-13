@@ -1317,8 +1317,8 @@ async function estimateFee(client, conf){
 }
 
 function Amt({sat, symbol, signed}){
-  const sign = signed ? (sat>=0 ? '+' : '-') : '';
-  const color = signed ? (sat>=0 ? 'green' : '#c00') : null;
+  const sign = signed ? (sat>0 ? '+' : sat<0 ? '-' : '') : '';
+  const color = signed ? (sat>0 ? 'green' : sat<0 ? '#c00' : null) : null;
   const [int, dec] = (Math.abs(sat)/1e8).toFixed(8).split('.');
   const sig = dec.replace(/0+$/, '');
   const zeros = dec.slice(sig.length);
