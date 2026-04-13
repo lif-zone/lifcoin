@@ -488,3 +488,10 @@ USER: the LIF/BTC should be AFTER the amount. Today it is 'Fee (LIF): 0.01000000
 
 CLAUDE: Moved symbol from label 'Fee ({symbol}):' to after the value, matching pattern used everywhere else.
 ---
+---
+Tue 14 Apr 2026 00:42:05 IDT
+
+USER: There are many many places where LIF/BTC amounts appear. Please change it all to a single function/react component.
+
+CLAUDE: Added Amt({sat, symbol, signed}) component. signed prop adds +/- prefix and green/#c00 color. Replaced all 6 display sites: 2 signed tx amounts, 2 balance displays, 2 inline tx detail vout/vin amounts. FeeField's interactive span left as-is (special cursor/underline styling).
+---

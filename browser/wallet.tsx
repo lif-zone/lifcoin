@@ -391,7 +391,7 @@ function WalletCard({wallet, networks, onClick}){
         ) : (
           <>
             <div style={{fontWeight: 'bold'}}>
-              {(balance/1e8).toFixed(8)} {symbol}
+              <Amt sat={balance} symbol={symbol} />
             </div>
             <div style={{fontSize: 12, color: '#666'}}>
               {txCount ? ''+txCount+' TXs' : 'No transactions'}
@@ -694,7 +694,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
         <strong>Balance:</strong>{' '}
         {balance===null
           ? (connErr ? 'unavailable' : 'loading…')
-          : `${(balance/1e8).toFixed(8)} ${symbol}`
+          : <Amt sat={balance} symbol={symbol} />
         }
       </div>
       <div style={{display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center'}}>
@@ -763,9 +763,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
                         : <span style={{color: '#f90'}}>unconfirmed</span>
                       }
                     </span>
-                    <span style={{fontFamily: 'monospace', color: positive ? 'green' : '#c00'}}>
-                      {positive ? '+' : ''}{(tx.amount/1e8).toFixed(8)} {symbol}
-                    </span>
+                    <Amt sat={tx.amount} symbol={symbol} signed />
                   </li>
                 );
               })}
@@ -1262,9 +1260,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
       {tx.amount!==undefined &&
         <div style={{marginTop: 4}}>
           <strong>Amount:</strong>{' '}
-          <span style={{fontFamily: 'monospace', color: positive ? 'green' : '#c00'}}>
-            {positive ? '+' : ''}{(tx.amount/1e8).toFixed(8)} {symbol}
-          </span>
+          <Amt sat={tx.amount} symbol={symbol} signed />
         </div>
       }
       <div style={{marginTop: 8}}><strong>TXID:</strong></div>
@@ -1290,7 +1286,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
             <div key={i} style={{fontFamily: 'monospace', fontSize: 12, marginTop: 3,
               color: ours ? '#c00' : 'inherit'}}
             >
-              {addr}{val!==null && ` (${(val/1e8).toFixed(8)} ${symbol})`}{ours && ' ← yours'}
+              {addr}{val!==null && <> (<Amt sat={val} symbol={symbol} />)</>}{ours && ' ← yours'}
             </div>
           );
         })}
@@ -1303,7 +1299,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
             <div key={i} style={{fontFamily: 'monospace', fontSize: 12, marginTop: 3,
               color: ours ? 'green' : 'inherit'}}
             >
-              {addr}: {(val/1e8).toFixed(8)} {symbol}{ours && ' ← yours'}
+              {addr}: <Amt sat={val} symbol={symbol} />{ours && ' ← yours'}
             </div>
           );
         })}
@@ -1320,6 +1316,12 @@ async function estimateFee(client, conf){
       return Math.ceil(rate*1e8/1000*200);
   } catch(e){}
   return fallback;
+}
+
+function Amt({sat, symbol, signed}){
+  const sign = signed ? (sat>=0 ? '+' : '-') : '';
+  const color = signed ? (sat>=0 ? 'green' : '#c00') : null;
+  return <span style={{fontFamily: 'monospace', ...(color&&{color})}}>{sign}{(Math.abs(sat)/1e8).toFixed(8)} {symbol}</span>;
 }
 
 function FeeField({value, onChange, conf}){
