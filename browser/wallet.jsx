@@ -55,8 +55,6 @@ const DEFAULT_NETWORKS = {
 };
 
 function json(o){
-  if (!o) debugger;
-  if (!o) return '';
   return JSON.stringify(o);
 }
 function trunc(s, len){
