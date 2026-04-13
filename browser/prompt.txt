@@ -467,3 +467,10 @@ USER: Change all remaining type="number" inputs to type="text".
 CLAUDE: Changed the amount input in SendScreen from type="number" to type="text" (was the only remaining one).
 
 ---
+---
+Tue 14 Apr 2026 00:18:21 IDT
+
+USER: I would like the fallback default to be 1sat/vbyte. use fee_def inside the network definitions constants structure for the initial default and fallback for blockchain.estimatefee
+
+CLAUDE: Added fee_def (sat/kB) to each network definition (mainnet/testnet: 1000, lif: 5000000). Updated estimateFee(client, conf) signature to compute fallback from conf.fee_def. Updated all 4 call sites (NameTransferScreen, NameEditScreen, SendScreen, InscribeScreen) to pass conf, and changed useState(2000) initial values to Math.ceil((conf.fee_def||1000)/1000*200).
+---

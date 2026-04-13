@@ -32,6 +32,7 @@ const DEFAULT_NETWORKS = {
     // electrum: 'wss://electrum.blockstream.info:700', // does not work
     explorer_tx: 'https://mempool.space/tx/',
     coin_type: 0,
+    fee_def: 1000, // 1MB = 0.01BTC
   },
   testnet: {
     name: 'Bitcoin Testnet',
@@ -40,6 +41,7 @@ const DEFAULT_NETWORKS = {
     electrum: 'wss://electrum.blockstream.info:993',
     explorer_tx: 'https://mempool.space/testnet/tx/',
     coin_type: 1,
+    fee_def: 1000,
   },
   lif: {
     name: 'Lif Mainnet', // Life Chai
@@ -48,6 +50,7 @@ const DEFAULT_NETWORKS = {
     electrum: 'ws://localhost:8432',
     explorer_tx: 'http://localhost:5000/tx/',
     coin_type: 1842,
+    fee_def: 5000000, // 1MB = 50LIF
   },
 };
 
@@ -980,7 +983,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
   const [addrs, setAddrs] = useState([]);
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
   const [connErr, setConnErr] = useState(false);
-  const [fee, setFee] = useState(2000);
+  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*200));
 
   useEffect(()=>{
     const cl = Electrum_connect(conf.electrum);
@@ -988,7 +991,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
       try {
         await cl.connect('lif-coin-wallet', '1.4');
         setClient(cl);
-        setFee(await estimateFee(cl));
+        setFee(await estimateFee(cl, conf));
         const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
         const accountPath = wallet.derivPath || defaultDerivPath(conf);
         const [extRes, chgRes] = await Promise.all([
@@ -1112,7 +1115,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
   const [addrs, setAddrs] = useState([]);
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
   const [connErr, setConnErr] = useState(false);
-  const [fee, setFee] = useState(2000);
+  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*200));
 
   useEffect(()=>{
     const cl = Electrum_connect(conf.electrum);
@@ -1120,7 +1123,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
       try {
         await cl.connect('lif-coin-wallet', '1.4');
         setClient(cl);
-        setFee(await estimateFee(cl));
+        setFee(await estimateFee(cl, conf));
         const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
         const accountPath = wallet.derivPath || defaultDerivPath(conf);
         const [extRes, chgRes] = await Promise.all([
@@ -1309,13 +1312,14 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
   );
 }
 
-async function estimateFee(client){
+async function estimateFee(client, conf){
+  const fallback = Math.ceil((conf.fee_def||1000)/1000*200);
   try {
     const rate = await client.request('blockchain.estimatefee', [6]);
     if (rate>0)
-      return Math.max(1000, Math.ceil(rate*1e8/1000*200));
+      return Math.ceil(rate*1e8/1000*200);
   } catch(e){}
-  return 2000;
+  return fallback;
 }
 
 function FeeField({value, onChange}){
@@ -1347,10 +1351,10 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
-  const [fee, setFee] = useState(2000);
+  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*200));
   useEffect(()=>{
     if (!client) return;
-    (async()=>{ setFee(await estimateFee(client)); })();
+    (async()=>{ setFee(await estimateFee(client, conf)); })();
   }, [client]);
   const handleSend = async ()=>{
     if (!client || !addrs.length)
@@ -1451,10 +1455,10 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
   const [sending, setSending] = useState(false);
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
-  const [fee, setFee] = useState(2000);
+  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*200));
   useEffect(()=>{
     if (!client) return;
-    (async()=>{ setFee(await estimateFee(client)); })();
+    (async()=>{ setFee(await estimateFee(client, conf)); })();
   }, [client]);
 
   useEffect(()=>{
