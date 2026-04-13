@@ -389,7 +389,7 @@ function WalletCard({wallet, networks, onClick}){
         ) : (
           <>
             <div style={{fontWeight: 'bold'}}>
-              <Amt sat={balance} symbol={symbol} />
+              <Amt sat={balance} symbol={symbol} signed />
             </div>
             <div style={{fontSize: 12, color: '#666'}}>
               {txCount ? ''+txCount+' TXs' : 'No transactions'}
