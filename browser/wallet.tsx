@@ -1334,7 +1334,7 @@ function FeeField({value, onChange, conf}){
   };
   return (
     <div style={{marginTop: 8, fontSize: 13}}>
-      <span style={{color: '#666'}}>Fee ({symbol}): </span>
+      <span style={{color: '#666'}}>Fee: </span>
       {editing ? (
         <input type="text" value={str} onChange={e=>setStr(e.target.value)}
           onBlur={commit} autoFocus style={{width: 120, fontFamily: 'monospace', fontSize: 13}} />
@@ -1342,7 +1342,7 @@ function FeeField({value, onChange, conf}){
         <span onClick={()=>{ setStr((value/1e8).toFixed(8)); setEditing(true); }}
           style={{cursor: 'pointer', fontFamily: 'monospace', borderBottom: '1px dotted #999'}}
         >{(value/1e8).toFixed(8)}</span>
-      )}
+      )}{' '}{symbol}
     </div>
   );
 }

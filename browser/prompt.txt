@@ -481,3 +481,10 @@ USER: please change where 'sat' appears to LIF (or BTC, accordingly). so it will
 
 CLAUDE: Updated FeeField to accept conf prop; displays fee as (value/1e8).toFixed(8) with symbol (LIF/BTC); edits in decimal format, parses back via parseFloat*1e8. Updated all 4 FeeField call sites to pass conf. Changed SendScreen amount placeholder from 'Amount (satoshis)' to 'Amount ({symbol})' and parsing from parseInt to Math.round(parseFloat*1e8).
 ---
+---
+Tue 14 Apr 2026 00:25:58 IDT
+
+USER: the LIF/BTC should be AFTER the amount. Today it is 'Fee (LIF): 0.01000000'. Should be 'Fee: 0.01000000 LIF'
+
+CLAUDE: Moved symbol from label 'Fee ({symbol}):' to after the value, matching pattern used everywhere else.
+---
