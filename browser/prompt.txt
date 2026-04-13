@@ -495,3 +495,10 @@ USER: There are many many places where LIF/BTC amounts appear. Please change it 
 
 CLAUDE: Added Amt({sat, symbol, signed}) component. signed prop adds +/- prefix and green/#c00 color. Replaced all 6 display sites: 2 signed tx amounts, 2 balance displays, 2 inline tx detail vout/vin amounts. FeeField's interactive span left as-is (special cursor/underline styling).
 ---
+---
+Tue 14 Apr 2026 00:50:58 IDT
+
+USER: in the Amt component, show all the last trailing 0 digits after the decimal point in gray. If all 8 digits are 0, then also show the dot itself in gray.
+
+CLAUDE: Updated Amt to split decimal into significant digits + trailing zeros. Trailing zeros rendered in gray (#aaa). When all 8 decimal digits are zero, the dot is also rendered in gray.
+---

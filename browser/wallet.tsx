@@ -1321,7 +1321,18 @@ async function estimateFee(client, conf){
 function Amt({sat, symbol, signed}){
   const sign = signed ? (sat>=0 ? '+' : '-') : '';
   const color = signed ? (sat>=0 ? 'green' : '#c00') : null;
-  return <span style={{fontFamily: 'monospace', ...(color&&{color})}}>{sign}{(Math.abs(sat)/1e8).toFixed(8)} {symbol}</span>;
+  const [int, dec] = (Math.abs(sat)/1e8).toFixed(8).split('.');
+  const sig = dec.replace(/0+$/, '');
+  const zeros = dec.slice(sig.length);
+  return (
+    <span style={{fontFamily: 'monospace', ...(color&&{color})}}>
+      {sign}{int}
+      {sig.length===0
+        ? <span style={{color: '#aaa'}}>.{zeros}</span>
+        : <>.{sig}{zeros && <span style={{color: '#aaa'}}>{zeros}</span>}</>
+      }{' '}{symbol}
+    </span>
+  );
 }
 
 function FeeField({value, onChange, conf}){
