@@ -1098,7 +1098,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
         onChange={e=>setToAddress(e.target.value)}
         style={{display: 'block', width: '100%', marginTop: 12, boxSizing: 'border-box'}}
       />
-      <FeeField value={fee} onChange={setFee} />
+      <FeeField value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleTransfer} disabled={sending||!client} style={{marginTop: 8}}>
         {sending ? 'Transferring…' : 'Transfer'}
       </button>
@@ -1236,7 +1236,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
         New value: <span style={{fontFamily: 'monospace'}}>{keyData._editVal}</span>
       </div>
       {connErr && <p style={{color: '#c00'}}>Connection error</p>}
-      <FeeField value={fee} onChange={setFee} />
+      <FeeField value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleSave} disabled={sending||!client} style={{marginTop: 12}}>
         {sending ? 'Saving…' : 'Save'}
       </button>
@@ -1322,25 +1322,26 @@ async function estimateFee(client, conf){
   return fallback;
 }
 
-function FeeField({value, onChange}){
+function FeeField({value, onChange, conf}){
+  const symbol = conf?.symbol||'BTC';
   const [editing, setEditing] = useState(false);
-  const [str, setStr] = useState(String(value));
-  useEffect(()=>{ if (!editing) setStr(String(value)); }, [value, editing]);
+  const [str, setStr] = useState((value/1e8).toFixed(8));
+  useEffect(()=>{ if (!editing) setStr((value/1e8).toFixed(8)); }, [value, editing]);
   const commit = ()=>{
-    const v = Math.max(1, parseInt(str)||value);
+    const v = Math.max(1, Math.round(parseFloat(str)*1e8)||value);
     onChange(v);
     setEditing(false);
   };
   return (
     <div style={{marginTop: 8, fontSize: 13}}>
-      <span style={{color: '#666'}}>Fee (sat): </span>
+      <span style={{color: '#666'}}>Fee ({symbol}): </span>
       {editing ? (
         <input type="text" value={str} onChange={e=>setStr(e.target.value)}
-          onBlur={commit} autoFocus style={{width: 80, fontFamily: 'monospace', fontSize: 13}} />
+          onBlur={commit} autoFocus style={{width: 120, fontFamily: 'monospace', fontSize: 13}} />
       ) : (
-        <span onClick={()=>{ setStr(String(value)); setEditing(true); }}
+        <span onClick={()=>{ setStr((value/1e8).toFixed(8)); setEditing(true); }}
           style={{cursor: 'pointer', fontFamily: 'monospace', borderBottom: '1px dotted #999'}}
-        >{value}</span>
+        >{(value/1e8).toFixed(8)}</span>
       )}
     </div>
   );
@@ -1359,7 +1360,7 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
   const handleSend = async ()=>{
     if (!client || !addrs.length)
       return;
-    const amountValue = parseInt(amountSat, 10);
+    const amountValue = Math.round(parseFloat(amountSat)*1e8);
     if (isNaN(amountValue) || amountValue<=0)
       return alert('Invalid amount');
     // Collect UTXOs from all addresses
@@ -1435,12 +1436,12 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
       />
       <input
         type="text"
-        placeholder="Amount (satoshis)"
+        placeholder={`Amount (${symbol})`}
         value={amountSat}
         onChange={e=>setAmountSat(e.target.value)}
         style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
       />
-      <FeeField value={fee} onChange={setFee} />
+      <FeeField value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleSend} disabled={sending} style={{marginTop: 8}}>
         {sending ? 'Sending…' : 'Send'}
       </button>
@@ -1583,7 +1584,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
         />
         {valError && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Invalid JSON</div>}
       </div>
-      <FeeField value={fee} onChange={setFee} />
+      <FeeField value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleInscribe} disabled={sending||nameStatus=='taken'||valError} style={{marginTop: 12}}>
         {sending ? 'Inscribing…' : 'Inscribe'}
       </button>

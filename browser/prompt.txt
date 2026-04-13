@@ -474,3 +474,10 @@ USER: I would like the fallback default to be 1sat/vbyte. use fee_def inside the
 
 CLAUDE: Added fee_def (sat/kB) to each network definition (mainnet/testnet: 1000, lif: 5000000). Updated estimateFee(client, conf) signature to compute fallback from conf.fee_def. Updated all 4 call sites (NameTransferScreen, NameEditScreen, SendScreen, InscribeScreen) to pass conf, and changed useState(2000) initial values to Math.ceil((conf.fee_def||1000)/1000*200).
 ---
+---
+Tue 14 Apr 2026 00:23:33 IDT
+
+USER: please change where 'sat' appears to LIF (or BTC, accordingly). so it will use decimal point. It will appear like all places where BTC/LIF appear - with all 8 decimal digits always appearing.
+
+CLAUDE: Updated FeeField to accept conf prop; displays fee as (value/1e8).toFixed(8) with symbol (LIF/BTC); edits in decimal format, parses back via parseFloat*1e8. Updated all 4 FeeField call sites to pass conf. Changed SendScreen amount placeholder from 'Amount (satoshis)' to 'Amount ({symbol})' and parsing from parseInt to Math.round(parseFloat*1e8).
+---
