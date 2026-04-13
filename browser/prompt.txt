@@ -443,3 +443,27 @@ USER: NameEditScreen was missing OP_RETURN inscription as first output (like Ins
 CLAUDE: Added inscriptionScript built from keyData.key and keyData._editVal (same compile as InscribeScreen). Added psbt.addOutput({script: inscriptionScript, value: 0n}) as first output in both fee branches, before the coin transfer output.
 
 ---
+
+---
+
+USER: Add fee display (read-only, click to edit) to Send, Inscribe, Transfer Name, Edit Value screens. Fee fetched from ElectrumX blockchain.estimatefee.
+
+CLAUDE: Added estimateFee(client) helper (calls blockchain.estimatefee[6], converts BTC/kB to sat, estimates 200 vbytes, fallback 2000). Added FeeField component with value/onChange props: shows fee as clickable dotted-underline span, click turns into number input, onBlur commits. Added fee state + estimation useEffect to all 4 screens (SendScreen/InscribeScreen use client prop effect; NameTransferScreen/NameEditScreen call estimateFee right after connect). Removed all hardcoded const fee=2000.
+
+---
+
+---
+
+USER: Remove up/down arrows from fee input box.
+
+CLAUDE: Changed FeeField input type="number" to type="text" to remove browser spinner arrows. parseInt still handles numeric parsing.
+
+---
+
+---
+
+USER: Change all remaining type="number" inputs to type="text".
+
+CLAUDE: Changed the amount input in SendScreen from type="number" to type="text" (was the only remaining one).
+
+---

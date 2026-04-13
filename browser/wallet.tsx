@@ -980,6 +980,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
   const [addrs, setAddrs] = useState([]);
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
   const [connErr, setConnErr] = useState(false);
+  const [fee, setFee] = useState(2000);
 
   useEffect(()=>{
     const cl = Electrum_connect(conf.electrum);
@@ -987,6 +988,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
       try {
         await cl.connect('lif-coin-wallet', '1.4');
         setClient(cl);
+        setFee(await estimateFee(cl));
         const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
         const accountPath = wallet.derivPath || defaultDerivPath(conf);
         const [extRes, chgRes] = await Promise.all([
@@ -1014,7 +1016,6 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
     const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
     if (!nameAddrInfo)
       return alert('Name UTXO address not found in wallet');
-    const fee = 2000;
     const psbt = new bitcoin.Psbt({network});
     psbt.addInput({
       hash: keyData.tx,
@@ -1094,6 +1095,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
         onChange={e=>setToAddress(e.target.value)}
         style={{display: 'block', width: '100%', marginTop: 12, boxSizing: 'border-box'}}
       />
+      <FeeField value={fee} onChange={setFee} />
       <button onClick={handleTransfer} disabled={sending||!client} style={{marginTop: 8}}>
         {sending ? 'Transferring…' : 'Transfer'}
       </button>
@@ -1110,6 +1112,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
   const [addrs, setAddrs] = useState([]);
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
   const [connErr, setConnErr] = useState(false);
+  const [fee, setFee] = useState(2000);
 
   useEffect(()=>{
     const cl = Electrum_connect(conf.electrum);
@@ -1117,6 +1120,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
       try {
         await cl.connect('lif-coin-wallet', '1.4');
         setClient(cl);
+        setFee(await estimateFee(cl));
         const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
         const accountPath = wallet.derivPath || defaultDerivPath(conf);
         const [extRes, chgRes] = await Promise.all([
@@ -1142,7 +1146,6 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
     const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
     if (!nameAddrInfo)
       return alert('Name UTXO address not found in wallet');
-    const fee = 2000;
     const dest = changeAddrInfo.address;
     const inscriptionScript = bitcoin.script.compile([
       bitcoin.opcodes.OP_RETURN,
@@ -1230,6 +1233,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
         New value: <span style={{fontFamily: 'monospace'}}>{keyData._editVal}</span>
       </div>
       {connErr && <p style={{color: '#c00'}}>Connection error</p>}
+      <FeeField value={fee} onChange={setFee} />
       <button onClick={handleSave} disabled={sending||!client} style={{marginTop: 12}}>
         {sending ? 'Saving…' : 'Save'}
       </button>
@@ -1305,11 +1309,49 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
   );
 }
 
+async function estimateFee(client){
+  try {
+    const rate = await client.request('blockchain.estimatefee', [6]);
+    if (rate>0)
+      return Math.max(1000, Math.ceil(rate*1e8/1000*200));
+  } catch(e){}
+  return 2000;
+}
+
+function FeeField({value, onChange}){
+  const [editing, setEditing] = useState(false);
+  const [str, setStr] = useState(String(value));
+  useEffect(()=>{ if (!editing) setStr(String(value)); }, [value, editing]);
+  const commit = ()=>{
+    const v = Math.max(1, parseInt(str)||value);
+    onChange(v);
+    setEditing(false);
+  };
+  return (
+    <div style={{marginTop: 8, fontSize: 13}}>
+      <span style={{color: '#666'}}>Fee (sat): </span>
+      {editing ? (
+        <input type="text" value={str} onChange={e=>setStr(e.target.value)}
+          onBlur={commit} autoFocus style={{width: 80, fontFamily: 'monospace', fontSize: 13}} />
+      ) : (
+        <span onClick={()=>{ setStr(String(value)); setEditing(true); }}
+          style={{cursor: 'pointer', fontFamily: 'monospace', borderBottom: '1px dotted #999'}}
+        >{value}</span>
+      )}
+    </div>
+  );
+}
+
 // Send Screen
 function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
+  const [fee, setFee] = useState(2000);
+  useEffect(()=>{
+    if (!client) return;
+    (async()=>{ setFee(await estimateFee(client)); })();
+  }, [client]);
   const handleSend = async ()=>{
     if (!client || !addrs.length)
       return;
@@ -1334,7 +1376,6 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
       return alert('No funds available');
     // Select UTXOs largest-first until amount+fee covered
     allUTXOs.sort((a, b)=>b.value-a.value);
-    const fee = 2000;
     const selected = [];
     let total = 0;
     for (const utxo of allUTXOs){
@@ -1389,12 +1430,13 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
         style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
       />
       <input
-        type="number"
+        type="text"
         placeholder="Amount (satoshis)"
         value={amountSat}
         onChange={e=>setAmountSat(e.target.value)}
         style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
       />
+      <FeeField value={fee} onChange={setFee} />
       <button onClick={handleSend} disabled={sending} style={{marginTop: 8}}>
         {sending ? 'Sending…' : 'Send'}
       </button>
@@ -1409,6 +1451,11 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
   const [sending, setSending] = useState(false);
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
+  const [fee, setFee] = useState(2000);
+  useEffect(()=>{
+    if (!client) return;
+    (async()=>{ setFee(await estimateFee(client)); })();
+  }, [client]);
 
   useEffect(()=>{
     const key = inscKey.trim();
@@ -1461,7 +1508,6 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
     if (!allUTXOs.length)
       return alert('No funds available');
     allUTXOs.sort((a, b)=>b.value-a.value);
-    const fee = 2000;
     const selected = [];
     let total = 0;
     for (const utxo of allUTXOs){
@@ -1533,6 +1579,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
         />
         {valError && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Invalid JSON</div>}
       </div>
+      <FeeField value={fee} onChange={setFee} />
       <button onClick={handleInscribe} disabled={sending||nameStatus=='taken'||valError} style={{marginTop: 12}}>
         {sending ? 'Inscribing…' : 'Inscribe'}
       </button>
