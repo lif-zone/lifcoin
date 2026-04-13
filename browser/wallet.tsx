@@ -694,7 +694,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
         <strong>Balance:</strong>{' '}
         {balance===null
           ? (connErr ? 'unavailable' : 'loading…')
-          : <Amt sat={balance} symbol={symbol} />
+          : <Amt sat={balance} symbol={symbol} signed />
         }
       </div>
       <div style={{display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center'}}>
@@ -1286,7 +1286,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
             <div key={i} style={{fontFamily: 'monospace', fontSize: 12, marginTop: 3,
               color: ours ? '#c00' : 'inherit'}}
             >
-              {addr}{val!==null && <> (<Amt sat={val} symbol={symbol} />)</>}{ours && ' ← yours'}
+              {addr}{val!==null && <> <Amt sat={-val} symbol={symbol} signed /></>}{ours && ' ← yours'}
             </div>
           );
         })}
@@ -1299,7 +1299,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
             <div key={i} style={{fontFamily: 'monospace', fontSize: 12, marginTop: 3,
               color: ours ? 'green' : 'inherit'}}
             >
-              {addr}: <Amt sat={val} symbol={symbol} />{ours && ' ← yours'}
+              {addr}: <Amt sat={val} symbol={symbol} signed />{ours && ' ← yours'}
             </div>
           );
         })}
