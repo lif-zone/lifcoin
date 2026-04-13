@@ -2,7 +2,7 @@ import React from 'react';
 import {render} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import './node_env.js';
-import App from './app.tsx';
+import App from './app.jsx';
 //import Wallet from './wallet.jsx';
 let Wallet = (await import('./wallet.jsx')).default;
 // set favicon

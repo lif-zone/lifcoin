@@ -1,12 +1,12 @@
 Task list
 =========
 
-make wallet.tsx support multiple wallets
+make wallet.jsx support multiple wallets
 ----------------------------------------
 - today it is just a single wallet. It should be "boxes" of wallets,
   and a box for "New wallet". So when starting it first time it only has
   "New wallet" box. clicking on it - adds a new wallet, where you select
-  all the things you sellect in today's wallet.tsx implementation:
+  all the things you sellect in today's wallet.jsx implementation:
   Network (Bitcoin, Bitcoin testnet, Lif), the wallet key etc...
 - Once a wallet is added, in its box is the amount of unspent coins it has,
   and amount of BTC/LIF it has.

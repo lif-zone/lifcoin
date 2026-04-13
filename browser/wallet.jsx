@@ -1,4 +1,4 @@
-// wallet.tsx - bright wallet - BTC, LIF, multi-wallet support
+// wallet.jsx - bright wallet - BTC, LIF, multi-wallet support
 import React, {useState, useEffect, useMemo} from 'react';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
