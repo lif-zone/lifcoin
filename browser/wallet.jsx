@@ -1328,7 +1328,7 @@ function Amt({sat, symbol, signed}){
       {sig.length===0
         ? <span style={{color: '#aaa'}}>.{zeros}</span>
         : <>.{sig}{zeros && <span style={{color: '#aaa'}}>{zeros}</span>}</>
-      }{' '}{symbol}
+      }{symbol?' '+symbol:''}
     </span>
   );
 }
@@ -1347,13 +1347,16 @@ function FeeField({value, onChange, conf}){
     <div style={{marginTop: 8, fontSize: 13}}>
       <span style={{color: '#666'}}>Fee: </span>
       {editing ? (
-        <input type="text" value={str} onChange={e=>setStr(e.target.value)}
-          onBlur={commit} autoFocus style={{width: 120, fontFamily: 'monospace', fontSize: 13}} />
+        <>
+          <input type="text" value={str} onChange={e=>setStr(e.target.value)}
+            onBlur={commit} autoFocus style={{width: 120, fontFamily: 'monospace', fontSize: 13}} />
+          {' '}{symbol}
+        </>
       ) : (
         <span onClick={()=>{ setStr((value/1e8).toFixed(8)); setEditing(true); }}
-          style={{cursor: 'pointer', fontFamily: 'monospace', borderBottom: '1px dotted #999'}}
-        >{(value/1e8).toFixed(8)}</span>
-      )}{' '}{symbol}
+          style={{cursor: 'pointer', borderBottom: '1px dotted #999'}}
+        ><Amt sat={value} symbol={symbol} /></span>
+      )}
     </div>
   );
 }
