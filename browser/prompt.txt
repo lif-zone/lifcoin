@@ -544,3 +544,13 @@ USER: Two problems: (1) constant 141 appears multiple times - no constants shoul
 
 CLAUDE: Fixed both issues. Added findAddrInWallet helper (scans HD locally, no network). Added forEst param to buildSendTx. All 4 screens now compute correct fee immediately in useState lazy initializer using actual tx build (buildSendTx/buildInscribeTx/buildTransferTx/buildEditTx with forEst=true). NameTransfer/NameEdit fee useEffects now depend only on [feeRate] and derive locally via findAddrInWallet + dummy changeAddr fallback — no more waiting for electrum scan. InscribeScreen fee useEffect guard changed from (!utxos.length || !changeAddrInfo) to (!utxos.length) using fallback addr. All 141/150 magic constants removed.
 ---
+
+USER: do not use indexeddb directly. instead use npm idb.
+
+CLAUDE: Installed idb@8.0.3. Added import {openDB} from 'idb'. Replaced manual dbOpen/dbGet/dbPut (raw IndexedDB callbacks) with idb: single openDB call with upgrade hook, dbGet uses db.get(), dbPut uses db.put() with key as third argument. Code reduced from 14 lines to 7.
+---
+
+USER: this module is an ES module. It is allowed to have top level await
+
+CLAUDE: Replaced const dbPromise = openDB(...) with const db = await openDB(...) at top level. dbGet and dbPut now use db directly without (await dbPromise) indirection.
+---

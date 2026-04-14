@@ -8,6 +8,7 @@ const bip32 = BIP32Factory(ecc);
 import {ECPairFactory} from 'ecpair';
 const ecpair = ECPairFactory(ecc);
 import ElectrumClient from '@aguycalled/electrum-client-js';
+import {openDB} from 'idb';
 
 // add Lif network, from lif-coin/lib/protocol/networks.js
 let networks_lif = {
@@ -157,19 +158,14 @@ function saveServers(servers){
 }
 
 // IndexedDB Cache
-async function dbOpen(){
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open('bright-wallet',1);
-    r.onupgradeneeded=e=>e.target.result.createObjectStore('cache',{keyPath:'id'});
-    r.onsuccess=e=>res(e.target.result);
-    r.onerror=()=>rej();
-  });
-}
+const db = await openDB('bright-wallet', 1, {
+  upgrade(db){ db.createObjectStore('cache'); }
+});
 async function dbGet(id){
-  try { const db=await dbOpen(); return new Promise(res=>{ const r=db.transaction('cache').objectStore('cache').get(id); r.onsuccess=()=>res(r.result?.data||null); r.onerror=()=>res(null); }); } catch{return null;}
+  try { return await db.get('cache', id) ?? null; } catch{ return null; }
 }
-async function dbPut(id,data){
-  try { const db=await dbOpen(); const t=db.transaction('cache','readwrite'); t.objectStore('cache').put({id,data}); } catch{}
+async function dbPut(id, data){
+  try { await db.put('cache', data, id); } catch{}
 }
 
 // Styles
