@@ -539,3 +539,8 @@ USER: but now the code to create the transaction is duplicated. Just put the tra
 
 CLAUDE: Extracted 4 module-level builder functions (buildSendTx, buildInscribeTx, buildTransferTx, buildEditTx) placed between calcFee and Amt. Replaced all local buildX closures in handlers (SendScreen.handleSend, InscribeScreen.handleInscribe, NameTransferScreen.handleTransfer, NameEditScreen.handleSave) and all inline PSBT builds in fee-calc useEffects (InscribeScreen, NameTransferScreen, NameEditScreen) with calls to the appropriate module-level function. No more duplicated transaction-building code.
 ---
+
+USER: Two problems: (1) constant 141 appears multiple times - no constants should appear, fee should always be built from actual transaction. (2) On Edit/Transfer screens, fee shows 141-vbyte value then 500ms later correct fee appears - correct fee should appear immediately.
+
+CLAUDE: Fixed both issues. Added findAddrInWallet helper (scans HD locally, no network). Added forEst param to buildSendTx. All 4 screens now compute correct fee immediately in useState lazy initializer using actual tx build (buildSendTx/buildInscribeTx/buildTransferTx/buildEditTx with forEst=true). NameTransfer/NameEdit fee useEffects now depend only on [feeRate] and derive locally via findAddrInWallet + dummy changeAddr fallback — no more waiting for electrum scan. InscribeScreen fee useEffect guard changed from (!utxos.length || !changeAddrInfo) to (!utxos.length) using fallback addr. All 141/150 magic constants removed.
+---

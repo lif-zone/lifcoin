@@ -1015,7 +1015,20 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
   const [connErr, setConnErr] = useState(false);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*141));
+  const [fee, setFee] = useState(()=>{
+    try {
+      const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
+      const ap=wallet.derivPath||defaultDerivPath(conf);
+      const nameVout=keyData._tx._vtx.vout[keyData.vout];
+      const nameValue=Math.round(nameVout.value*1e8);
+      const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
+      const nameAddrInfo=findAddrInWallet(root,ap,network,nameAddr);
+      if (!nameAddrInfo) return 0;
+      const dummyAddr=deriveAddrAt(root,ap,network,1,0).address;
+      const tx=buildTransferTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],dummyAddr,nameValue,0,dummyAddr,0,true);
+      return calcFee(conf.fee_def||1000,tx);
+    } catch(e){ return 0; }
+  });
 
   useEffect(()=>{
     const cl = Electrum_connect(conf.electrum);
@@ -1041,17 +1054,19 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
     return ()=>{ try { cl.close(); } catch {} };
   }, []);
   useEffect(()=>{
-    if (!addrs.length || !changeAddrInfo) return;
-    const nameVout = keyData._tx._vtx.vout[keyData.vout];
-    const nameValue = Math.round(nameVout.value*1e8);
-    const nameAddr = nameVout.scriptPubKey?.address || nameVout.scriptPubKey?.addresses?.[0];
-    const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
-    if (!nameAddrInfo) return;
     try {
-      const tx=buildTransferTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],changeAddrInfo.address,nameValue,0,changeAddrInfo.address,0,true);
+      const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
+      const ap=wallet.derivPath||defaultDerivPath(conf);
+      const nameVout=keyData._tx._vtx.vout[keyData.vout];
+      const nameValue=Math.round(nameVout.value*1e8);
+      const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
+      const nameAddrInfo=findAddrInWallet(root,ap,network,nameAddr);
+      if (!nameAddrInfo) return;
+      const dummyAddr=changeAddrInfo?.address||deriveAddrAt(root,ap,network,1,0).address;
+      const tx=buildTransferTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],dummyAddr,nameValue,0,dummyAddr,0,true);
       setFee(calcFee(feeRate,tx));
     } catch(e){}
-  }, [addrs, feeRate, changeAddrInfo]);
+  }, [feeRate]);
 
   const handleTransfer = async()=>{
     if (!toAddress.trim())
@@ -1140,7 +1155,21 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
   const [connErr, setConnErr] = useState(false);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*141));
+  const [fee, setFee] = useState(()=>{
+    try {
+      const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
+      const ap=wallet.derivPath||defaultDerivPath(conf);
+      const nameVout=keyData._tx._vtx.vout[keyData.vout];
+      const nameValue=Math.round(nameVout.value*1e8);
+      const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
+      const nameAddrInfo=findAddrInWallet(root,ap,network,nameAddr);
+      if (!nameAddrInfo) return 0;
+      const dummyAddr=deriveAddrAt(root,ap,network,1,0).address;
+      const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(keyData.key),Buffer.from('val'),Buffer.from(keyData._editVal)]);
+      const tx=buildEditTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],inscriptionScript,dummyAddr,nameValue,0,dummyAddr,0,true);
+      return calcFee(conf.fee_def||1000,tx);
+    } catch(e){ return 0; }
+  });
 
   useEffect(()=>{
     const cl = Electrum_connect(conf.electrum);
@@ -1166,18 +1195,20 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
     return ()=>{ try { cl.close(); } catch {} };
   }, []);
   useEffect(()=>{
-    if (!addrs.length || !changeAddrInfo) return;
-    const nameVout = keyData._tx._vtx.vout[keyData.vout];
-    const nameValue = Math.round(nameVout.value*1e8);
-    const nameAddr = nameVout.scriptPubKey?.address || nameVout.scriptPubKey?.addresses?.[0];
-    const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
-    if (!nameAddrInfo) return;
-    const inscriptionScript = bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(keyData.key),Buffer.from('val'),Buffer.from(keyData._editVal)]);
     try {
-      const tx=buildEditTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],inscriptionScript,changeAddrInfo.address,nameValue,0,changeAddrInfo.address,0,true);
+      const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
+      const ap=wallet.derivPath||defaultDerivPath(conf);
+      const nameVout=keyData._tx._vtx.vout[keyData.vout];
+      const nameValue=Math.round(nameVout.value*1e8);
+      const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
+      const nameAddrInfo=findAddrInWallet(root,ap,network,nameAddr);
+      if (!nameAddrInfo) return;
+      const dummyAddr=changeAddrInfo?.address||deriveAddrAt(root,ap,network,1,0).address;
+      const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(keyData.key),Buffer.from('val'),Buffer.from(keyData._editVal)]);
+      const tx=buildEditTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],inscriptionScript,dummyAddr,nameValue,0,dummyAddr,0,true);
       setFee(calcFee(feeRate,tx));
     } catch(e){}
-  }, [addrs, feeRate, changeAddrInfo]);
+  }, [feeRate]);
 
   const handleSave = async()=>{
     if (!client)
@@ -1339,14 +1370,23 @@ function calcFee(rateSatPerKb, tx){
   return Math.ceil(rateSatPerKb/1000*tx.virtualSize());
 }
 
+function findAddrInWallet(root, accountPath, network, targetAddr){
+  for (let ch=0; ch<2; ch++)
+    for (let idx=0; idx<30; idx++){
+      const info=deriveAddrAt(root,accountPath,network,ch,idx);
+      if (info.address==targetAddr) return info;
+    }
+  return null;
+}
+
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address,keyPair}}]
-function buildSendTx(network, inputs, toAddr, amt, changeAddr, total, txFee){
+function buildSendTx(network, inputs, toAddr, amt, changeAddr, total, txFee, forEst=false){
   const p=new bitcoin.Psbt({network});
   for (const u of inputs) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
   p.addOutput({address:toAddr,value:BigInt(amt)});
   const ch=total-amt-txFee; if(ch>546) p.addOutput({address:changeAddr,value:BigInt(ch)});
   for(let i=0;i<inputs.length;i++) p.signInput(i,inputs[i].addrInfo.keyPair);
-  p.finalizeAllInputs(); return p.extractTransaction();
+  p.finalizeAllInputs(); return p.extractTransaction(forEst);
 }
 
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address,keyPair}}]
@@ -1439,7 +1479,15 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*141));
+  const [fee, setFee] = useState(()=>{
+    if (!utxos.length) return 0;
+    try {
+      const u=utxos[0];
+      const dummyAddr=changeAddrInfo?.address||u.addrInfo.address;
+      const tx=buildSendTx(network,[u],dummyAddr,546,dummyAddr,u.value,0,true);
+      return calcFee(conf.fee_def||1000,tx);
+    } catch(e){ return 0; }
+  });
   useEffect(()=>{
     if (!client) return;
     (async()=>{
@@ -1448,15 +1496,17 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos
     })();
   }, [client]);
   useEffect(()=>{
+    if (!utxos.length) return;
+    const dummyAddr=changeAddrInfo?.address||utxos[0].addrInfo.address;
     const amt=Math.round(parseFloat(amountSat)*1e8);
-    let n_in=1;
-    if (!isNaN(amt) && amt>0 && utxos.length){
-      const sorted=[...utxos].sort((a,b)=>b.value-a.value);
-      let tot=0, estFee=Math.ceil(feeRate/1000*141);
-      n_in=0;
-      for (const u of sorted){ n_in++; tot+=u.value; if(tot>=amt+estFee) break; }
-    }
-    setFee(Math.ceil(feeRate/1000*Math.ceil((42+272*n_in+248)/4)));
+    const target=(!isNaN(amt)&&amt>0)?amt:546;
+    const sorted=[...utxos].sort((a,b)=>b.value-a.value);
+    let selected=[], total=0;
+    for (const u of sorted){ selected.push(u); total+=u.value; if(total>=target) break; }
+    try {
+      const tx=buildSendTx(network,selected,dummyAddr,Math.min(target,total),dummyAddr,total,0,true);
+      setFee(calcFee(feeRate,tx));
+    } catch(e){}
   }, [amountSat, feeRate, utxos]);
   const handleSend = async ()=>{
     if (!client || !addrs.length)
@@ -1536,7 +1586,16 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, u
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*150));
+  const [fee, setFee] = useState(()=>{
+    if (!utxos.length) return 0;
+    try {
+      const u=utxos[0];
+      const dummyAddr=changeAddrInfo?.address||u.addrInfo.address;
+      const emptyScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(''),Buffer.from('val'),Buffer.from('')]);
+      const tx=buildInscribeTx(network,[u],emptyScript,dummyAddr,0,0,true);
+      return calcFee(conf.fee_def||1000,tx);
+    } catch(e){ return 0; }
+  });
   useEffect(()=>{
     if (!client) return;
     (async()=>{
@@ -1545,12 +1604,13 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, u
     })();
   }, [client]);
   useEffect(()=>{
-    if (!utxos.length || !changeAddrInfo) return;
+    if (!utxos.length) return;
     try {
       const key=inscKey.trim(), val=inscVal.trim();
       const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(key),Buffer.from('val'),Buffer.from(val)]);
       const u=utxos[0];
-      const tx=buildInscribeTx(network,[u],inscriptionScript,changeAddrInfo.address,0,0,true);
+      const dummyAddr=changeAddrInfo?.address||u.addrInfo.address;
+      const tx=buildInscribeTx(network,[u],inscriptionScript,dummyAddr,0,0,true);
       setFee(calcFee(feeRate,tx));
     } catch(e){}
   }, [inscKey, inscVal, feeRate, utxos, changeAddrInfo]);
