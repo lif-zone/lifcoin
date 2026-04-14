@@ -502,3 +502,30 @@ USER: in the Amt component, show all the last trailing 0 digits after the decima
 
 CLAUDE: Updated Amt to split decimal into significant digits + trailing zeros. Trailing zeros rendered in gray (#aaa). When all 8 decimal digits are zero, the dot is also rendered in gray.
 ---
+---
+Tue 14 Apr 2026 04:36:37 IDT
+
+USER: fee calculation should use actual transaction vbytes. Build the transaction (already done), count its bytes, multiply by fee rate, round up.
+
+CLAUDE: Changed estimateFee() to return sat/kB rate (not sat). Added calcFee(rateSatPerKb, tx) = ceil(rate/1000 * tx.virtualSize()). All 4 screens store feeRate state. Each handler now uses a local buildX(txFee) helper: builds PSBT, signs, finalizes, extracts tx. Calls calcFee on that tx for exact fee, rebuilds once if fee differs. No fake transactions.
+---
+
+USER: fee was showing 0.01 LIF (hardcoded 200-vbyte estimate). Fix so accurate fee is shown immediately when opening Send/Inscribe screens.
+
+CLAUDE: Added IndexedDB cache (dbOpen/dbGet/dbPut). WalletDetailScreen.fetchData now fetches UTXOs for all addresses, stores public fields (no keyPairs) to IndexedDB, keeps full addrInfo in state. useEffect pre-loads cached UTXOs from IndexedDB before connecting (re-derives keyPairs from mnemonic). Passes utxos prop to SendScreen and InscribeScreen. SendScreen: fee-recalc useEffect uses P2WPKH vbytes formula ceil((42+272*n_in+248)/4) based on actual UTXO selection for the entered amount. InscribeScreen: fee-recalc useEffect computes inscription script length and uses ceil((202+272+4*S)/4). Both screens use utxos prop for handleSend/handleInscribe (with fresh-fetch fallback if empty). Dead code removed.
+---
+
+USER: In Inscribe screen, fee doesn't increase as I type each letter of the key name.
+
+CLAUDE: The fee-recalc useEffect was only computing script length when both key && val were non-empty. Removed that condition — now always computes S from bitcoin.script.compile with current key+val (empty strings produce valid 0-length pushes), so fee updates with every keystroke.
+---
+
+USER: Why use magic constants in InscribeScreen fee calculation instead of just building the transaction and measuring its vbytes?
+
+CLAUDE: Replaced formula-based fee estimate in InscribeScreen useEffect with actual PSBT build: takes first UTXO, builds 1-input tx with current OP_RETURN script + dummy change output (value:0n), signs, finalizes, calls calcFee(feeRate, p.extractTransaction(true)). extractTransaction(true) disables fee validation so dummy output values are fine. Consistent with how handleInscribe works.
+---
+
+USER: Does the code build transactions once per action, or are there duplicates (once for fee calc, once for broadcast)?
+
+CLAUDE: InscribeScreen had a duplicate: useEffect builds tx (1 input, dummy outputs) to display fee; handler also built with buildInscribe(fee) + calcFee check + potential rebuild. Since useEffect already computes fee accurately from the same tx structure, the handler's calcFee check always finds exactFee===fee, making it redundant. Removed the calcFee safety check from handleInscribe — now builds once. Other screens (SendScreen, NameTransfer, NameEdit) only build in their handlers (no useEffect tx build), so no duplicate there.
+---

@@ -156,6 +156,22 @@ function saveServers(servers){
   localStorage.setItem('electrum_servers', JSON.stringify(servers));
 }
 
+// IndexedDB Cache
+async function dbOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('bright-wallet',1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore('cache',{keyPath:'id'});
+    r.onsuccess=e=>res(e.target.result);
+    r.onerror=()=>rej();
+  });
+}
+async function dbGet(id){
+  try { const db=await dbOpen(); return new Promise(res=>{ const r=db.transaction('cache').objectStore('cache').get(id); r.onsuccess=()=>res(r.result?.data||null); r.onerror=()=>res(null); }); } catch{return null;}
+}
+async function dbPut(id,data){
+  try { const db=await dbOpen(); const t=db.transaction('cache','readwrite'); t.objectStore('cache').put({id,data}); } catch{}
+}
+
 // Styles
 const cardStyle = {
   border: '1px solid #ccc',
@@ -541,6 +557,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
   const [receiveAddress, setReceiveAddress] = useState(null);
   const [allAddrs, setAllAddrs] = useState([]);
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
+  const [allUTXOs, setAllUTXOs] = useState([]);
 
   const fetchData = async (cl)=>{
     setLoading(true);
@@ -558,6 +575,16 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
       setAllAddrs(addrs);
       setChangeAddrInfo(chgAddr);
       const walletAddrSet = new Set(addrs.map(a=>a.address));
+      // Fetch UTXOs
+      const utxoLists = await Promise.all(
+        addrs.map(async(a)=>{
+          const sh=getScriptHash(a.address,network);
+          return (await cl.blockchain_scripthash_listunspent(sh)).map(u=>({...u,address:a.address,chain:a.chain,index:a.index}));
+        })
+      );
+      const rawUTXOs = utxoLists.flat();
+      setAllUTXOs(rawUTXOs.map(u=>({...u,addrInfo:addrs.find(a=>a.address==u.address)})));
+      dbPut('utxos:'+wallet.id, rawUTXOs);
       // Fetch balances
       const bals = await Promise.all(
         addrs.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address, network)))
@@ -662,6 +689,12 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
     try { getRoot(wallet.mnemonic, network, wallet.passphrase||''); } catch(e){ return; }
     const cl = Electrum_connect(conf.electrum);
     (async()=>{
+      const cached = await dbGet('utxos:'+wallet.id);
+      if (cached){
+        const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
+        const ap = wallet.derivPath || defaultDerivPath(conf);
+        setAllUTXOs(cached.map(u=>({...u,addrInfo:deriveAddrAt(root,ap,network,u.chain,u.index)})));
+      }
       try {
         await cl.connect('lif-coin-wallet', '1.4');
         setClient(cl);
@@ -787,6 +820,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
           changeAddrInfo={changeAddrInfo}
           network={network}
           conf={conf}
+          utxos={allUTXOs}
           onSent={()=>{ setSubscreen('overview'); fetchData(client); }}
         />
       )}
@@ -797,6 +831,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
           changeAddrInfo={changeAddrInfo}
           network={network}
           conf={conf}
+          utxos={allUTXOs}
           onSent={()=>{ setSubscreen('overview'); fetchData(client); }}
         />
       )}
@@ -979,6 +1014,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
   const [addrs, setAddrs] = useState([]);
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
   const [connErr, setConnErr] = useState(false);
+  const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
   const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*200));
 
   useEffect(()=>{
@@ -987,7 +1023,9 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
       try {
         await cl.connect('lif-coin-wallet', '1.4');
         setClient(cl);
-        setFee(await estimateFee(cl, conf));
+        const rate = await estimateFee(cl, conf);
+        setFeeRate(rate);
+        setFee(Math.ceil(rate/1000*200));
         const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
         const accountPath = wallet.derivPath || defaultDerivPath(conf);
         const [extRes, chgRes] = await Promise.all([
@@ -1015,16 +1053,8 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
     const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
     if (!nameAddrInfo)
       return alert('Name UTXO address not found in wallet');
-    const psbt = new bitcoin.Psbt({network});
-    psbt.addInput({
-      hash: keyData.tx,
-      index: keyData.vout,
-      witnessUtxo: {
-        value: BigInt(nameValue),
-        script: bitcoin.address.toOutputScript(nameAddr, network),
-      },
-    });
     const signers = [nameAddrInfo];
+    const inputs = [{txid:keyData.tx, vout:keyData.vout, value:nameValue, addr:nameAddr}];
     let extraTotal = 0;
     if (nameValue < fee){
       let allUTXOs = [];
@@ -1042,32 +1072,31 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
       }
       allUTXOs.sort((a, b)=>b.value-a.value);
       for (const utxo of allUTXOs){
-        psbt.addInput({
-          hash: utxo.tx_hash,
-          index: utxo.tx_pos,
-          witnessUtxo: {
-            value: BigInt(utxo.value),
-            script: bitcoin.address.toOutputScript(utxo.addrInfo.address, network),
-          },
-        });
         signers.push(utxo.addrInfo);
+        inputs.push({txid:utxo.tx_hash, vout:utxo.tx_pos, value:utxo.value, addr:utxo.addrInfo.address});
         extraTotal += utxo.value;
-        if (extraTotal >= fee)
-          break;
+        if (extraTotal >= fee) break;
       }
       if (extraTotal < fee)
         return alert('Insufficient balance to cover fees');
-      psbt.addOutput({address: toAddress.trim(), value: BigInt(nameValue)});
-      const change = extraTotal-fee;
-      if (change>546)
-        psbt.addOutput({address: changeAddrInfo.address, value: BigInt(change)});
-    } else {
-      psbt.addOutput({address: toAddress.trim(), value: BigInt(nameValue-fee)});
     }
-    for (let i=0; i<signers.length; i++)
-      psbt.signInput(i, signers[i].keyPair);
-    psbt.finalizeAllInputs();
-    const txHex = psbt.extractTransaction().toHex();
+    const buildTransfer = (txFee)=>{
+      const p = new bitcoin.Psbt({network});
+      for (const inp of inputs) p.addInput({hash:inp.txid, index:inp.vout, witnessUtxo:{value:BigInt(inp.value), script:bitcoin.address.toOutputScript(inp.addr,network)}});
+      if (nameValue < txFee){
+        p.addOutput({address:toAddress.trim(), value:BigInt(nameValue)});
+        const ch=extraTotal-txFee; if(ch>546) p.addOutput({address:changeAddrInfo.address, value:BigInt(ch)});
+      } else {
+        p.addOutput({address:toAddress.trim(), value:BigInt(nameValue-txFee)});
+      }
+      for(let i=0;i<signers.length;i++) p.signInput(i, signers[i].keyPair);
+      p.finalizeAllInputs(); return p.extractTransaction();
+    };
+    let tx=buildTransfer(fee);
+    const exactFee=calcFee(feeRate,tx);
+    if(exactFee!==fee) tx=buildTransfer(exactFee);
+    setFee(exactFee);
+    const txHex = tx.toHex();
     setSending(true);
     try {
       const txid = await client.blockchain_transaction_broadcast(txHex);
@@ -1111,6 +1140,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
   const [addrs, setAddrs] = useState([]);
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
   const [connErr, setConnErr] = useState(false);
+  const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
   const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*200));
 
   useEffect(()=>{
@@ -1119,7 +1149,9 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
       try {
         await cl.connect('lif-coin-wallet', '1.4');
         setClient(cl);
-        setFee(await estimateFee(cl, conf));
+        const rate = await estimateFee(cl, conf);
+        setFeeRate(rate);
+        setFee(Math.ceil(rate/1000*200));
         const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
         const accountPath = wallet.derivPath || defaultDerivPath(conf);
         const [extRes, chgRes] = await Promise.all([
@@ -1154,16 +1186,8 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
       Buffer.from('val'),
       Buffer.from(keyData._editVal),
     ]);
-    const psbt = new bitcoin.Psbt({network});
-    psbt.addInput({
-      hash: keyData.tx,
-      index: keyData.vout,
-      witnessUtxo: {
-        value: BigInt(nameValue),
-        script: bitcoin.address.toOutputScript(nameAddr, network),
-      },
-    });
     const signers = [nameAddrInfo];
+    const inputs = [{txid:keyData.tx, vout:keyData.vout, value:nameValue, addr:nameAddr}];
     let extraTotal = 0;
     if (nameValue < fee){
       let allUTXOs = [];
@@ -1181,34 +1205,32 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
       }
       allUTXOs.sort((a, b)=>b.value-a.value);
       for (const utxo of allUTXOs){
-        psbt.addInput({
-          hash: utxo.tx_hash,
-          index: utxo.tx_pos,
-          witnessUtxo: {
-            value: BigInt(utxo.value),
-            script: bitcoin.address.toOutputScript(utxo.addrInfo.address, network),
-          },
-        });
         signers.push(utxo.addrInfo);
+        inputs.push({txid:utxo.tx_hash, vout:utxo.tx_pos, value:utxo.value, addr:utxo.addrInfo.address});
         extraTotal += utxo.value;
-        if (extraTotal >= fee)
-          break;
+        if (extraTotal >= fee) break;
       }
       if (extraTotal < fee)
         return alert('Insufficient balance to cover fees');
-      psbt.addOutput({script: inscriptionScript, value: 0n});
-      psbt.addOutput({address: dest, value: BigInt(nameValue)});
-      const change = extraTotal-fee;
-      if (change>546)
-        psbt.addOutput({address: changeAddrInfo.address, value: BigInt(change)});
-    } else {
-      psbt.addOutput({script: inscriptionScript, value: 0n});
-      psbt.addOutput({address: dest, value: BigInt(nameValue-fee)});
     }
-    for (let i=0; i<signers.length; i++)
-      psbt.signInput(i, signers[i].keyPair);
-    psbt.finalizeAllInputs();
-    const txHex = psbt.extractTransaction().toHex();
+    const buildEdit = (txFee)=>{
+      const p = new bitcoin.Psbt({network});
+      for (const inp of inputs) p.addInput({hash:inp.txid, index:inp.vout, witnessUtxo:{value:BigInt(inp.value), script:bitcoin.address.toOutputScript(inp.addr,network)}});
+      p.addOutput({script:inscriptionScript, value:0n});
+      if (nameValue < txFee){
+        p.addOutput({address:dest, value:BigInt(nameValue)});
+        const ch=extraTotal-txFee; if(ch>546) p.addOutput({address:changeAddrInfo.address, value:BigInt(ch)});
+      } else {
+        p.addOutput({address:dest, value:BigInt(nameValue-txFee)});
+      }
+      for(let i=0;i<signers.length;i++) p.signInput(i, signers[i].keyPair);
+      p.finalizeAllInputs(); return p.extractTransaction();
+    };
+    let tx=buildEdit(fee);
+    const exactFee=calcFee(feeRate,tx);
+    if(exactFee!==fee) tx=buildEdit(exactFee);
+    setFee(exactFee);
+    const txHex = tx.toHex();
     setSending(true);
     try {
       const txid = await client.blockchain_transaction_broadcast(txHex);
@@ -1307,13 +1329,16 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
 }
 
 async function estimateFee(client, conf){
-  const fallback = Math.ceil((conf.fee_def||1000)/1000*200);
+  const fallback = conf.fee_def||1000;
   try {
     const rate = await client.request('blockchain.estimatefee', [6]);
-    if (rate>0)
-      return Math.ceil(rate*1e8/1000*200);
+    if (rate>0) return Math.round(rate*1e8);
   } catch(e){}
   return fallback;
+}
+
+function calcFee(rateSatPerKb, tx){
+  return Math.ceil(rateSatPerKb/1000*tx.virtualSize());
 }
 
 function Amt({sat, symbol, signed}){
@@ -1362,35 +1387,42 @@ function FeeField({value, onChange, conf}){
 }
 
 // Send Screen
-function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
+function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos}){
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
-  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*200));
+  const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
+  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*141));
   useEffect(()=>{
     if (!client) return;
-    (async()=>{ setFee(await estimateFee(client, conf)); })();
+    (async()=>{
+      const rate = await estimateFee(client, conf);
+      setFeeRate(rate);
+    })();
   }, [client]);
+  useEffect(()=>{
+    const amt=Math.round(parseFloat(amountSat)*1e8);
+    let n_in=1;
+    if (!isNaN(amt) && amt>0 && utxos.length){
+      const sorted=[...utxos].sort((a,b)=>b.value-a.value);
+      let tot=0, estFee=Math.ceil(feeRate/1000*141);
+      n_in=0;
+      for (const u of sorted){ n_in++; tot+=u.value; if(tot>=amt+estFee) break; }
+    }
+    setFee(Math.ceil(feeRate/1000*Math.ceil((42+272*n_in+248)/4)));
+  }, [amountSat, feeRate, utxos]);
   const handleSend = async ()=>{
     if (!client || !addrs.length)
       return;
     const amountValue = Math.round(parseFloat(amountSat)*1e8);
     if (isNaN(amountValue) || amountValue<=0)
       return alert('Invalid amount');
-    // Collect UTXOs from all addresses
-    let allUTXOs = [];
-    try {
-      const lists = await Promise.all(
-        addrs.map(async (addrInfo)=>{
-          const sh = getScriptHash(addrInfo.address, network);
-          const utxos = await client.blockchain_scripthash_listunspent(sh);
-          return utxos.map(u=>({...u, addrInfo}));
-        })
-      );
-      allUTXOs = lists.flat();
-    } catch(err){
-      return alert('Failed to fetch UTXOs');
-    }
+    const allUTXOs = utxos.length ? utxos : await (async()=>{
+      try {
+        const lists = await Promise.all(addrs.map(async(addrInfo)=>{ const sh=getScriptHash(addrInfo.address,network); return (await client.blockchain_scripthash_listunspent(sh)).map(u=>({...u,addrInfo})); }));
+        return lists.flat();
+      } catch { return []; }
+    })();
     if (!allUTXOs.length)
       return alert('No funds available');
     // Select UTXOs largest-first until amount+fee covered
@@ -1405,25 +1437,19 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
     }
     if (total < amountValue+fee)
       return alert('Insufficient balance');
-    const psbt = new bitcoin.Psbt({network});
-    for (const utxo of selected){
-      psbt.addInput({
-        hash: utxo.tx_hash,
-        index: utxo.tx_pos,
-        witnessUtxo: {
-          value: BigInt(utxo.value),
-          script: bitcoin.address.toOutputScript(utxo.addrInfo.address, network),
-        },
-      });
-    }
-    psbt.addOutput({address: toAddress, value: BigInt(amountValue)});
-    const change = total-amountValue-fee;
-    if (change>546)
-      psbt.addOutput({address: changeAddrInfo.address, value: BigInt(change)});
-    for (let i=0; i<selected.length; i++)
-      psbt.signInput(i, selected[i].addrInfo.keyPair);
-    psbt.finalizeAllInputs();
-    const txHex = psbt.extractTransaction().toHex();
+    const buildSend = (txFee)=>{
+      const p = new bitcoin.Psbt({network});
+      for (const u of selected) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
+      p.addOutput({address:toAddress,value:BigInt(amountValue)});
+      const ch=total-amountValue-txFee; if(ch>546) p.addOutput({address:changeAddrInfo.address,value:BigInt(ch)});
+      for(let i=0;i<selected.length;i++) p.signInput(i,selected[i].addrInfo.keyPair);
+      p.finalizeAllInputs(); return p.extractTransaction();
+    };
+    let tx=buildSend(fee);
+    const exactFee=calcFee(feeRate,tx);
+    if(exactFee!==fee){ if(total<amountValue+exactFee) return alert('Insufficient balance'); tx=buildSend(exactFee); }
+    setFee(exactFee);
+    const txHex=tx.toHex();
     setSending(true);
     try {
       const txid = await client.blockchain_transaction_broadcast(txHex);
@@ -1464,17 +1490,36 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
 }
 
 // Inscribe Screen
-function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
+function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos}){
   const [inscKey, setInscKey] = useState('');
   const [inscVal, setInscVal] = useState('');
   const [sending, setSending] = useState(false);
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
-  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*200));
+  const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
+  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*150));
   useEffect(()=>{
     if (!client) return;
-    (async()=>{ setFee(await estimateFee(client, conf)); })();
+    (async()=>{
+      const rate = await estimateFee(client, conf);
+      setFeeRate(rate);
+    })();
   }, [client]);
+  useEffect(()=>{
+    if (!utxos.length || !changeAddrInfo) return;
+    try {
+      const key=inscKey.trim(), val=inscVal.trim();
+      const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(key),Buffer.from('val'),Buffer.from(val)]);
+      const u=utxos[0];
+      const p=new bitcoin.Psbt({network});
+      p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
+      p.addOutput({script:inscriptionScript,value:0n});
+      p.addOutput({address:changeAddrInfo.address,value:0n});
+      p.signInput(0,u.addrInfo.keyPair);
+      p.finalizeAllInputs();
+      setFee(calcFee(feeRate,p.extractTransaction(true)));
+    } catch(e){}
+  }, [inscKey, inscVal, feeRate, utxos, changeAddrInfo]);
 
   useEffect(()=>{
     const key = inscKey.trim();
@@ -1511,19 +1556,12 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
       Buffer.from('val'),
       Buffer.from(inscVal.trim()),
     ]);
-    let allUTXOs = [];
-    try {
-      const lists = await Promise.all(
-        addrs.map(async(addrInfo)=>{
-          const sh = getScriptHash(addrInfo.address, network);
-          const utxos = await client.blockchain_scripthash_listunspent(sh);
-          return utxos.map(u=>({...u, addrInfo}));
-        })
-      );
-      allUTXOs = lists.flat();
-    } catch(err){
-      return alert('Failed to fetch UTXOs');
-    }
+    const allUTXOs = utxos.length ? utxos : await (async()=>{
+      try {
+        const lists = await Promise.all(addrs.map(async(addrInfo)=>{ const sh=getScriptHash(addrInfo.address,network); return (await client.blockchain_scripthash_listunspent(sh)).map(u=>({...u,addrInfo})); }));
+        return lists.flat();
+      } catch { return []; }
+    })();
     if (!allUTXOs.length)
       return alert('No funds available');
     allUTXOs.sort((a, b)=>b.value-a.value);
@@ -1537,23 +1575,16 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent}){
     }
     if (total < fee)
       return alert('Insufficient balance to cover fee');
-    const psbt = new bitcoin.Psbt({network});
-    for (const utxo of selected){
-      psbt.addInput({
-        hash: utxo.tx_hash,
-        index: utxo.tx_pos,
-        witnessUtxo: {
-          value: BigInt(utxo.value),
-          script: bitcoin.address.toOutputScript(utxo.addrInfo.address, network),
-        },
-      });
-    }
-    psbt.addOutput({script: inscriptionScript, value: 0n});
-    psbt.addOutput({address: changeAddrInfo.address, value: BigInt(total-fee)});
-    for (let i=0; i<selected.length; i++)
-      psbt.signInput(i, selected[i].addrInfo.keyPair);
-    psbt.finalizeAllInputs();
-    const txHex = psbt.extractTransaction().toHex();
+    const buildInscribe = (txFee)=>{
+      const p = new bitcoin.Psbt({network});
+      for (const u of selected) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
+      p.addOutput({script:inscriptionScript,value:0n});
+      p.addOutput({address:changeAddrInfo.address,value:BigInt(total-txFee)});
+      for(let i=0;i<selected.length;i++) p.signInput(i,selected[i].addrInfo.keyPair);
+      p.finalizeAllInputs(); return p.extractTransaction();
+    };
+    const tx=buildInscribe(fee);
+    const txHex=tx.toHex();
     setSending(true);
     try {
       const txid = await client.blockchain_transaction_broadcast(txHex);
