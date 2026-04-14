@@ -160,4 +160,75 @@ export async function dbPut(id, data){
   try { await db.put('cache', data, id); } catch{}
 }
 
+export async function estimateFee(client, conf){
+  const fallback = conf.fee_def||1000;
+  try {
+    const rate = await client.request('blockchain.estimatefee', [6]);
+    if (rate>0) return Math.round(rate*1e8);
+  } catch(e){}
+  return fallback;
+}
+
+export function calcFee(rateSatPerKb, tx){
+  return Math.ceil(rateSatPerKb/1000*tx.virtualSize());
+}
+
+export function findAddrInWallet(root, accountPath, network, targetAddr){
+  for (let ch=0; ch<2; ch++)
+    for (let idx=0; idx<30; idx++){
+      const info=deriveAddrAt(root,accountPath,network,ch,idx);
+      if (info.address==targetAddr) return info;
+    }
+  return null;
+}
+
+// inputs: [{tx_hash, tx_pos, value, addrInfo:{address,keyPair}}]
+export function buildSendTx(network, inputs, toAddr, amt, changeAddr, total, txFee, forEst=false){
+  const p=new bitcoin.Psbt({network});
+  for (const u of inputs) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
+  p.addOutput({address:toAddr,value:BigInt(amt)});
+  const ch=total-amt-txFee; if(ch>546) p.addOutput({address:changeAddr,value:BigInt(ch)});
+  for(let i=0;i<inputs.length;i++) p.signInput(i,inputs[i].addrInfo.keyPair);
+  p.finalizeAllInputs(); return p.extractTransaction(forEst);
+}
+
+// inputs: [{tx_hash, tx_pos, value, addrInfo:{address,keyPair}}]
+export function buildInscribeTx(network, inputs, script, changeAddr, total, txFee, forEst=false){
+  const p=new bitcoin.Psbt({network});
+  for (const u of inputs) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
+  p.addOutput({script,value:0n});
+  p.addOutput({address:changeAddr,value:BigInt(total-txFee)});
+  for(let i=0;i<inputs.length;i++) p.signInput(i,inputs[i].addrInfo.keyPair);
+  p.finalizeAllInputs(); return p.extractTransaction(forEst);
+}
+
+// inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
+export function buildTransferTx(network, inputs, signers, toAddr, nameValue, extraTotal, changeAddr, txFee, forEst=false){
+  const p=new bitcoin.Psbt({network});
+  for (const inp of inputs) p.addInput({hash:inp.txid,index:inp.vout,witnessUtxo:{value:BigInt(inp.value),script:bitcoin.address.toOutputScript(inp.addr,network)}});
+  if (nameValue<txFee){
+    p.addOutput({address:toAddr,value:BigInt(nameValue)});
+    const ch=extraTotal-txFee; if(ch>546) p.addOutput({address:changeAddr,value:BigInt(ch)});
+  } else {
+    p.addOutput({address:toAddr,value:BigInt(nameValue-txFee)});
+  }
+  for(let i=0;i<signers.length;i++) p.signInput(i,signers[i].keyPair);
+  p.finalizeAllInputs(); return p.extractTransaction(forEst);
+}
+
+// inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
+export function buildEditTx(network, inputs, signers, script, dest, nameValue, extraTotal, changeAddr, txFee, forEst=false){
+  const p=new bitcoin.Psbt({network});
+  for (const inp of inputs) p.addInput({hash:inp.txid,index:inp.vout,witnessUtxo:{value:BigInt(inp.value),script:bitcoin.address.toOutputScript(inp.addr,network)}});
+  p.addOutput({script,value:0n});
+  if (nameValue<txFee){
+    p.addOutput({address:dest,value:BigInt(nameValue)});
+    const ch=extraTotal-txFee; if(ch>546) p.addOutput({address:changeAddr,value:BigInt(ch)});
+  } else {
+    p.addOutput({address:dest,value:BigInt(nameValue-txFee)});
+  }
+  for(let i=0;i<signers.length;i++) p.signInput(i,signers[i].keyPair);
+  p.finalizeAllInputs(); return p.extractTransaction(forEst);
+}
+
 
