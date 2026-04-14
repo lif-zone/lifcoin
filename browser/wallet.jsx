@@ -1015,7 +1015,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
   const [connErr, setConnErr] = useState(false);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*200));
+  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*141));
 
   useEffect(()=>{
     const cl = Electrum_connect(conf.electrum);
@@ -1025,7 +1025,6 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
         setClient(cl);
         const rate = await estimateFee(cl, conf);
         setFeeRate(rate);
-        setFee(Math.ceil(rate/1000*200));
         const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
         const accountPath = wallet.derivPath || defaultDerivPath(conf);
         const [extRes, chgRes] = await Promise.all([
@@ -1041,6 +1040,18 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
     })();
     return ()=>{ try { cl.close(); } catch {} };
   }, []);
+  useEffect(()=>{
+    if (!addrs.length || !changeAddrInfo) return;
+    const nameVout = keyData._tx._vtx.vout[keyData.vout];
+    const nameValue = Math.round(nameVout.value*1e8);
+    const nameAddr = nameVout.scriptPubKey?.address || nameVout.scriptPubKey?.addresses?.[0];
+    const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
+    if (!nameAddrInfo) return;
+    try {
+      const tx=buildTransferTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],changeAddrInfo.address,nameValue,0,changeAddrInfo.address,0,true);
+      setFee(calcFee(feeRate,tx));
+    } catch(e){}
+  }, [addrs, feeRate, changeAddrInfo]);
 
   const handleTransfer = async()=>{
     if (!toAddress.trim())
@@ -1080,21 +1091,9 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
       if (extraTotal < fee)
         return alert('Insufficient balance to cover fees');
     }
-    const buildTransfer = (txFee)=>{
-      const p = new bitcoin.Psbt({network});
-      for (const inp of inputs) p.addInput({hash:inp.txid, index:inp.vout, witnessUtxo:{value:BigInt(inp.value), script:bitcoin.address.toOutputScript(inp.addr,network)}});
-      if (nameValue < txFee){
-        p.addOutput({address:toAddress.trim(), value:BigInt(nameValue)});
-        const ch=extraTotal-txFee; if(ch>546) p.addOutput({address:changeAddrInfo.address, value:BigInt(ch)});
-      } else {
-        p.addOutput({address:toAddress.trim(), value:BigInt(nameValue-txFee)});
-      }
-      for(let i=0;i<signers.length;i++) p.signInput(i, signers[i].keyPair);
-      p.finalizeAllInputs(); return p.extractTransaction();
-    };
-    let tx=buildTransfer(fee);
+    let tx=buildTransferTx(network,inputs,signers,toAddress.trim(),nameValue,extraTotal,changeAddrInfo.address,fee);
     const exactFee=calcFee(feeRate,tx);
-    if(exactFee!==fee) tx=buildTransfer(exactFee);
+    if(exactFee!==fee) tx=buildTransferTx(network,inputs,signers,toAddress.trim(),nameValue,extraTotal,changeAddrInfo.address,exactFee);
     setFee(exactFee);
     const txHex = tx.toHex();
     setSending(true);
@@ -1141,7 +1140,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
   const [changeAddrInfo, setChangeAddrInfo] = useState(null);
   const [connErr, setConnErr] = useState(false);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*200));
+  const [fee, setFee] = useState(Math.ceil((conf.fee_def||1000)/1000*141));
 
   useEffect(()=>{
     const cl = Electrum_connect(conf.electrum);
@@ -1151,7 +1150,6 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
         setClient(cl);
         const rate = await estimateFee(cl, conf);
         setFeeRate(rate);
-        setFee(Math.ceil(rate/1000*200));
         const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
         const accountPath = wallet.derivPath || defaultDerivPath(conf);
         const [extRes, chgRes] = await Promise.all([
@@ -1167,6 +1165,19 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
     })();
     return ()=>{ try { cl.close(); } catch {} };
   }, []);
+  useEffect(()=>{
+    if (!addrs.length || !changeAddrInfo) return;
+    const nameVout = keyData._tx._vtx.vout[keyData.vout];
+    const nameValue = Math.round(nameVout.value*1e8);
+    const nameAddr = nameVout.scriptPubKey?.address || nameVout.scriptPubKey?.addresses?.[0];
+    const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
+    if (!nameAddrInfo) return;
+    const inscriptionScript = bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(keyData.key),Buffer.from('val'),Buffer.from(keyData._editVal)]);
+    try {
+      const tx=buildEditTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],inscriptionScript,changeAddrInfo.address,nameValue,0,changeAddrInfo.address,0,true);
+      setFee(calcFee(feeRate,tx));
+    } catch(e){}
+  }, [addrs, feeRate, changeAddrInfo]);
 
   const handleSave = async()=>{
     if (!client)
@@ -1213,22 +1224,9 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
       if (extraTotal < fee)
         return alert('Insufficient balance to cover fees');
     }
-    const buildEdit = (txFee)=>{
-      const p = new bitcoin.Psbt({network});
-      for (const inp of inputs) p.addInput({hash:inp.txid, index:inp.vout, witnessUtxo:{value:BigInt(inp.value), script:bitcoin.address.toOutputScript(inp.addr,network)}});
-      p.addOutput({script:inscriptionScript, value:0n});
-      if (nameValue < txFee){
-        p.addOutput({address:dest, value:BigInt(nameValue)});
-        const ch=extraTotal-txFee; if(ch>546) p.addOutput({address:changeAddrInfo.address, value:BigInt(ch)});
-      } else {
-        p.addOutput({address:dest, value:BigInt(nameValue-txFee)});
-      }
-      for(let i=0;i<signers.length;i++) p.signInput(i, signers[i].keyPair);
-      p.finalizeAllInputs(); return p.extractTransaction();
-    };
-    let tx=buildEdit(fee);
+    let tx=buildEditTx(network,inputs,signers,inscriptionScript,dest,nameValue,extraTotal,changeAddrInfo.address,fee);
     const exactFee=calcFee(feeRate,tx);
-    if(exactFee!==fee) tx=buildEdit(exactFee);
+    if(exactFee!==fee) tx=buildEditTx(network,inputs,signers,inscriptionScript,dest,nameValue,extraTotal,changeAddrInfo.address,exactFee);
     setFee(exactFee);
     const txHex = tx.toHex();
     setSending(true);
@@ -1341,6 +1339,55 @@ function calcFee(rateSatPerKb, tx){
   return Math.ceil(rateSatPerKb/1000*tx.virtualSize());
 }
 
+// inputs: [{tx_hash, tx_pos, value, addrInfo:{address,keyPair}}]
+function buildSendTx(network, inputs, toAddr, amt, changeAddr, total, txFee){
+  const p=new bitcoin.Psbt({network});
+  for (const u of inputs) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
+  p.addOutput({address:toAddr,value:BigInt(amt)});
+  const ch=total-amt-txFee; if(ch>546) p.addOutput({address:changeAddr,value:BigInt(ch)});
+  for(let i=0;i<inputs.length;i++) p.signInput(i,inputs[i].addrInfo.keyPair);
+  p.finalizeAllInputs(); return p.extractTransaction();
+}
+
+// inputs: [{tx_hash, tx_pos, value, addrInfo:{address,keyPair}}]
+function buildInscribeTx(network, inputs, script, changeAddr, total, txFee, forEst=false){
+  const p=new bitcoin.Psbt({network});
+  for (const u of inputs) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
+  p.addOutput({script,value:0n});
+  p.addOutput({address:changeAddr,value:BigInt(total-txFee)});
+  for(let i=0;i<inputs.length;i++) p.signInput(i,inputs[i].addrInfo.keyPair);
+  p.finalizeAllInputs(); return p.extractTransaction(forEst);
+}
+
+// inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
+function buildTransferTx(network, inputs, signers, toAddr, nameValue, extraTotal, changeAddr, txFee, forEst=false){
+  const p=new bitcoin.Psbt({network});
+  for (const inp of inputs) p.addInput({hash:inp.txid,index:inp.vout,witnessUtxo:{value:BigInt(inp.value),script:bitcoin.address.toOutputScript(inp.addr,network)}});
+  if (nameValue<txFee){
+    p.addOutput({address:toAddr,value:BigInt(nameValue)});
+    const ch=extraTotal-txFee; if(ch>546) p.addOutput({address:changeAddr,value:BigInt(ch)});
+  } else {
+    p.addOutput({address:toAddr,value:BigInt(nameValue-txFee)});
+  }
+  for(let i=0;i<signers.length;i++) p.signInput(i,signers[i].keyPair);
+  p.finalizeAllInputs(); return p.extractTransaction(forEst);
+}
+
+// inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
+function buildEditTx(network, inputs, signers, script, dest, nameValue, extraTotal, changeAddr, txFee, forEst=false){
+  const p=new bitcoin.Psbt({network});
+  for (const inp of inputs) p.addInput({hash:inp.txid,index:inp.vout,witnessUtxo:{value:BigInt(inp.value),script:bitcoin.address.toOutputScript(inp.addr,network)}});
+  p.addOutput({script,value:0n});
+  if (nameValue<txFee){
+    p.addOutput({address:dest,value:BigInt(nameValue)});
+    const ch=extraTotal-txFee; if(ch>546) p.addOutput({address:changeAddr,value:BigInt(ch)});
+  } else {
+    p.addOutput({address:dest,value:BigInt(nameValue-txFee)});
+  }
+  for(let i=0;i<signers.length;i++) p.signInput(i,signers[i].keyPair);
+  p.finalizeAllInputs(); return p.extractTransaction(forEst);
+}
+
 function Amt({sat, symbol, signed}){
   const sign = signed ? (sat>0 ? '+' : sat<0 ? '-' : '') : '';
   const color = signed ? (sat>0 ? 'green' : sat<0 ? '#c00' : null) : null;
@@ -1437,17 +1484,9 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos
     }
     if (total < amountValue+fee)
       return alert('Insufficient balance');
-    const buildSend = (txFee)=>{
-      const p = new bitcoin.Psbt({network});
-      for (const u of selected) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
-      p.addOutput({address:toAddress,value:BigInt(amountValue)});
-      const ch=total-amountValue-txFee; if(ch>546) p.addOutput({address:changeAddrInfo.address,value:BigInt(ch)});
-      for(let i=0;i<selected.length;i++) p.signInput(i,selected[i].addrInfo.keyPair);
-      p.finalizeAllInputs(); return p.extractTransaction();
-    };
-    let tx=buildSend(fee);
+    let tx=buildSendTx(network,selected,toAddress,amountValue,changeAddrInfo.address,total,fee);
     const exactFee=calcFee(feeRate,tx);
-    if(exactFee!==fee){ if(total<amountValue+exactFee) return alert('Insufficient balance'); tx=buildSend(exactFee); }
+    if(exactFee!==fee){ if(total<amountValue+exactFee) return alert('Insufficient balance'); tx=buildSendTx(network,selected,toAddress,amountValue,changeAddrInfo.address,total,exactFee); }
     setFee(exactFee);
     const txHex=tx.toHex();
     setSending(true);
@@ -1511,13 +1550,8 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, u
       const key=inscKey.trim(), val=inscVal.trim();
       const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(key),Buffer.from('val'),Buffer.from(val)]);
       const u=utxos[0];
-      const p=new bitcoin.Psbt({network});
-      p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
-      p.addOutput({script:inscriptionScript,value:0n});
-      p.addOutput({address:changeAddrInfo.address,value:0n});
-      p.signInput(0,u.addrInfo.keyPair);
-      p.finalizeAllInputs();
-      setFee(calcFee(feeRate,p.extractTransaction(true)));
+      const tx=buildInscribeTx(network,[u],inscriptionScript,changeAddrInfo.address,0,0,true);
+      setFee(calcFee(feeRate,tx));
     } catch(e){}
   }, [inscKey, inscVal, feeRate, utxos, changeAddrInfo]);
 
@@ -1575,15 +1609,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, u
     }
     if (total < fee)
       return alert('Insufficient balance to cover fee');
-    const buildInscribe = (txFee)=>{
-      const p = new bitcoin.Psbt({network});
-      for (const u of selected) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
-      p.addOutput({script:inscriptionScript,value:0n});
-      p.addOutput({address:changeAddrInfo.address,value:BigInt(total-txFee)});
-      for(let i=0;i<selected.length;i++) p.signInput(i,selected[i].addrInfo.keyPair);
-      p.finalizeAllInputs(); return p.extractTransaction();
-    };
-    const tx=buildInscribe(fee);
+    const tx=buildInscribeTx(network,selected,inscriptionScript,changeAddrInfo.address,total,fee);
     const txHex=tx.toHex();
     setSending(true);
     try {

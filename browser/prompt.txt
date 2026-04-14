@@ -529,3 +529,13 @@ USER: Does the code build transactions once per action, or are there duplicates 
 
 CLAUDE: InscribeScreen had a duplicate: useEffect builds tx (1 input, dummy outputs) to display fee; handler also built with buildInscribe(fee) + calcFee check + potential rebuild. Since useEffect already computes fee accurately from the same tx structure, the handler's calcFee check always finds exactFee===fee, making it redundant. Removed the calcFee safety check from handleInscribe — now builds once. Other screens (SendScreen, NameTransfer, NameEdit) only build in their handlers (no useEffect tx build), so no duplicate there.
 ---
+
+USER: NameTransferScreen and NameEditScreen still use hardcoded 200-vbyte fee estimate. Fix all 4 occurrences.
+
+CLAUDE: Added fee-calc useEffect to both screens (fires when addrs/feeRate/changeAddrInfo become available). Builds actual tx: 1 input (name UTXO with real keyPair), 1 P2WPKH output (Transfer) or OP_RETURN + P2WPKH outputs (Edit), signs, finalizes, calls calcFee(feeRate, extractTransaction(true)). Removed setFee(Math.ceil(rate/1000*200)) from both main useEffects. No more hardcoded vbyte constants anywhere.
+---
+
+USER: but now the code to create the transaction is duplicated. Just put the transaction building code in a function, and call it from the different places needed, instead of duplicating it
+
+CLAUDE: Extracted 4 module-level builder functions (buildSendTx, buildInscribeTx, buildTransferTx, buildEditTx) placed between calcFee and Amt. Replaced all local buildX closures in handlers (SendScreen.handleSend, InscribeScreen.handleInscribe, NameTransferScreen.handleTransfer, NameEditScreen.handleSave) and all inline PSBT builds in fee-calc useEffects (InscribeScreen, NameTransferScreen, NameEditScreen) with calls to the appropriate module-level function. No more duplicated transaction-building code.
+---
