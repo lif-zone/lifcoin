@@ -9,119 +9,18 @@ import {ECPairFactory} from 'ecpair';
 const ecpair = ECPairFactory(ecc);
 import ElectrumClient from '@aguycalled/electrum-client-js';
 import {openDB} from 'idb';
-import {DEFAULT_NETWORKS} from './wallet_db.js';
+import {DEFAULT_NETWORKS, saveServers, loadServers,
+  saveWallets, loadWallets,
+  dbGet, dbPut,
+  getRoot, getNetworks, Electrum_connect,
+  getScriptHash, scanAddresses, deriveWallet, deriveAddrAt, defaultDerivPath,
+} from './wallet_db.js';
 
 function json(o){
   return JSON.stringify(o);
 }
 function trunc(s, len){
   return s.length>len ? s.slice(0, len)+'…' : s;
-}
-
-function Electrum_connect(url){
-  let u = URL.parse(url);
-  let protocol = u.protocol.slice(0, -1);
-  let port = u.port || (protocol=='wss' ? '443' : protocol=='ws' ? '80' : '');
-  return new ElectrumClient(u.hostname, port+u.pathname, protocol);
-}
-
-function getNetworks(servers){
-  const result = {};
-  for (const key in DEFAULT_NETWORKS){
-    result[key] = {...DEFAULT_NETWORKS[key]};
-    if (servers[key])
-      result[key].electrum = servers[key];
-  }
-  return result;
-}
-
-function getRoot(mnemonic, network, passphrase=''){
-  return bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic, passphrase), network);
-}
-
-function defaultDerivPath(conf){
-  return `m/84'/${conf.coin_type}'/0'`;
-}
-
-function deriveAddrAt(root, accountPath, network, chain, index){
-  const child = root.derivePath(`${accountPath}/${chain}/${index}`);
-  const pubkey = child.publicKey;
-  const {address} = bitcoin.payments.p2wpkh({pubkey, network});
-  const keyPair = ecpair.fromPrivateKey(child.privateKey, {network});
-  return {address, keyPair, chain, index};
-}
-
-function deriveWallet(mnemonic, networkKey, networks, passphrase='', derivPath=null){
-  const conf = networks[networkKey];
-  const network = conf.network;
-  const root = getRoot(mnemonic, network, passphrase);
-  const accountPath = derivPath || defaultDerivPath(conf);
-  const {address, keyPair} = deriveAddrAt(root, accountPath, network, 0, 0);
-  return {address, keyPair, network, conf, root};
-}
-
-// Scan used addresses on chain (0=external, 1=change) with gap limit of 20.
-// Returns {used: [{address, keyPair, chain, index, hist}], nextIndex}
-async function scanAddresses(cl, root, accountPath, network, chain){
-  const GAP = 20;
-  const used = [];
-  let lastUsed = -1;
-  let start = 0;
-  while (true){
-    const entries = Array.from({length: GAP}, (_, i)=>deriveAddrAt(root, accountPath, network, chain, start+i));
-    const hists = await Promise.all(
-      entries.map(e=>cl.blockchain_scripthash_getHistory(getScriptHash(e.address, network)))
-    );
-    let anyUsed = false;
-    for (let i=0; i<GAP; i++){
-      if (hists[i].length>0){
-        used.push({...entries[i], hist: hists[i]});
-        lastUsed = entries[i].index;
-        anyUsed = true;
-      }
-    }
-    if (!anyUsed)
-      break;
-    start += GAP;
-  }
-  return {used, nextIndex: lastUsed+1};
-}
-
-function getScriptHash(addr, network){
-  const script = bitcoin.address.toOutputScript(addr, network);
-  const hash = bitcoin.crypto.sha256(script);
-  return Buffer.from(hash.reverse()).toString('hex');
-}
-
-function loadWallets(){
-  try {
-    const saved = localStorage.getItem('wallets');
-    return saved ? JSON.parse(saved) : [];
-  } catch { return []; }
-}
-
-function saveWallets(wallets){
-  localStorage.setItem('wallets', JSON.stringify(wallets));
-}
-
-function loadServers(){
-  try { return JSON.parse(localStorage.getItem('electrum_servers') || '{}'); }
-  catch { return {}; }
-}
-
-function saveServers(servers){
-  localStorage.setItem('electrum_servers', JSON.stringify(servers));
-}
-
-// IndexedDB Cache
-const db = await openDB('bright-wallet', 1, {
-  upgrade(db){ db.createObjectStore('cache'); }
-});
-async function dbGet(id){
-  try { return await db.get('cache', id) ?? null; } catch{ return null; }
-}
-async function dbPut(id, data){
-  try { await db.put('cache', data, id); } catch{}
 }
 
 // Styles
