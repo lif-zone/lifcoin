@@ -292,9 +292,10 @@ export async function fetchWalletData(wallet){
   const feeRate = await estimateFee(conf);
   // Transactions
   const txByHash = new Map();
-  for (const a of addrs)
+  for (const a of addrs){
     for (const tx of (a.hist||[]))
       txByHash.set(tx.tx_hash, tx);
+  }
   const hist = [...txByHash.values()].sort((a, b)=>(b.height||1e9)
     -(a.height||1e9));
   let transactions = [], ownedKeys=[];
