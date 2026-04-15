@@ -48,7 +48,7 @@ function BrightWallet(){
   const [selectedTxData, setSelectedTxData] = useState(null);
   const [selectedKeyData, setSelectedKeyData] = useState(null);
   useEffect(()=>{
-    setWallets(ws=>ws.map(w=>({...w,conf:networks[w.network]||Object.values(networks)[0]})));
+    setWallets(ws=>ws.map(w=>({...w, conf:networks[w.network]||Object.values(networks)[0]})));
   }, [networks]);
   const addWallet = (wallet)=>{
     const updated = [...wallets, {...wallet, conf: networks[wallet.network]||Object.values(networks)[0]}];
@@ -529,7 +529,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx, onS
           network={network}
           conf={conf}
           utxos={allUTXOs}
-          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet,conf)); } catch(e){} finally { setLoading(false); } }}
+          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet, conf)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
       {subscreen=='inscribe' && allAddrs.length>0 && (
@@ -539,7 +539,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx, onS
           network={network}
           conf={conf}
           utxos={allUTXOs}
-          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet,conf)); } catch(e){} finally { setLoading(false); } }}
+          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet, conf)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
       {subscreen=='wallet-settings' && (
@@ -721,7 +721,7 @@ function NameTransferScreen({wallet, keyData, onSent}){
   const [addrs, setAddrs] = useState(wallet.addrs ?? []);
   const [changeAddrInfo, setChangeAddrInfo] = useState(wallet.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(()=>estimateNameFee(wallet,keyData,null,conf.fee_def||1000));
+  const [fee, setFee] = useState(()=>estimateNameFee(wallet, keyData, null, conf.fee_def||1000));
 
   useEffect(()=>{
     (async()=>{
@@ -737,14 +737,14 @@ function NameTransferScreen({wallet, keyData, onSent}){
     })();
   }, []);
   useEffect(()=>{
-    setFee(estimateNameFee(wallet,keyData,changeAddrInfo,feeRate));
+    setFee(estimateNameFee(wallet, keyData, changeAddrInfo, feeRate));
   }, [feeRate]);
 
   const handleTransfer = async()=>{
     if (!toAddress.trim()) return alert('Enter recipient address');
     setSending(true);
     try {
-      const {txid,exactFee}=await transferTx(conf,addrs,keyData,toAddress.trim(),changeAddrInfo,fee,feeRate);
+      const {txid, exactFee}=await transferTx(conf, addrs, keyData, toAddress.trim(), changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
@@ -785,7 +785,7 @@ function NameEditScreen({wallet, keyData, onSent}){
   const [addrs, setAddrs] = useState(wallet.addrs ?? []);
   const [changeAddrInfo, setChangeAddrInfo] = useState(wallet.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(()=>estimateNameFee(wallet,keyData,null,conf.fee_def||1000));
+  const [fee, setFee] = useState(()=>estimateNameFee(wallet, keyData, null, conf.fee_def||1000));
 
   useEffect(()=>{
     (async()=>{
@@ -801,13 +801,13 @@ function NameEditScreen({wallet, keyData, onSent}){
     })();
   }, []);
   useEffect(()=>{
-    setFee(estimateNameFee(wallet,keyData,changeAddrInfo,feeRate));
+    setFee(estimateNameFee(wallet, keyData, changeAddrInfo, feeRate));
   }, [feeRate]);
 
   const handleSave = async()=>{
     setSending(true);
     try {
-      const {txid,exactFee}=await saveKvTx(conf,addrs,keyData,changeAddrInfo,fee,feeRate);
+      const {txid, exactFee}=await saveKvTx(conf, addrs, keyData, changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
@@ -958,8 +958,8 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     try {
       const u=utxos[0];
       const dummyAddr=changeAddrInfo?.address||u.addrInfo.address;
-      const tx=buildSendTx(network,[u],dummyAddr,546,dummyAddr,u.value,0,true);
-      return calcFee(conf.fee_def||1000,tx);
+      const tx=buildSendTx(network, [u], dummyAddr, 546, dummyAddr, u.value, 0, true);
+      return calcFee(conf.fee_def||1000, tx);
     } catch(e){ return 0; }
   });
   useEffect(()=>{
@@ -973,12 +973,12 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     const dummyAddr=changeAddrInfo?.address||utxos[0].addrInfo.address;
     const amt=Math.round(parseFloat(amountSat)*1e8);
     const target=(!isNaN(amt)&&amt>0)?amt:546;
-    const sorted=[...utxos].sort((a,b)=>b.value-a.value);
+    const sorted=[...utxos].sort((a, b)=>b.value-a.value);
     let selected=[], total=0;
     for (const u of sorted){ selected.push(u); total+=u.value; if(total>=target) break; }
     try {
-      const tx=buildSendTx(network,selected,dummyAddr,Math.min(target,total),dummyAddr,total,0,true);
-      setFee(calcFee(feeRate,tx));
+      const tx=buildSendTx(network, selected, dummyAddr, Math.min(target, total), dummyAddr, total, 0, true);
+      setFee(calcFee(feeRate, tx));
     } catch(e){}
   }, [amountSat, feeRate, utxos]);
   const handleSend = async()=>{
@@ -987,7 +987,7 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     if (isNaN(amountValue)||amountValue<=0) return alert('Invalid amount');
     setSending(true);
     try {
-      const {txid,exactFee}=await sendTx(conf,addrs,utxos,toAddress,amountValue,changeAddrInfo,fee,feeRate);
+      const {txid, exactFee}=await sendTx(conf, addrs, utxos, toAddress, amountValue, changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
@@ -1032,7 +1032,7 @@ function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(()=>estimateInscribeFee(conf,utxos,'','',changeAddrInfo,conf.fee_def||1000));
+  const [fee, setFee] = useState(()=>estimateInscribeFee(conf, utxos, '', '', changeAddrInfo, conf.fee_def||1000));
   useEffect(()=>{
     (async()=>{
       const rate = await estimateFee(conf);
@@ -1040,7 +1040,7 @@ function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     })();
   }, [conf.electrum]);
   useEffect(()=>{
-    setFee(estimateInscribeFee(conf,utxos,inscKey.trim(),inscVal.trim(),changeAddrInfo,feeRate));
+    setFee(estimateInscribeFee(conf, utxos, inscKey.trim(), inscVal.trim(), changeAddrInfo, feeRate));
   }, [inscKey, inscVal, feeRate, utxos, changeAddrInfo]);
 
   useEffect(()=>{
@@ -1070,7 +1070,7 @@ function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     if (!inscVal.trim()) return alert('Value is required');
     setSending(true);
     try {
-      const {txid,exactFee}=await addKvTx(conf,addrs,utxos,inscKey.trim(),inscVal.trim(),changeAddrInfo,fee,feeRate);
+      const {txid, exactFee}=await addKvTx(conf, addrs, utxos, inscKey.trim(), inscVal.trim(), changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       alert(`Inscription sent!\nTXID: ${txid}`);
       setInscKey(''); setInscVal('');
