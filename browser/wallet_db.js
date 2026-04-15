@@ -483,7 +483,7 @@ function inscriptionScript(key, val){
   ]);
 }
 
-export async function saveKvTx(conf, addrs, keyData, changeAddrInfo, fee,
+export async function kv_tx_save(conf, addrs, keyData, changeAddrInfo, fee,
   feeRate)
 {
   const network = conf.network;

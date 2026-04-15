@@ -8,7 +8,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   deriveWallet, deriveAddrAt, defaultDerivPath,
   estimateFee, calcFee, tx_build_send,
   fetchWalletData,
-  kv_get, tx_send, transferTx, saveKvTx, addKvTx,
+  kv_get, tx_send, transferTx, kv_tx_save, addKvTx,
   estimateNameFee, estimateInscribeFee,
 } from './wallet_db.js';
 
@@ -826,7 +826,7 @@ function NameEditScreen({wallet, keyData, onSent}){
   const handleSave = async()=>{
     setSending(true);
     try {
-      const {txid, exactFee}=await saveKvTx(conf, addrs, keyData,
+      const {txid, exactFee} = await kv_tx_save(conf, addrs, keyData,
         changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
