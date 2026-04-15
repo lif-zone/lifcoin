@@ -266,12 +266,12 @@ function serializeWallet(wallet){
 }
 
 // Preload all wallets from IndexedDB into memory at module startup
-{
+async function cache_preload(){
   const _networks = getNetworks(loadServers());
-  for (const w of loadWallets(_networks)){
+  for (const w of loadWallets(_networks))
     await loadWalletCache(w);
-  }
 }
+await cache_preload();
 
 export async function fetchWalletData(wallet){
   const conf = wallet.conf;
