@@ -322,6 +322,27 @@ export async function estimateFee(conf){
   return fallback;
 }
 
+export async function addKvTx(conf, addrs, utxos, key, val, changeAddrInfo, fee, feeRate){
+  const network=conf.network;
+  const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(key),Buffer.from('val'),Buffer.from(val)]);
+  const allUTXOs=utxos.length ? utxos : await (async()=>{
+    const lists=await Promise.all(addrs.map(async(addrInfo)=>{
+      return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo}));
+    }));
+    return lists.flat();
+  })();
+  if (!allUTXOs.length) throw new Error('No funds available');
+  allUTXOs.sort((a,b)=>b.value-a.value);
+  const selected=[];
+  let total=0;
+  for (const u of allUTXOs){ selected.push(u); total+=u.value; if(total>=fee) break; }
+  if (total<fee) throw new Error('Insufficient balance to cover fee');
+  const tx=buildInscribeTx(network,selected,inscriptionScript,changeAddrInfo.address,total,fee);
+  const exactFee=calcFee(feeRate,tx);
+  const txid=await broadcastTx(conf,tx.toHex());
+  return {txid,exactFee};
+}
+
 export async function saveKvTx(conf, addrs, keyData, changeAddrInfo, fee, feeRate){
   const network=conf.network;
   const nameVout=keyData._tx._vtx.vout[keyData.vout];

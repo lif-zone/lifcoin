@@ -579,3 +579,8 @@ USER: Pass wallet.jsx:handleSave() in the same way to wallet_db.js:saveKvX()
 
 CLAUDE: Added saveKvTx(conf, addrs, keyData, changeAddrInfo, fee, feeRate) to wallet_db.js — builds inscription script from keyData.key/keyData._editVal, finds nameAddrInfo, fetches extra UTXOs if nameValue < fee, builds/fee-recalcs editTx, broadcasts; returns {txid, exactFee} or throws. wallet.jsx:handleSave now only calls saveKvTx, updates UI state, alerts, calls onSent.
 ---
+
+USER: Pass wallet.jsx:handleInscribe() in the same way to wallet_db.js:addKvX()
+
+CLAUDE: Added addKvTx(conf, addrs, utxos, key, val, changeAddrInfo, fee, feeRate) to wallet_db.js — builds inscription script, fetches/selects UTXOs, builds inscribeTx, broadcasts; returns {txid, exactFee} or throws. wallet.jsx:handleInscribe now only validates key/val, calls addKvTx, updates UI state, alerts, calls onSent. Removed now-unused listUnspentForAddr from wallet.jsx imports.
+---

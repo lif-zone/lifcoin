@@ -9,7 +9,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   estimateFee, calcFee, findAddrInWallet, buildSendTx, buildInscribeTx,
   buildTransferTx, buildEditTx,
   getWalletData, fetchWalletData,
-  broadcastTx, listUnspentForAddr, checkKvName, sendTx, transferTx, saveKvTx,
+  broadcastTx, checkKvName, sendTx, transferTx, saveKvTx, addKvTx,
 } from './wallet_db.js';
 
 function json(o){
@@ -1138,48 +1138,17 @@ function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     return ()=>clearTimeout(timer);
   }, [inscKey]);
   const handleInscribe = async()=>{
-    if (!inscKey.trim())
-      return alert('Key is required');
-    if (!inscVal.trim())
-      return alert('Value is required');
-    const inscriptionScript = bitcoin.script.compile([
-      bitcoin.opcodes.OP_RETURN,
-      Buffer.from('lif'),
-      Buffer.from('key'),
-      Buffer.from(inscKey.trim()),
-      Buffer.from('val'),
-      Buffer.from(inscVal.trim()),
-    ]);
-    const allUTXOs = utxos.length ? utxos : await (async()=>{
-      try {
-        const lists = await Promise.all(addrs.map(async(addrInfo)=>{ return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo})); }));
-        return lists.flat();
-      } catch { return []; }
-    })();
-    if (!allUTXOs.length)
-      return alert('No funds available');
-    allUTXOs.sort((a, b)=>b.value-a.value);
-    const selected = [];
-    let total = 0;
-    for (const utxo of allUTXOs){
-      selected.push(utxo);
-      total += utxo.value;
-      if (total >= fee)
-        break;
-    }
-    if (total < fee)
-      return alert('Insufficient balance to cover fee');
-    const tx=buildInscribeTx(network,selected,inscriptionScript,changeAddrInfo.address,total,fee);
-    const txHex=tx.toHex();
+    if (!inscKey.trim()) return alert('Key is required');
+    if (!inscVal.trim()) return alert('Value is required');
     setSending(true);
     try {
-      const txid = await broadcastTx(conf, txHex);
+      const {txid,exactFee}=await addKvTx(conf,addrs,utxos,inscKey.trim(),inscVal.trim(),changeAddrInfo,fee,feeRate);
+      setFee(exactFee);
       alert(`Inscription sent!\nTXID: ${txid}`);
-      setInscKey('');
-      setInscVal('');
+      setInscKey(''); setInscVal('');
       onSent?.();
     } catch(err){
-      alert('Broadcast failed: '+err.message);
+      alert(err.message);
     } finally {
       setSending(false);
     }
