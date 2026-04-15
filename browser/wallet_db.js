@@ -143,15 +143,18 @@ export function getScriptHash(addr, network){
   return Buffer.from(hash.reverse()).toString('hex');
 }
 
-export function loadWallets(){
+const WALLET_STORED_FIELDS = ['id','name','network','mnemonic','passphrase','derivPath'];
+
+export function loadWallets(networks){
   try {
-    const saved = localStorage.getItem('wallets');
-    return saved ? JSON.parse(saved) : [];
+    const raw = JSON.parse(localStorage.getItem('wallets')||'[]');
+    return raw.map(w=>({...w, conf: networks[w.network]||Object.values(networks)[0]}));
   } catch { return []; }
 }
 
 export function saveWallets(wallets){
-  localStorage.setItem('wallets', JSON.stringify(wallets));
+  const raw = wallets.map(w=>{ const o={}; for (const f of WALLET_STORED_FIELDS) if (w[f]!==undefined) o[f]=w[f]; return o; });
+  localStorage.setItem('wallets', JSON.stringify(raw));
 }
 
 export function loadServers(){
@@ -210,14 +213,12 @@ function serializeWalletData(data){
 
 // Preload all wallets from IndexedDB into memory at module startup
 {
-  const _wallets=loadWallets(), _servers=loadServers();
-  const _networks=getNetworks(_servers);
-  for (const w of _wallets){
-    const we={...w,conf:_networks[w.network]||Object.values(_networks)[0]};
-    const cached=await dbGet('walletData:'+we.id);
+  const _networks=getNetworks(loadServers());
+  for (const w of loadWallets(_networks)){
+    const cached=await dbGet('walletData:'+w.id);
     if (cached){
-      const hydrated=hydrateWalletData(we,cached);
-      if (hydrated) store.data[we.id]=hydrated;
+      const hydrated=hydrateWalletData(w,cached);
+      if (hydrated) store.data[w.id]=hydrated;
     }
   }
 }

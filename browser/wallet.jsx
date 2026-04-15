@@ -40,16 +40,18 @@ const newCardStyle = {
 
 // Main App
 function BrightWallet(){
-  const [wallets, setWallets] = useState(loadWallets);
   const [servers, setServers] = useState(loadServers);
+  const networks = useMemo(()=>getNetworks(servers), [servers]);
+  const [wallets, setWallets] = useState(()=>loadWallets(getNetworks(loadServers())));
   const [screen, setScreen] = useState('home');
   const [activeWalletId, setActiveWalletId] = useState(null);
   const [selectedTxData, setSelectedTxData] = useState(null);
   const [selectedKeyData, setSelectedKeyData] = useState(null);
-  const networks = useMemo(()=>getNetworks(servers), [servers]);
-  const enrichedWallets = useMemo(()=>wallets.map(w=>({...w,conf:networks[w.network]||Object.values(networks)[0]})), [wallets, networks]);
+  useEffect(()=>{
+    setWallets(ws=>ws.map(w=>({...w,conf:networks[w.network]||Object.values(networks)[0]})));
+  }, [networks]);
   const addWallet = (wallet)=>{
-    const updated = [...wallets, wallet];
+    const updated = [...wallets, {...wallet, conf: networks[wallet.network]||Object.values(networks)[0]}];
     setWallets(updated);
     saveWallets(updated);
   };
@@ -65,7 +67,7 @@ function BrightWallet(){
     setScreen('home');
     setActiveWalletId(null);
   };
-  const activeWallet = enrichedWallets.find(w=>w.id===activeWalletId);
+  const activeWallet = wallets.find(w=>w.id===activeWalletId);
   const goHome = ()=>setScreen('home');
   const goBack = ()=>{
     if (screen=='name-transfer' || screen=='name-edit')
@@ -93,7 +95,7 @@ function BrightWallet(){
       </div>
       {screen=='home' && (
         <HomeScreen
-          wallets={enrichedWallets}
+          wallets={wallets}
           onSelect={(id)=>{ setActiveWalletId(id); setScreen('wallet-detail'); }}
           onAddNew={()=>setScreen('add-wallet')}
         />

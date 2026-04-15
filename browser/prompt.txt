@@ -604,3 +604,8 @@ USER: I run it, and got in the main screen in all wallets I had in localStorage 
 
 CLAUDE: Bug: WalletCard's derived useMemo still referenced `networks` (removed from props) when calling deriveWallet(). Fixed by replacing the deriveWallet call with a direct getRoot() validity check (returning true/false) using wallet.conf.network which is now always available on the enriched wallet.
 ---
+
+USER: wallet object should have conf inside it. I dont want a raw localStorage wallet object exposed. The read/write to localStorage should be inside wallet_db.js and only store the fields that need to be stored.
+
+CLAUDE: wallet_db.js: loadWallets(networks) now attaches conf to each wallet on load; saveWallets(wallets) strips to WALLET_STORED_FIELDS before writing — localStorage boundary is fully encapsulated. wallet.jsx: single wallets state initialized via loadWallets(getNetworks(loadServers())); useEffect([networks]) refreshes conf when servers change; addWallet attaches conf inline; enrichedWallets removed entirely.
+---
