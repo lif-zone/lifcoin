@@ -6,9 +6,9 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   saveWallets, loadWallets,
   getRoot, getNetworks,
   deriveWallet, deriveAddrAt, defaultDerivPath,
-  estimateFee, calcFee, buildSendTx,
+  estimateFee, calcFee, tx_build_send,
   fetchWalletData,
-  kv_get, sendTx, transferTx, saveKvTx, addKvTx,
+  kv_get, tx_send, transferTx, saveKvTx, addKvTx,
   estimateNameFee, estimateInscribeFee,
 } from './wallet_db.js';
 
@@ -987,7 +987,7 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     try {
       const u=utxos[0];
       const dummyAddr=changeAddrInfo?.address||u.addrInfo.address;
-      const tx=buildSendTx(network, [u], dummyAddr, 546, dummyAddr, u.value,
+      const tx=tx_build_send(network, [u], dummyAddr, 546, dummyAddr, u.value,
         0, true);
       return calcFee(conf.fee_def||1000, tx);
     } catch(e){ return 0; }
@@ -1011,7 +1011,7 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
         break;
     }
     try {
-      const tx=buildSendTx(network, selected, dummyAddr,
+      const tx=tx_build_send(network, selected, dummyAddr,
         Math.min(target, total), dummyAddr, total, 0, true);
       setFee(calcFee(feeRate, tx));
     } catch(e){}
@@ -1022,7 +1022,7 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     if (isNaN(amountValue)||amountValue<=0) return alert('Invalid amount');
     setSending(true);
     try {
-      const {txid, exactFee}=await sendTx(conf, addrs, utxos, toAddress,
+      const {txid, exactFee}=await tx_send(conf, addrs, utxos, toAddress,
         amountValue, changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';

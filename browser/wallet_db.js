@@ -576,7 +576,7 @@ export async function transferTx(conf, addrs, keyData, toAddress,
   return {txid, exactFee};
 }
 
-export async function sendTx(conf, addrs, utxos, toAddress, amountValue,
+export async function tx_send(conf, addrs, utxos, toAddress, amountValue,
   changeAddrInfo, fee, feeRate)
 {
   const network = conf.network;
@@ -600,13 +600,13 @@ export async function sendTx(conf, addrs, utxos, toAddress, amountValue,
   }
   if (total<amountValue+fee)
     throw new Error('Insufficient balance');
-  let tx = buildSendTx(network, selected, toAddress, amountValue,
+  let tx = tx_build_send(network, selected, toAddress, amountValue,
     changeAddrInfo.address, total, fee);
   const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee){
     if (total<amountValue+exactFee)
       throw new Error('Insufficient balance');
-    tx = buildSendTx(network, selected, toAddress, amountValue,
+    tx = tx_build_send(network, selected, toAddress, amountValue,
       changeAddrInfo.address, total, exactFee);
   }
   const txid = await tx_broadcast(conf, tx.toHex());
@@ -645,7 +645,7 @@ export function findAddrInWallet(root, accountPath, network, targetAddr){
 }
 
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
-export function buildSendTx(network, inputs, toAddr, amt, changeAddr, total,
+export function tx_build_send(network, inputs, toAddr, amt, changeAddr, total,
   txFee, forEst=false)
 {
   const p = bitcoin_psbt(network);
