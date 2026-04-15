@@ -8,7 +8,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   deriveWallet, deriveAddrAt, defaultDerivPath,
   estimateFee, calcFee, buildSendTx,
   fetchWalletData,
-  broadcastTx, checkKvName, sendTx, transferTx, saveKvTx, addKvTx,
+  checkKvName, sendTx, transferTx, saveKvTx, addKvTx,
   estimateNameFee, estimateInscribeFee,
 } from './wallet_db.js';
 

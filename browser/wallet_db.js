@@ -469,7 +469,7 @@ export async function addKvTx(conf, addrs, utxos, key, val, changeAddrInfo,
   const tx = kv_tx_build_new(network, selected, {key, val},
     changeAddrInfo.address, total, fee);
   const exactFee = calcFee(feeRate, tx);
-  const txid = await broadcastTx(conf, tx.toHex());
+  const txid = await tx_broadcast(conf, tx.toHex());
   return {txid, exactFee};
 }
 
@@ -527,7 +527,7 @@ export async function saveKvTx(conf, addrs, keyData, changeAddrInfo, fee,
     tx = kv_tx_build_edit(network, inputs, signers, kv, dest,
       nameValue, extraTotal, changeAddrInfo.address, exactFee);
   }
-  const txid = await broadcastTx(conf, tx.toHex());
+  const txid = await tx_broadcast(conf, tx.toHex());
   return {txid, exactFee};
 }
 
@@ -572,7 +572,7 @@ export async function transferTx(conf, addrs, keyData, toAddress,
     tx = kv_tx_build_trans(network, inputs, signers, toAddress, nameValue,
       extraTotal, changeAddrInfo.address, exactFee);
   }
-  const txid = await broadcastTx(conf, tx.toHex());
+  const txid = await tx_broadcast(conf, tx.toHex());
   return {txid, exactFee};
 }
 
@@ -609,11 +609,11 @@ export async function sendTx(conf, addrs, utxos, toAddress, amountValue,
     tx = buildSendTx(network, selected, toAddress, amountValue,
       changeAddrInfo.address, total, exactFee);
   }
-  const txid = await broadcastTx(conf, tx.toHex());
+  const txid = await tx_broadcast(conf, tx.toHex());
   return {txid, exactFee};
 }
 
-export async function broadcastTx(conf, txHex){
+export async function tx_broadcast(conf, txHex){
   const cl = await getClient(conf);
   return cl.blockchain_transaction_broadcast(txHex);
 }
