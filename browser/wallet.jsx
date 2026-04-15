@@ -8,7 +8,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   deriveWallet, deriveAddrAt, defaultDerivPath,
   estimateFee, calcFee, tx_send_build,
   fetchWalletData,
-  kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add,
+  kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   estimateNameFee, estimateInscribeFee,
 } from './wallet_db.js';
 
@@ -762,8 +762,10 @@ function NameTransferScreen({wallet, keyData, onSent}){
       return alert('Enter recipient address');
     setSending(true);
     try {
-      const {txid, exactFee} = await kv_tx_send(conf, addrs, keyData,
+      const {exactFee, tx} = await kv_tx_send(conf, addrs, keyData,
         toAddress.trim(), changeAddrInfo, fee, feeRate);
+      const txid = tx.getId();
+      await tx_broadcast(conf, tx);
       setFee(exactFee);
       const explorerLink = conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
@@ -826,8 +828,10 @@ function NameEditScreen({wallet, keyData, onSent}){
   const handleSave = async()=>{
     setSending(true);
     try {
-      const {txid, exactFee} = await kv_tx_edit(conf, addrs, keyData,
+      const {exactFee, tx} = await kv_tx_edit(conf, addrs, keyData,
         changeAddrInfo, fee, feeRate);
+      const txid = tx.getId();
+      await tx_broadcast(conf, tx);
       setFee(exactFee);
       const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
@@ -1023,8 +1027,10 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
       return alert('Invalid amount');
     setSending(true);
     try {
-      const {txid, exactFee} = await tx_send(conf, addrs, utxos, toAddress,
+      const {exactFee, tx} = await tx_send(conf, addrs, utxos, toAddress,
         amountValue, changeAddrInfo, fee, feeRate);
+      const txid = tx.getId();
+      await tx_broadcast(conf, tx);
       setFee(exactFee);
       const explorerLink = conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
@@ -1112,8 +1118,10 @@ function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
       return alert('Value is required');
     setSending(true);
     try {
-      const {txid, exactFee} = await kv_tx_add(conf, addrs, utxos,
+      const {exactFee, tx} = await kv_tx_add(conf, addrs, utxos,
         inscKey.trim(), inscVal.trim(), changeAddrInfo, fee, feeRate);
+      const txid = tx.getId();
+      await tx_broadcast(conf, tx.toHex());
       setFee(exactFee);
       alert(`Inscription sent!\nTXID: ${txid}`);
       setInscKey('');
