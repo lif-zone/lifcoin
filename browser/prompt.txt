@@ -554,3 +554,8 @@ USER: this module is an ES module. It is allowed to have top level await
 
 CLAUDE: Replaced const dbPromise = openDB(...) with const db = await openDB(...) at top level. dbGet and dbPut now use db directly without (await dbPromise) indirection.
 ---
+
+USER: wallet_db.js should have in-memory storage of all wallet details, load fully from cache at startup, display immediately, then update from electrum.
+
+CLAUDE: Added to wallet_db.js: in-memory store, hydrateWalletData (re-derives keyPairs from mnemonic), serializeWalletData (strips keyPairs for storage), module-level top-level await preload (loads all wallets from IndexedDB into store at startup), getWalletData(id), fetchWalletData(wallet,conf,client) (moved all fetchData logic from wallet.jsx — scans addresses, fetches UTXOs/balances/txs/keys, enriches txs, builds ownedKeys, stores in memory + IndexedDB). Updated wallet.jsx: WalletCard and WalletDetailScreen now init all state from getWalletData() immediately (no loading flash if cache exists), then call fetchWalletData in background to refresh. Removed fetchData function, dbGet/dbPut direct calls, and stale imports (ecc, bip32, ecpair, ElectrumClient, openDB) from wallet.jsx.
+---

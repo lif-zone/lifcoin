@@ -160,6 +160,143 @@ export async function dbPut(id, data){
   try { await db.put('cache', data, id); } catch{}
 }
 
+// In-memory wallet data store
+const store = { data: {} };
+
+function hydrateWalletData(wallet, conf, cached){
+  try {
+    const root=getRoot(wallet.mnemonic,conf.network,wallet.passphrase||'');
+    const ap=wallet.derivPath||defaultDerivPath(conf);
+    const addrs=(cached.addrs||[]).map(a=>({...a,...deriveAddrAt(root,ap,conf.network,a.chain,a.index)}));
+    const changeAddrInfo=cached.changeAddrInfo
+      ?{...cached.changeAddrInfo,...deriveAddrAt(root,ap,conf.network,cached.changeAddrInfo.chain,cached.changeAddrInfo.index)}
+      :null;
+    const utxos=(cached.utxos||[]).map(u=>({
+      ...u,addrInfo:addrs.find(a=>a.address==u.address)||deriveAddrAt(root,ap,conf.network,u.chain,u.index)
+    }));
+    return {...cached,addrs,changeAddrInfo,utxos};
+  } catch(e){ return null; }
+}
+
+function serializeWalletData(data){
+  return {
+    balance: data.balance,
+    receiveAddress: data.receiveAddress,
+    feeRate: data.feeRate,
+    addrs: (data.addrs||[]).map(({address,chain,index,hist})=>({address,chain,index,hist})),
+    changeAddrInfo: data.changeAddrInfo
+      ?{address:data.changeAddrInfo.address,chain:data.changeAddrInfo.chain,index:data.changeAddrInfo.index}
+      :null,
+    utxos: (data.utxos||[]).map(({tx_hash,tx_pos,value,address,chain,index})=>({tx_hash,tx_pos,value,address,chain,index})),
+    transactions: data.transactions||[],
+    ownedKeys: data.ownedKeys||[],
+  };
+}
+
+// Preload all wallets from IndexedDB into memory at module startup
+{
+  const _wallets=loadWallets(), _servers=loadServers();
+  const _networks=getNetworks(_servers);
+  for (const w of _wallets){
+    const conf=_networks[w.network]||Object.values(_networks)[0];
+    const cached=await dbGet('walletData:'+w.id);
+    if (cached){
+      const hydrated=hydrateWalletData(w,conf,cached);
+      if (hydrated) store.data[w.id]=hydrated;
+    }
+  }
+}
+
+export function getWalletData(id){ return store.data[id]||null; }
+
+export async function fetchWalletData(wallet, conf, client){
+  const network=conf.network;
+  const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
+  const ap=wallet.derivPath||defaultDerivPath(conf);
+  const [extRes,chgRes]=await Promise.all([
+    scanAddresses(client,root,ap,network,0),
+    scanAddresses(client,root,ap,network,1),
+  ]);
+  const addrs=[...extRes.used,...chgRes.used];
+  const receiveAddress=deriveAddrAt(root,ap,network,0,extRes.nextIndex).address;
+  const changeAddrInfo=deriveAddrAt(root,ap,network,1,chgRes.nextIndex);
+  const walletAddrSet=new Set(addrs.map(a=>a.address));
+  const [utxoLists,bals]=await Promise.all([
+    Promise.all(addrs.map(async(a)=>{
+      const sh=getScriptHash(a.address,network);
+      return (await client.blockchain_scripthash_listunspent(sh)).map(u=>({...u,address:a.address,chain:a.chain,index:a.index}));
+    })),
+    Promise.all(addrs.map(a=>client.blockchain_scripthash_getBalance(getScriptHash(a.address,network)))),
+  ]);
+  const utxos=utxoLists.flat().map(u=>({...u,addrInfo:addrs.find(a=>a.address==u.address)}));
+  const balance=bals.reduce((s,b)=>s+b.confirmed+b.unconfirmed,0);
+  const feeRate=await estimateFee(client,conf);
+  // Transactions
+  const txByHash=new Map();
+  for (const a of addrs)
+    for (const tx of (a.hist||[]))
+      txByHash.set(tx.tx_hash,tx);
+  const hist=[...txByHash.values()].sort((a,b)=>(b.height||1e9)-(a.height||1e9));
+  let transactions=[], ownedKeys=[];
+  if (hist.length){
+    const heights=[...new Set(hist.filter(t=>t.height>0).map(t=>t.height))];
+    const [verboseTxs,...headers]=await Promise.all([
+      Promise.all(hist.map(t=>client.blockchain_transaction_get(t.tx_hash,true))),
+      ...heights.map(h=>client.blockchain_block_header(h)),
+    ]);
+    const tsMap={};
+    heights.forEach((h,i)=>{ tsMap[h]=Buffer.from(headers[i],'hex').readUInt32LE(68); });
+    const histTxIds=new Set(hist.map(t=>t.tx_hash));
+    const prevIds=[...new Set(verboseTxs.flatMap(vtx=>(vtx.vin||[]).map(vin=>vin.txid).filter(id=>id&&!histTxIds.has(id))))];
+    const prevList=await Promise.all(prevIds.map(id=>client.blockchain_transaction_get(id,true)));
+    const prevMap={};
+    prevIds.forEach((id,i)=>{ prevMap[id]=prevList[i]; });
+    verboseTxs.forEach(vtx=>{ prevMap[vtx.txid]=vtx; });
+    const voutToOurAmt=(vouts)=>(vouts||[]).reduce((sum,vout)=>{
+      const as=vout.scriptPubKey?.addresses||(vout.scriptPubKey?.address?[vout.scriptPubKey.address]:[]);
+      return as.some(a=>walletAddrSet.has(a))?sum+Math.round(vout.value*1e8):sum;
+    },0);
+    transactions=hist.map((tx,i)=>{
+      const vtx=verboseTxs[i];
+      const enrichedVin=(vtx.vin||[]).map(vin=>{
+        if (!vin.txid) return vin;
+        return {...vin,_prevVout:prevMap[vin.txid]?.vout?.[vin.vout]};
+      });
+      const received=voutToOurAmt(vtx.vout);
+      const spent=enrichedVin.reduce((sum,vin)=>{
+        if (!vin._prevVout) return sum;
+        const as=vin._prevVout.scriptPubKey?.addresses||(vin._prevVout.scriptPubKey?.address?[vin._prevVout.scriptPubKey.address]:[]);
+        return as.some(a=>walletAddrSet.has(a))?sum+Math.round(vin._prevVout.value*1e8):sum;
+      },0);
+      return {...tx,timestamp:tx.height>0?tsMap[tx.height]:null,amount:received-spent,_vtx:{...vtx,vin:enrichedVin}};
+    });
+    const keyMap=new Map();
+    for (const etx of transactions){
+      const vouts=etx._vtx?.vout||[];
+      for (let i=0;i<vouts.length;i++){
+        const vout=vouts[i];
+        if (!vout.lif_kv) continue;
+        const addr=vout.scriptPubKey?.address||vout.scriptPubKey?.addresses?.[0];
+        if (!walletAddrSet.has(addr)) continue;
+        for (const kv of vout.lif_kv){
+          const isUnconfirmed=etx.height<=0;
+          const priority=isUnconfirmed?Infinity:etx.height;
+          const existing=keyMap.get(kv.key);
+          if (!existing||priority>=existing._priority){
+            const _kstatus=vout.spent?'spent':isUnconfirmed?'receiving':'confirmed';
+            keyMap.set(kv.key,{key:kv.key,val:kv.val,tx:etx.tx_hash,vout:i,_kstatus,_priority:priority});
+          }
+        }
+      }
+    }
+    ownedKeys=[...keyMap.values()];
+  }
+  const data={balance,receiveAddress,feeRate,addrs,changeAddrInfo,utxos,transactions,ownedKeys};
+  store.data[wallet.id]=data;
+  await dbPut('walletData:'+wallet.id,serializeWalletData(data));
+  return data;
+}
+
 export async function estimateFee(client, conf){
   const fallback = conf.fee_def||1000;
   try {

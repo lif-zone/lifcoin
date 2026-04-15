@@ -2,20 +2,13 @@
 import React, {useState, useEffect, useMemo} from 'react';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
-import ecc from '@bitcoinerlab/secp256k1';
-import {BIP32Factory} from 'bip32';
-const bip32 = BIP32Factory(ecc);
-import {ECPairFactory} from 'ecpair';
-const ecpair = ECPairFactory(ecc);
-import ElectrumClient from '@aguycalled/electrum-client-js';
-import {openDB} from 'idb';
 import {DEFAULT_NETWORKS, saveServers, loadServers,
   saveWallets, loadWallets,
-  dbGet, dbPut,
   getRoot, getNetworks, Electrum_connect,
   getScriptHash, scanAddresses, deriveWallet, deriveAddrAt, defaultDerivPath,
   estimateFee, calcFee, findAddrInWallet, buildSendTx, buildInscribeTx,
   buildTransferTx, buildEditTx,
+  getWalletData, fetchWalletData,
 } from './wallet_db.js';
 
 function json(o){
@@ -195,38 +188,28 @@ function HomeScreen({wallets, networks, onSelect, onAddNew}){
 
 // Wallet Card (summary box on home screen)
 function WalletCard({wallet, networks, onClick}){
-  const [balance, setBalance] = useState(null);
-  const [txCount, setTxCount] = useState(null);
-  const [keysOwned, setKeysOwned] = useState(0);
-  const [connErr, setConnErr] = useState(false);
   const conf = networks[wallet.network] || Object.values(networks)[0];
+  const _init = getWalletData(wallet.id);
+  const [balance, setBalance] = useState(_init?.balance ?? null);
+  const [txCount, setTxCount] = useState(_init?.transactions?.length ?? null);
+  const [keysOwned, setKeysOwned] = useState(_init?.ownedKeys?.length ?? 0);
+  const [connErr, setConnErr] = useState(false);
   const derived = useMemo(()=>{
     try { return deriveWallet(wallet.mnemonic, wallet.network, networks, wallet.passphrase||'', wallet.derivPath||null); }
     catch { return null; }
   }, [wallet.id, wallet.network]);
 
   useEffect(()=>{
-    if (!derived)
-      return;
-    const {root, network, conf} = derived;
+    if (!derived) return;
     let cl;
     (async()=>{
       cl = Electrum_connect(conf.electrum);
       try {
         await cl.connect('lif-coin-wallet', '1.4');
-        const accountPath = wallet.derivPath || defaultDerivPath(conf);
-        const [extRes, chgRes] = await Promise.all([
-          scanAddresses(cl, root, accountPath, network, 0),
-          scanAddresses(cl, root, accountPath, network, 1),
-        ]);
-        const allUsed = [...extRes.used, ...chgRes.used];
-        const bals = await Promise.all(
-          allUsed.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address, network)))
-        );
-        setBalance(bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0));
-        setKeysOwned(bals.reduce((s, b)=>s+(b.lif_kv?.confirmed?.length||0)+(b.lif_kv?.unconfirmed?.length||0), 0));
-        const allTxHashes = new Set(allUsed.flatMap(a=>(a.hist||[]).map(tx=>tx.tx_hash)));
-        setTxCount(allTxHashes.size);
+        const data = await fetchWalletData(wallet, conf, cl);
+        setBalance(data.balance);
+        setTxCount(data.transactions.length);
+        setKeysOwned(data.ownedKeys.length);
       } catch(e){
         console.error('WalletCard fetch error:', e);
         setConnErr(true);
@@ -400,161 +383,43 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
 function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSelectTx, onSelectKey}){
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const network = conf.network;
+  const _init = getWalletData(wallet.id);
   const [client, setClient] = useState(null);
-  const [balance, setBalance] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [ownedKeys, setOwnedKeys] = useState([]);
+  const [balance, setBalance] = useState(_init?.balance ?? null);
+  const [transactions, setTransactions] = useState(_init?.transactions ?? []);
+  const [ownedKeys, setOwnedKeys] = useState(_init?.ownedKeys ?? []);
   const [subscreen, setSubscreen] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [connErr, setConnErr] = useState(false);
-  const [receiveAddress, setReceiveAddress] = useState(null);
-  const [allAddrs, setAllAddrs] = useState([]);
-  const [changeAddrInfo, setChangeAddrInfo] = useState(null);
-  const [allUTXOs, setAllUTXOs] = useState([]);
+  const [receiveAddress, setReceiveAddress] = useState(_init?.receiveAddress ?? null);
+  const [allAddrs, setAllAddrs] = useState(_init?.addrs ?? []);
+  const [changeAddrInfo, setChangeAddrInfo] = useState(_init?.changeAddrInfo ?? null);
+  const [allUTXOs, setAllUTXOs] = useState(_init?.utxos ?? []);
 
-  const fetchData = async (cl)=>{
-    setLoading(true);
-    try {
-      const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
-      const accountPath = wallet.derivPath || defaultDerivPath(conf);
-      const [extRes, chgRes] = await Promise.all([
-        scanAddresses(cl, root, accountPath, network, 0),
-        scanAddresses(cl, root, accountPath, network, 1),
-      ]);
-      const addrs = [...extRes.used, ...chgRes.used];
-      const recvAddr = deriveAddrAt(root, accountPath, network, 0, extRes.nextIndex).address;
-      const chgAddr = deriveAddrAt(root, accountPath, network, 1, chgRes.nextIndex);
-      setReceiveAddress(recvAddr);
-      setAllAddrs(addrs);
-      setChangeAddrInfo(chgAddr);
-      const walletAddrSet = new Set(addrs.map(a=>a.address));
-      // Fetch UTXOs
-      const utxoLists = await Promise.all(
-        addrs.map(async(a)=>{
-          const sh=getScriptHash(a.address,network);
-          return (await cl.blockchain_scripthash_listunspent(sh)).map(u=>({...u,address:a.address,chain:a.chain,index:a.index}));
-        })
-      );
-      const rawUTXOs = utxoLists.flat();
-      setAllUTXOs(rawUTXOs.map(u=>({...u,addrInfo:addrs.find(a=>a.address==u.address)})));
-      dbPut('utxos:'+wallet.id, rawUTXOs);
-      // Fetch balances
-      const bals = await Promise.all(
-        addrs.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address, network)))
-      );
-      setBalance(bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0));
-      // Deduplicate txs across all addresses, sort by height desc
-      const txByHash = new Map();
-      for (const a of addrs){
-        for (const tx of (a.hist||[]))
-          txByHash.set(tx.tx_hash, tx);
-      }
-      const hist = [...txByHash.values()].sort((a, b)=>(b.height||1e9)-(a.height||1e9));
-      if (!hist.length){
-        setTransactions([]);
-        setOwnedKeys([]);
-        return;
-      }
-      // Fetch verbose txs + block headers in parallel
-      const heights = [...new Set(hist.filter(tx=>tx.height>0).map(tx=>tx.height))];
-      const [verboseTxs, ...headers] = await Promise.all([
-        Promise.all(hist.map(tx=>cl.blockchain_transaction_get(tx.tx_hash, true))),
-        ...heights.map(h=>cl.blockchain_block_header(h)),
-      ]);
-      // Timestamps
-      const tsMap = {};
-      heights.forEach((h, i)=>{ tsMap[h] = Buffer.from(headers[i], 'hex').readUInt32LE(68); });
-      // Prev txs for input resolution
-      const histTxIds = new Set(hist.map(tx=>tx.tx_hash));
-      const prevIds = [...new Set(
-        verboseTxs.flatMap(vtx=>(vtx.vin||[]).map(vin=>vin.txid).filter(id=>id && !histTxIds.has(id)))
-      )];
-      const prevList = await Promise.all(prevIds.map(id=>cl.blockchain_transaction_get(id, true)));
-      const prevMap = {};
-      prevIds.forEach((id, i)=>{ prevMap[id] = prevList[i]; });
-      verboseTxs.forEach(vtx=>{ prevMap[vtx.txid] = vtx; });
-      const voutToOurAmt = (vouts)=>
-        (vouts||[]).reduce((sum, vout)=>{
-          const as = vout.scriptPubKey?.addresses || (vout.scriptPubKey?.address ? [vout.scriptPubKey.address] : []);
-          return as.some(a=>walletAddrSet.has(a)) ? sum+Math.round(vout.value*1e8) : sum;
-        }, 0);
-      const enrichedTxs = hist.map((tx, i)=>{
-        const vtx = verboseTxs[i];
-        // enrich vin with prev vout for TxDetailScreen
-        const enrichedVin = (vtx.vin||[]).map(vin=>{
-          if (!vin.txid)
-            return vin; // coinbase
-          return {...vin, _prevVout: prevMap[vin.txid]?.vout?.[vin.vout]};
-        });
-        const received = voutToOurAmt(vtx.vout);
-        const spent = enrichedVin.reduce((sum, vin)=>{
-          if (!vin._prevVout)
-            return sum;
-          const as = vin._prevVout.scriptPubKey?.addresses || (vin._prevVout.scriptPubKey?.address ? [vin._prevVout.scriptPubKey.address] : []);
-          return as.some(a=>walletAddrSet.has(a)) ? sum+Math.round(vin._prevVout.value*1e8) : sum;
-        }, 0);
-        return {
-          ...tx,
-          timestamp: tx.height>0 ? tsMap[tx.height] : null,
-          amount: received-spent,
-          _vtx: {...vtx, vin: enrichedVin},
-        };
-      });
-      setTransactions(enrichedTxs);
-      // Build ownedKeys from vouts — most recent tx per key wins (unconfirmed > higher height)
-      const keyMap = new Map();
-      for (const enrichedTx of enrichedTxs){
-        const vouts = enrichedTx._vtx?.vout || [];
-        for (let i=0; i<vouts.length; i++){
-          const vout = vouts[i];
-          if (!vout.lif_kv)
-            continue;
-          const addr = vout.scriptPubKey?.address || vout.scriptPubKey?.addresses?.[0];
-          if (!walletAddrSet.has(addr))
-            continue;
-          for (let kv of vout.lif_kv){
-            const keyName = kv.key;
-            const isUnconfirmed = enrichedTx.height<=0;
-            const priority = isUnconfirmed ? Infinity : enrichedTx.height;
-            const existing = keyMap.get(keyName);
-            if (!existing || priority>=existing._priority){
-              let _kstatus;
-              if (vout.spent)
-                _kstatus = 'spent';
-              else if (isUnconfirmed)
-                _kstatus = 'receiving';
-              else
-                _kstatus = 'confirmed';
-              keyMap.set(keyName, {key: keyName, val: kv.val, tx: enrichedTx.tx_hash, vout: i, _kstatus, _priority: priority});
-            }
-          }
-        }
-      }
-      setOwnedKeys([...keyMap.values()]);
-    } catch(e){
-      console.error('fetchData error:', e);
-    } finally {
-      setLoading(false);
-    }
+  const applyData = (data)=>{
+    setBalance(data.balance);
+    setTransactions(data.transactions);
+    setOwnedKeys(data.ownedKeys);
+    setAllAddrs(data.addrs);
+    setChangeAddrInfo(data.changeAddrInfo);
+    setAllUTXOs(data.utxos);
+    setReceiveAddress(data.receiveAddress);
   };
 
   useEffect(()=>{
     try { getRoot(wallet.mnemonic, network, wallet.passphrase||''); } catch(e){ return; }
     const cl = Electrum_connect(conf.electrum);
     (async()=>{
-      const cached = await dbGet('utxos:'+wallet.id);
-      if (cached){
-        const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
-        const ap = wallet.derivPath || defaultDerivPath(conf);
-        setAllUTXOs(cached.map(u=>({...u,addrInfo:deriveAddrAt(root,ap,network,u.chain,u.index)})));
-      }
       try {
         await cl.connect('lif-coin-wallet', '1.4');
         setClient(cl);
-        fetchData(cl);
+        setLoading(true);
+        applyData(await fetchWalletData(wallet, conf, cl));
       } catch(e){
         console.error('Connect error:', e);
         setConnErr(true);
+      } finally {
+        setLoading(false);
       }
     })();
     return ()=>cl.close();
@@ -654,7 +519,12 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
             </ul>
           )}
           {client && (
-            <button style={{marginTop: 10}} onClick={()=>fetchData(client)}>
+            <button style={{marginTop: 10}} onClick={async()=>{
+              setLoading(true);
+              try { applyData(await fetchWalletData(wallet, conf, client)); }
+              catch(e){ console.error('Refresh error:', e); }
+              finally { setLoading(false); }
+            }}>
               Refresh
             </button>
           )}
@@ -674,7 +544,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
           network={network}
           conf={conf}
           utxos={allUTXOs}
-          onSent={()=>{ setSubscreen('overview'); fetchData(client); }}
+          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet,conf,client)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
       {subscreen=='inscribe' && client && allAddrs.length>0 && (
@@ -685,7 +555,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
           network={network}
           conf={conf}
           utxos={allUTXOs}
-          onSent={()=>{ setSubscreen('overview'); fetchData(client); }}
+          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet,conf,client)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
       {subscreen=='wallet-settings' && (
