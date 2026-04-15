@@ -589,3 +589,8 @@ USER: lines 731-740 seem to be duplicate of 759-768. Move all the non-UI logic h
 
 CLAUDE: Added estimateNameFee(conf, wallet, keyData, changeAddrInfo, feeRate) to wallet_db.js — derives root/ap, extracts nameVout/nameAddr/nameAddrInfo, uses dummyAddr fallback, branches on keyData._editVal to call buildEditTx (with compiled inscription script) or buildTransferTx, returns calcFee result or 0. Replaced all 4 duplicate blocks (2x useState initializer + 2x useEffect body in NameTransferScreen and NameEditScreen) with single-line calls. Removed now-unused findAddrInWallet, buildTransferTx, buildEditTx from wallet.jsx imports.
 ---
+
+USER: in same way remove duplicate 1042-1046 with 1058-1063
+
+CLAUDE: Added estimateInscribeFee(conf, utxos, key, val, changeAddrInfo, feeRate) to wallet_db.js — guards on empty utxos, compiles inscription script from key/val, builds inscribeTx with utxos[0], returns calcFee or 0. Replaced InscribeScreen useState initializer (empty-script block) and useEffect body with single-line calls. Removed now-unused buildInscribeTx from wallet.jsx imports.
+---

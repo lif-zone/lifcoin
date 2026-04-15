@@ -6,9 +6,9 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   saveWallets, loadWallets,
   getRoot, getNetworks,
   deriveWallet, deriveAddrAt, defaultDerivPath,
-  estimateFee, calcFee, buildSendTx, buildInscribeTx,
+  estimateFee, calcFee, buildSendTx,
   getWalletData, fetchWalletData,
-  broadcastTx, checkKvName, sendTx, transferTx, saveKvTx, addKvTx, estimateNameFee,
+  broadcastTx, checkKvName, sendTx, transferTx, saveKvTx, addKvTx, estimateNameFee, estimateInscribeFee,
 } from './wallet_db.js';
 
 function json(o){
@@ -1036,16 +1036,7 @@ function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(()=>{
-    if (!utxos.length) return 0;
-    try {
-      const u=utxos[0];
-      const dummyAddr=changeAddrInfo?.address||u.addrInfo.address;
-      const emptyScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(''),Buffer.from('val'),Buffer.from('')]);
-      const tx=buildInscribeTx(network,[u],emptyScript,dummyAddr,0,0,true);
-      return calcFee(conf.fee_def||1000,tx);
-    } catch(e){ return 0; }
-  });
+  const [fee, setFee] = useState(()=>estimateInscribeFee(conf,utxos,'','',changeAddrInfo,conf.fee_def||1000));
   useEffect(()=>{
     (async()=>{
       const rate = await estimateFee(conf);
@@ -1053,15 +1044,7 @@ function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     })();
   }, [conf.electrum]);
   useEffect(()=>{
-    if (!utxos.length) return;
-    try {
-      const key=inscKey.trim(), val=inscVal.trim();
-      const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(key),Buffer.from('val'),Buffer.from(val)]);
-      const u=utxos[0];
-      const dummyAddr=changeAddrInfo?.address||u.addrInfo.address;
-      const tx=buildInscribeTx(network,[u],inscriptionScript,dummyAddr,0,0,true);
-      setFee(calcFee(feeRate,tx));
-    } catch(e){}
+    setFee(estimateInscribeFee(conf,utxos,inscKey.trim(),inscVal.trim(),changeAddrInfo,feeRate));
   }, [inscKey, inscVal, feeRate, utxos, changeAddrInfo]);
 
   useEffect(()=>{

@@ -322,6 +322,17 @@ export async function estimateFee(conf){
   return fallback;
 }
 
+export function estimateInscribeFee(conf, utxos, key, val, changeAddrInfo, feeRate){
+  if (!utxos.length) return 0;
+  try {
+    const u=utxos[0];
+    const dummyAddr=changeAddrInfo?.address||u.addrInfo.address;
+    const script=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(key),Buffer.from('val'),Buffer.from(val)]);
+    const tx=buildInscribeTx(conf.network,[u],script,dummyAddr,0,0,true);
+    return calcFee(feeRate,tx);
+  } catch(e){ return 0; }
+}
+
 export function estimateNameFee(conf, wallet, keyData, changeAddrInfo, feeRate){
   try {
     const network=conf.network;
