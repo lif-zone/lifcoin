@@ -8,7 +8,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   deriveWallet, deriveAddrAt, defaultDerivPath,
   estimateFee, calcFee, buildSendTx,
   fetchWalletData,
-  checkKvName, sendTx, transferTx, saveKvTx, addKvTx,
+  kv_get, sendTx, transferTx, saveKvTx, addKvTx,
   estimateNameFee, estimateInscribeFee,
 } from './wallet_db.js';
 
@@ -1091,7 +1091,7 @@ function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     const timer = setTimeout(()=>{
       (async()=>{
         try {
-          let kv = await checkKvName(conf, key);
+          let kv = await kv_get(conf, key);
           if (kv===undefined) // this electrumx client returns undefined for error responses
             setNameStatus('available');
           else

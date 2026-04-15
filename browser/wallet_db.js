@@ -624,7 +624,7 @@ export async function listUnspentForAddr(conf, addr){
     getScriptHash(addr, conf.network));
 }
 
-export async function checkKvName(conf, key){
+export async function kv_get(conf, key){
   const cl = await getClient(conf);
   return cl.request('blockchain.lif_kv.get', [key]);
 }
