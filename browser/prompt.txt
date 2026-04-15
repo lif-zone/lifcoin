@@ -584,3 +584,8 @@ USER: Pass wallet.jsx:handleInscribe() in the same way to wallet_db.js:addKvX()
 
 CLAUDE: Added addKvTx(conf, addrs, utxos, key, val, changeAddrInfo, fee, feeRate) to wallet_db.js — builds inscription script, fetches/selects UTXOs, builds inscribeTx, broadcasts; returns {txid, exactFee} or throws. wallet.jsx:handleInscribe now only validates key/val, calls addKvTx, updates UI state, alerts, calls onSent. Removed now-unused listUnspentForAddr from wallet.jsx imports.
 ---
+
+USER: lines 731-740 seem to be duplicate of 759-768. Move all the non-UI logic here to a function in wallet_db.js, and just pass the needed parameters (so in each case it does whats needed for that case), thus reducing the duplicate repeated logic?
+
+CLAUDE: Added estimateNameFee(conf, wallet, keyData, changeAddrInfo, feeRate) to wallet_db.js — derives root/ap, extracts nameVout/nameAddr/nameAddrInfo, uses dummyAddr fallback, branches on keyData._editVal to call buildEditTx (with compiled inscription script) or buildTransferTx, returns calcFee result or 0. Replaced all 4 duplicate blocks (2x useState initializer + 2x useEffect body in NameTransferScreen and NameEditScreen) with single-line calls. Removed now-unused findAddrInWallet, buildTransferTx, buildEditTx from wallet.jsx imports.
+---

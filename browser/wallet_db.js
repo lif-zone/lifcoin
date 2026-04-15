@@ -322,6 +322,30 @@ export async function estimateFee(conf){
   return fallback;
 }
 
+export function estimateNameFee(conf, wallet, keyData, changeAddrInfo, feeRate){
+  try {
+    const network=conf.network;
+    const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
+    const ap=wallet.derivPath||defaultDerivPath(conf);
+    const nameVout=keyData._tx._vtx.vout[keyData.vout];
+    const nameValue=Math.round(nameVout.value*1e8);
+    const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
+    const nameAddrInfo=findAddrInWallet(root,ap,network,nameAddr);
+    if (!nameAddrInfo) return 0;
+    const dummyAddr=changeAddrInfo?.address||deriveAddrAt(root,ap,network,1,0).address;
+    const inputs=[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}];
+    const signers=[nameAddrInfo];
+    let tx;
+    if (keyData._editVal!==undefined){
+      const script=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(keyData.key),Buffer.from('val'),Buffer.from(keyData._editVal)]);
+      tx=buildEditTx(network,inputs,signers,script,dummyAddr,nameValue,0,dummyAddr,0,true);
+    } else {
+      tx=buildTransferTx(network,inputs,signers,dummyAddr,nameValue,0,dummyAddr,0,true);
+    }
+    return calcFee(feeRate,tx);
+  } catch(e){ return 0; }
+}
+
 export async function addKvTx(conf, addrs, utxos, key, val, changeAddrInfo, fee, feeRate){
   const network=conf.network;
   const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(key),Buffer.from('val'),Buffer.from(val)]);

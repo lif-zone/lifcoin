@@ -6,10 +6,9 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   saveWallets, loadWallets,
   getRoot, getNetworks,
   deriveWallet, deriveAddrAt, defaultDerivPath,
-  estimateFee, calcFee, findAddrInWallet, buildSendTx, buildInscribeTx,
-  buildTransferTx, buildEditTx,
+  estimateFee, calcFee, buildSendTx, buildInscribeTx,
   getWalletData, fetchWalletData,
-  broadcastTx, checkKvName, sendTx, transferTx, saveKvTx, addKvTx,
+  broadcastTx, checkKvName, sendTx, transferTx, saveKvTx, addKvTx, estimateNameFee,
 } from './wallet_db.js';
 
 function json(o){
@@ -726,20 +725,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
   const [addrs, setAddrs] = useState(_cached?.addrs ?? []);
   const [changeAddrInfo, setChangeAddrInfo] = useState(_cached?.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(()=>{
-    try {
-      const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
-      const ap=wallet.derivPath||defaultDerivPath(conf);
-      const nameVout=keyData._tx._vtx.vout[keyData.vout];
-      const nameValue=Math.round(nameVout.value*1e8);
-      const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
-      const nameAddrInfo=findAddrInWallet(root,ap,network,nameAddr);
-      if (!nameAddrInfo) return 0;
-      const dummyAddr=deriveAddrAt(root,ap,network,1,0).address;
-      const tx=buildTransferTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],dummyAddr,nameValue,0,dummyAddr,0,true);
-      return calcFee(conf.fee_def||1000,tx);
-    } catch(e){ return 0; }
-  });
+  const [fee, setFee] = useState(()=>estimateNameFee(conf,wallet,keyData,null,conf.fee_def||1000));
 
   useEffect(()=>{
     (async()=>{
@@ -755,18 +741,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
     })();
   }, []);
   useEffect(()=>{
-    try {
-      const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
-      const ap=wallet.derivPath||defaultDerivPath(conf);
-      const nameVout=keyData._tx._vtx.vout[keyData.vout];
-      const nameValue=Math.round(nameVout.value*1e8);
-      const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
-      const nameAddrInfo=findAddrInWallet(root,ap,network,nameAddr);
-      if (!nameAddrInfo) return;
-      const dummyAddr=changeAddrInfo?.address||deriveAddrAt(root,ap,network,1,0).address;
-      const tx=buildTransferTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],dummyAddr,nameValue,0,dummyAddr,0,true);
-      setFee(calcFee(feeRate,tx));
-    } catch(e){}
+    setFee(estimateNameFee(conf,wallet,keyData,changeAddrInfo,feeRate));
   }, [feeRate]);
 
   const handleTransfer = async()=>{
@@ -814,21 +789,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
   const [addrs, setAddrs] = useState(_cached?.addrs ?? []);
   const [changeAddrInfo, setChangeAddrInfo] = useState(_cached?.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(()=>{
-    try {
-      const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
-      const ap=wallet.derivPath||defaultDerivPath(conf);
-      const nameVout=keyData._tx._vtx.vout[keyData.vout];
-      const nameValue=Math.round(nameVout.value*1e8);
-      const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
-      const nameAddrInfo=findAddrInWallet(root,ap,network,nameAddr);
-      if (!nameAddrInfo) return 0;
-      const dummyAddr=deriveAddrAt(root,ap,network,1,0).address;
-      const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(keyData.key),Buffer.from('val'),Buffer.from(keyData._editVal)]);
-      const tx=buildEditTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],inscriptionScript,dummyAddr,nameValue,0,dummyAddr,0,true);
-      return calcFee(conf.fee_def||1000,tx);
-    } catch(e){ return 0; }
-  });
+  const [fee, setFee] = useState(()=>estimateNameFee(conf,wallet,keyData,null,conf.fee_def||1000));
 
   useEffect(()=>{
     (async()=>{
@@ -844,19 +805,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
     })();
   }, []);
   useEffect(()=>{
-    try {
-      const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
-      const ap=wallet.derivPath||defaultDerivPath(conf);
-      const nameVout=keyData._tx._vtx.vout[keyData.vout];
-      const nameValue=Math.round(nameVout.value*1e8);
-      const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
-      const nameAddrInfo=findAddrInWallet(root,ap,network,nameAddr);
-      if (!nameAddrInfo) return;
-      const dummyAddr=changeAddrInfo?.address||deriveAddrAt(root,ap,network,1,0).address;
-      const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(keyData.key),Buffer.from('val'),Buffer.from(keyData._editVal)]);
-      const tx=buildEditTx(network,[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}],[nameAddrInfo],inscriptionScript,dummyAddr,nameValue,0,dummyAddr,0,true);
-      setFee(calcFee(feeRate,tx));
-    } catch(e){}
+    setFee(estimateNameFee(conf,wallet,keyData,changeAddrInfo,feeRate));
   }, [feeRate]);
 
   const handleSave = async()=>{
