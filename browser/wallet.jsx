@@ -8,7 +8,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   deriveWallet, deriveAddrAt, defaultDerivPath,
   estimateFee, calcFee, tx_build_send,
   fetchWalletData,
-  kv_get, tx_send, kv_tx_trans, kv_tx_save, addKvTx,
+  kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add,
   estimateNameFee, estimateInscribeFee,
 } from './wallet_db.js';
 
@@ -762,7 +762,7 @@ function NameTransferScreen({wallet, keyData, onSent}){
       return alert('Enter recipient address');
     setSending(true);
     try {
-      const {txid, exactFee} = await kv_tx_trans(conf, addrs, keyData,
+      const {txid, exactFee} = await kv_tx_send(conf, addrs, keyData,
         toAddress.trim(), changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       const explorerLink = conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
@@ -826,7 +826,7 @@ function NameEditScreen({wallet, keyData, onSent}){
   const handleSave = async()=>{
     setSending(true);
     try {
-      const {txid, exactFee} = await kv_tx_save(conf, addrs, keyData,
+      const {txid, exactFee} = await kv_tx_edit(conf, addrs, keyData,
         changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
@@ -1112,7 +1112,7 @@ function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
       return alert('Value is required');
     setSending(true);
     try {
-      const {txid, exactFee} = await addKvTx(conf, addrs, utxos,
+      const {txid, exactFee} = await kv_tx_add(conf, addrs, utxos,
         inscKey.trim(), inscVal.trim(), changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       alert(`Inscription sent!\nTXID: ${txid}`);

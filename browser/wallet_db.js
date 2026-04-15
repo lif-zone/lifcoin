@@ -435,14 +435,14 @@ export function estimateNameFee(wallet, keyData, changeAddrInfo, feeRate){
         {key: keyData.key, val: keyData._editVal},
         dummyAddr, nameValue, 0, dummyAddr, 0, true);
     } else {
-      tx = kv_tx_build_trans(network, inputs, signers, dummyAddr, nameValue,
+      tx = kv_tx_build_send(network, inputs, signers, dummyAddr, nameValue,
         0, dummyAddr, 0, true);
     }
     return calcFee(feeRate, tx);
   } catch(e){ return 0; }
 }
 
-export async function addKvTx(conf, addrs, utxos, key, val, changeAddrInfo,
+export async function kv_tx_add(conf, addrs, utxos, key, val, changeAddrInfo,
   fee, feeRate)
 {
   const network = conf.network;
@@ -483,7 +483,7 @@ function inscriptionScript(key, val){
   ]);
 }
 
-export async function kv_tx_save(conf, addrs, keyData, changeAddrInfo, fee,
+export async function kv_tx_edit(conf, addrs, keyData, changeAddrInfo, fee,
   feeRate)
 {
   const network = conf.network;
@@ -531,7 +531,7 @@ export async function kv_tx_save(conf, addrs, keyData, changeAddrInfo, fee,
   return {txid, exactFee};
 }
 
-export async function kv_tx_trans(conf, addrs, keyData, toAddress,
+export async function kv_tx_send(conf, addrs, keyData, toAddress,
   changeAddrInfo, fee, feeRate)
 {
   const network = conf.network;
@@ -565,11 +565,11 @@ export async function kv_tx_trans(conf, addrs, keyData, toAddress,
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  let tx = kv_tx_build_trans(network, inputs, signers, toAddress, nameValue,
+  let tx = kv_tx_build_send(network, inputs, signers, toAddress, nameValue,
     extraTotal, changeAddrInfo.address, fee);
   const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee){
-    tx = kv_tx_build_trans(network, inputs, signers, toAddress, nameValue,
+    tx = kv_tx_build_send(network, inputs, signers, toAddress, nameValue,
       extraTotal, changeAddrInfo.address, exactFee);
   }
   const txid = await tx_broadcast(conf, tx.toHex());
@@ -688,7 +688,7 @@ export function kv_tx_build_new(network, inputs, {key, val}, changeAddr, total,
 }
 
 // inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
-export function kv_tx_build_trans(network, inputs, signers, toAddr, nameValue,
+export function kv_tx_build_send(network, inputs, signers, toAddr, nameValue,
   extraTotal, changeAddr, txFee, forEst=false)
 {
   const p = bitcoin_psbt(network);
