@@ -248,7 +248,7 @@ function serializeWallet(wallet){
     addrs: (wallet.addrs||[]).map(({address, chain, index, hist})=>(
       {address, chain, index, hist})),
     changeAddrInfo: wallet.changeAddrInfo
-      ?{address: wallet.changeAddrInfo.address,
+      ? {address: wallet.changeAddrInfo.address,
         chain: wallet.changeAddrInfo.chain, index: wallet.changeAddrInfo.index}
       : null,
     utxos: (wallet.utxos||[]).map(
