@@ -177,8 +177,9 @@ export async function dbPut(id, data){
 // In-memory wallet data store
 const store = { data: {} };
 
-function hydrateWalletData(wallet, conf, cached){
+function hydrateWalletData(wallet, cached){
   try {
+    const conf=wallet.conf;
     const root=getRoot(wallet.mnemonic,conf.network,wallet.passphrase||'');
     const ap=wallet.derivPath||defaultDerivPath(conf);
     const addrs=(cached.addrs||[]).map(a=>({...a,...deriveAddrAt(root,ap,conf.network,a.chain,a.index)}));
@@ -212,18 +213,19 @@ function serializeWalletData(data){
   const _wallets=loadWallets(), _servers=loadServers();
   const _networks=getNetworks(_servers);
   for (const w of _wallets){
-    const conf=_networks[w.network]||Object.values(_networks)[0];
-    const cached=await dbGet('walletData:'+w.id);
+    const we={...w,conf:_networks[w.network]||Object.values(_networks)[0]};
+    const cached=await dbGet('walletData:'+we.id);
     if (cached){
-      const hydrated=hydrateWalletData(w,conf,cached);
-      if (hydrated) store.data[w.id]=hydrated;
+      const hydrated=hydrateWalletData(we,cached);
+      if (hydrated) store.data[we.id]=hydrated;
     }
   }
 }
 
 export function getWalletData(id){ return store.data[id]||null; }
 
-export async function fetchWalletData(wallet, conf){
+export async function fetchWalletData(wallet){
+  const conf=wallet.conf;
   const network=conf.network;
   const cl=await getClient(conf);
   const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
@@ -333,8 +335,9 @@ export function estimateInscribeFee(conf, utxos, key, val, changeAddrInfo, feeRa
   } catch(e){ return 0; }
 }
 
-export function estimateNameFee(conf, wallet, keyData, changeAddrInfo, feeRate){
+export function estimateNameFee(wallet, keyData, changeAddrInfo, feeRate){
   try {
+    const conf=wallet.conf;
     const network=conf.network;
     const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
     const ap=wallet.derivPath||defaultDerivPath(conf);

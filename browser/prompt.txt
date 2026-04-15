@@ -594,3 +594,13 @@ USER: in same way remove duplicate 1042-1046 with 1058-1063
 
 CLAUDE: Added estimateInscribeFee(conf, utxos, key, val, changeAddrInfo, feeRate) to wallet_db.js — guards on empty utxos, compiles inscription script from key/val, builds inscribeTx with utxos[0], returns calcFee or 0. Replaced InscribeScreen useState initializer (empty-script block) and useEffect body with single-line calls. Removed now-unused buildInscribeTx from wallet.jsx imports.
 ---
+
+USER: wallet object should include inside it a conf property, so that once you have a wallet object, you dont need to pass as argument to functions also the conf object of that wallet
+
+CLAUDE: Added enrichedWallets = useMemo in BrightWallet that maps each wallet to {...w, conf: networks[w.network]||...}. activeWallet now comes from enrichedWallets. In wallet_db.js: hydrateWalletData/fetchWalletData drop conf param and use wallet.conf; estimateNameFee drops conf param and uses wallet.conf; preload block enriches wallets with conf before hydrating. In wallet.jsx: HomeScreen, WalletCard, WalletDetailScreen, WalletSettingsSubscreen, NameTransferScreen, NameEditScreen all drop networks/conf params and use wallet.conf instead. KeyDetailScreen JSX uses activeWallet.conf. All fetchWalletData(wallet,conf) → fetchWalletData(wallet), estimateNameFee(conf,wallet,...) → estimateNameFee(wallet,...).
+---
+
+USER: I run it, and got in the main screen in all wallets I had in localStorage from before the message "Invalid wallet" in the wallet card.
+
+CLAUDE: Bug: WalletCard's derived useMemo still referenced `networks` (removed from props) when calling deriveWallet(). Fixed by replacing the deriveWallet call with a direct getRoot() validity check (returning true/false) using wallet.conf.network which is now always available on the enriched wallet.
+---

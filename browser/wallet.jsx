@@ -47,6 +47,7 @@ function BrightWallet(){
   const [selectedTxData, setSelectedTxData] = useState(null);
   const [selectedKeyData, setSelectedKeyData] = useState(null);
   const networks = useMemo(()=>getNetworks(servers), [servers]);
+  const enrichedWallets = useMemo(()=>wallets.map(w=>({...w,conf:networks[w.network]||Object.values(networks)[0]})), [wallets, networks]);
   const addWallet = (wallet)=>{
     const updated = [...wallets, wallet];
     setWallets(updated);
@@ -64,7 +65,7 @@ function BrightWallet(){
     setScreen('home');
     setActiveWalletId(null);
   };
-  const activeWallet = wallets.find(w=>w.id===activeWalletId);
+  const activeWallet = enrichedWallets.find(w=>w.id===activeWalletId);
   const goHome = ()=>setScreen('home');
   const goBack = ()=>{
     if (screen=='name-transfer' || screen=='name-edit')
@@ -92,8 +93,7 @@ function BrightWallet(){
       </div>
       {screen=='home' && (
         <HomeScreen
-          wallets={wallets}
-          networks={networks}
+          wallets={enrichedWallets}
           onSelect={(id)=>{ setActiveWalletId(id); setScreen('wallet-detail'); }}
           onAddNew={()=>setScreen('add-wallet')}
         />
@@ -109,7 +109,6 @@ function BrightWallet(){
       {screen=='wallet-detail' && activeWallet && (
         <WalletDetailScreen
           wallet={activeWallet}
-          networks={networks}
           onDelete={()=>deleteWallet(activeWallet.id)}
           onUpdate={(changes)=>updateWallet(activeWallet.id, changes)}
           onBack={goHome}
@@ -128,8 +127,8 @@ function BrightWallet(){
       {screen=='key-detail' && selectedKeyData && activeWallet && (
         <KeyDetailScreen
           keyData={selectedKeyData}
-          conf={networks[activeWallet.network] || Object.values(networks)[0]}
-          onViewTx={(tx)=>{ setSelectedTxData({tx, conf: networks[activeWallet.network]||Object.values(networks)[0], walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx-detail'); }}
+          conf={activeWallet.conf}
+          onViewTx={(tx)=>{ setSelectedTxData({tx, conf: activeWallet.conf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx-detail'); }}
           onTransfer={()=>setScreen('name-transfer')}
           onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _editVal: newVal})); setScreen('name-edit'); }}
         />
@@ -137,7 +136,6 @@ function BrightWallet(){
       {screen=='name-transfer' && selectedKeyData && activeWallet && (
         <NameTransferScreen
           wallet={activeWallet}
-          networks={networks}
           keyData={selectedKeyData}
           onSent={()=>setScreen('wallet-detail')}
         />
@@ -145,7 +143,6 @@ function BrightWallet(){
       {screen=='name-edit' && selectedKeyData && activeWallet && (
         <NameEditScreen
           wallet={activeWallet}
-          networks={networks}
           keyData={selectedKeyData}
           onSent={()=>setScreen('wallet-detail')}
         />
@@ -163,7 +160,7 @@ function BrightWallet(){
 }
 
 // Home Screen
-function HomeScreen({wallets, networks, onSelect, onAddNew}){
+function HomeScreen({wallets, onSelect, onAddNew}){
   return (
     <div>
       <div style={{display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 16}}>
@@ -171,7 +168,6 @@ function HomeScreen({wallets, networks, onSelect, onAddNew}){
           <WalletCard
             key={wallet.id}
             wallet={wallet}
-            networks={networks}
             onClick={()=>onSelect(wallet.id)}
           />
         ))}
@@ -187,23 +183,23 @@ function HomeScreen({wallets, networks, onSelect, onAddNew}){
 }
 
 // Wallet Card (summary box on home screen)
-function WalletCard({wallet, networks, onClick}){
-  const conf = networks[wallet.network] || Object.values(networks)[0];
+function WalletCard({wallet, onClick}){
+  const conf = wallet.conf;
   const _init = getWalletData(wallet.id);
   const [balance, setBalance] = useState(_init?.balance ?? null);
   const [txCount, setTxCount] = useState(_init?.transactions?.length ?? null);
   const [keysOwned, setKeysOwned] = useState(_init?.ownedKeys?.length ?? 0);
   const [connErr, setConnErr] = useState(false);
   const derived = useMemo(()=>{
-    try { return deriveWallet(wallet.mnemonic, wallet.network, networks, wallet.passphrase||'', wallet.derivPath||null); }
-    catch { return null; }
+    try { getRoot(wallet.mnemonic, conf.network, wallet.passphrase||''); return true; }
+    catch { return false; }
   }, [wallet.id, wallet.network]);
 
   useEffect(()=>{
     if (!derived) return;
     (async()=>{
       try {
-        const data = await fetchWalletData(wallet, conf);
+        const data = await fetchWalletData(wallet);
         setBalance(data.balance);
         setTxCount(data.transactions.length);
         setKeysOwned(data.ownedKeys.length);
@@ -375,8 +371,8 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
 }
 
 // Wallet Detail Screen
-function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSelectTx, onSelectKey}){
-  const conf = networks[wallet.network] || Object.values(networks)[0];
+function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx, onSelectKey}){
+  const conf = wallet.conf;
   const network = conf.network;
   const _init = getWalletData(wallet.id);
   const [connected, setConnected] = useState(false);
@@ -406,7 +402,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
     (async()=>{
       try {
         setLoading(true);
-        applyData(await fetchWalletData(wallet, conf));
+        applyData(await fetchWalletData(wallet));
         setConnected(true);
       } catch(e){
         console.error('Connect error:', e);
@@ -512,7 +508,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
           )}
           <button style={{marginTop: 10}} onClick={async()=>{
             setLoading(true);
-            try { applyData(await fetchWalletData(wallet, conf)); }
+            try { applyData(await fetchWalletData(wallet)); }
             catch(e){ console.error('Refresh error:', e); }
             finally { setLoading(false); }
           }}>
@@ -549,7 +545,6 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
       {subscreen=='wallet-settings' && (
         <WalletSettingsSubscreen
           wallet={wallet}
-          conf={conf}
           onUpdate={onUpdate}
           onDelete={handleDelete}
         />
@@ -559,7 +554,8 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
 }
 
 // Wallet Settings Subscreen
-function WalletSettingsSubscreen({wallet, conf, onUpdate, onDelete}){
+function WalletSettingsSubscreen({wallet, onUpdate, onDelete}){
+  const conf = wallet.conf;
   const [revealed, setRevealed] = useState(false);
   const [name, setName] = useState(wallet.name||'');
   const hasPassphrase = !!wallet.passphrase;
@@ -716,8 +712,8 @@ function KeyDetailScreen({keyData, conf, onViewTx, onTransfer, onEdit}){
 }
 
 // Name Transfer Screen
-function NameTransferScreen({wallet, networks, keyData, onSent}){
-  const conf = networks[wallet.network] || Object.values(networks)[0];
+function NameTransferScreen({wallet, keyData, onSent}){
+  const conf = wallet.conf;
   const network = conf.network;
   const _cached = getWalletData(wallet.id);
   const [toAddress, setToAddress] = useState('');
@@ -725,7 +721,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
   const [addrs, setAddrs] = useState(_cached?.addrs ?? []);
   const [changeAddrInfo, setChangeAddrInfo] = useState(_cached?.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(()=>estimateNameFee(conf,wallet,keyData,null,conf.fee_def||1000));
+  const [fee, setFee] = useState(()=>estimateNameFee(wallet,keyData,null,conf.fee_def||1000));
 
   useEffect(()=>{
     (async()=>{
@@ -733,7 +729,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
         const rate = await estimateFee(conf);
         setFeeRate(rate);
         if (!_cached){
-          const data = await fetchWalletData(wallet, conf);
+          const data = await fetchWalletData(wallet);
           setAddrs(data.addrs);
           setChangeAddrInfo(data.changeAddrInfo);
         }
@@ -741,7 +737,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
     })();
   }, []);
   useEffect(()=>{
-    setFee(estimateNameFee(conf,wallet,keyData,changeAddrInfo,feeRate));
+    setFee(estimateNameFee(wallet,keyData,changeAddrInfo,feeRate));
   }, [feeRate]);
 
   const handleTransfer = async()=>{
@@ -781,15 +777,15 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
 }
 
 // Name Edit Screen
-function NameEditScreen({wallet, networks, keyData, onSent}){
-  const conf = networks[wallet.network] || Object.values(networks)[0];
+function NameEditScreen({wallet, keyData, onSent}){
+  const conf = wallet.conf;
   const network = conf.network;
   const _cached = getWalletData(wallet.id);
   const [sending, setSending] = useState(false);
   const [addrs, setAddrs] = useState(_cached?.addrs ?? []);
   const [changeAddrInfo, setChangeAddrInfo] = useState(_cached?.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(()=>estimateNameFee(conf,wallet,keyData,null,conf.fee_def||1000));
+  const [fee, setFee] = useState(()=>estimateNameFee(wallet,keyData,null,conf.fee_def||1000));
 
   useEffect(()=>{
     (async()=>{
@@ -797,7 +793,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
         const rate = await estimateFee(conf);
         setFeeRate(rate);
         if (!_cached){
-          const data = await fetchWalletData(wallet, conf);
+          const data = await fetchWalletData(wallet);
           setAddrs(data.addrs);
           setChangeAddrInfo(data.changeAddrInfo);
         }
@@ -805,7 +801,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
     })();
   }, []);
   useEffect(()=>{
-    setFee(estimateNameFee(conf,wallet,keyData,changeAddrInfo,feeRate));
+    setFee(estimateNameFee(wallet,keyData,changeAddrInfo,feeRate));
   }, [feeRate]);
 
   const handleSave = async()=>{
