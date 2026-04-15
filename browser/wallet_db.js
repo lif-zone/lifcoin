@@ -51,8 +51,14 @@ export const DEFAULT_NETWORKS = {
     explorer_tx: 'http://localhost:5000/tx/',
     coin_type: 1842,
     fee_def: 5000000, // 1MB = 50LIF
+    fee_max: 10000000,
   },
 };
+function networks_init(){
+  for (let [name, net] of Object.entries(DEFAULT_NETWORKS))
+    net.network.conf = net;
+}
+networks_init();
 
 function Electrum_connect(url){
   let u = URL.parse(url);
@@ -80,10 +86,10 @@ function getClient(conf){
 
 export function getNetworks(servers){
   const result = {};
-  for (const key in DEFAULT_NETWORKS){
-    result[key] = {...DEFAULT_NETWORKS[key]};
-    if (servers[key])
-      result[key].electrum = servers[key];
+  for (const net in DEFAULT_NETWORKS){
+    result[net] = {...DEFAULT_NETWORKS[net]};
+    if (servers[net])
+      result[net].electrum = servers[net];
   }
   return result;
 }
@@ -399,13 +405,7 @@ export function estimateInscribeFee(conf, utxos, key, val, changeAddrInfo,
   try {
     const u = utxos[0];
     const dummyAddr = changeAddrInfo?.address||u.addrInfo.address;
-    const script = bitcoin.script.compile([
-      bitcoin.opcodes.OP_RETURN, Buffer.from('lif'),
-      Buffer.from('key'),
-      Buffer.from(key),
-      Buffer.from('val'),
-      Buffer.from(val)]);
-    const tx = buildInscribeTx(conf.network, [u], script, dummyAddr, 0, 0,
+    const tx = buildInscribeTx(conf.network, [u], {key, val}, dummyAddr, 0, 0,
       true);
     return calcFee(feeRate, tx);
   } catch(e){ return 0; }
@@ -431,14 +431,9 @@ export function estimateNameFee(wallet, keyData, changeAddrInfo, feeRate){
     const signers = [nameAddrInfo];
     let tx;
     if (keyData._editVal!==undefined){
-      const script = bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,
-        Buffer.from('lif'),
-        Buffer.from('key'),
-        Buffer.from(keyData.key),
-        Buffer.from('val'),
-        Buffer.from(keyData._editVal)]);
-      tx = buildEditTx(network, inputs, signers, script, dummyAddr,
-        nameValue, 0, dummyAddr, 0, true);
+      tx = buildEditTx(network, inputs, signers,
+        {key: keyData.key, val: keyData._editVal},
+        dummyAddr, nameValue, 0, dummyAddr, 0, true);
     } else {
       tx = buildTransferTx(network, inputs, signers, dummyAddr, nameValue,
         0, dummyAddr, 0, true);
@@ -451,12 +446,6 @@ export async function addKvTx(conf, addrs, utxos, key, val, changeAddrInfo,
   fee, feeRate)
 {
   const network = conf.network;
-  const inscriptionScript = bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,
-    Buffer.from('lif'),
-    Buffer.from('key'),
-    Buffer.from(key),
-    Buffer.from('val'),
-    Buffer.from(val)]);
   const allUTXOs = utxos.length ? utxos : await (async()=>{
     const lists = await Promise.all(addrs.map(async(addrInfo)=>{
       return (await listUnspentForAddr(conf, addrInfo.address)).map(
@@ -477,11 +466,21 @@ export async function addKvTx(conf, addrs, utxos, key, val, changeAddrInfo,
   }
   if (total<fee)
     throw new Error('Insufficient balance to cover fee');
-  const tx = buildInscribeTx(network, selected, inscriptionScript,
+  const tx = buildInscribeTx(network, selected, {key, val},
     changeAddrInfo.address, total, fee);
   const exactFee = calcFee(feeRate, tx);
   const txid = await broadcastTx(conf, tx.toHex());
   return {txid, exactFee};
+}
+
+function inscriptionScript(key, val){
+  return bitcoin.script.compile([
+    bitcoin.opcodes.OP_RETURN, Buffer.from('lif'),
+    Buffer.from('key'),
+    Buffer.from(key),
+    Buffer.from('val'),
+    Buffer.from(val),
+  ]);
 }
 
 export async function saveKvTx(conf, addrs, keyData, changeAddrInfo, fee,
@@ -496,12 +495,7 @@ export async function saveKvTx(conf, addrs, keyData, changeAddrInfo, fee,
   if (!nameAddrInfo)
     throw new Error('Name UTXO address not found in wallet');
   const dest = changeAddrInfo.address;
-  const inscriptionScript = bitcoin.script.compile([
-    bitcoin.opcodes.OP_RETURN, Buffer.from('lif'),
-    Buffer.from('key'),
-    Buffer.from(keyData.key),
-    Buffer.from('val'),
-    Buffer.from(keyData._editVal)]);
+  const script = inscriptionScript(keyData.key, keyData._editVal);
   const signers = [nameAddrInfo];
   const inputs = [{txid: keyData.tx, vout: keyData.vout, value: nameValue,
     addr: nameAddr}];
@@ -525,11 +519,12 @@ export async function saveKvTx(conf, addrs, keyData, changeAddrInfo, fee,
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  let tx = buildEditTx(network, inputs, signers, inscriptionScript, dest,
-    nameValue, extraTotal, changeAddrInfo.address, fee);
+  let kv = {key: keyData.key, val: keyData._editVal};
+  let tx = buildEditTx(network, inputs, signers, kv,
+    dest, nameValue, extraTotal, changeAddrInfo.address, fee);
   const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee){
-    tx = buildEditTx(network, inputs, signers, inscriptionScript, dest,
+    tx = buildEditTx(network, inputs, signers, kv, dest,
       nameValue, extraTotal, changeAddrInfo.address, exactFee);
   }
   const txid = await broadcastTx(conf, tx.toHex());
@@ -669,7 +664,7 @@ export function buildSendTx(network, inputs, toAddr, amt, changeAddr, total,
 }
 
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
-export function buildInscribeTx(network, inputs, script, changeAddr, total,
+export function buildInscribeTx(network, inputs, {key, val}, changeAddr, total,
   txFee, forEst=false)
 {
   const p = new bitcoin.Psbt({network});
@@ -678,10 +673,12 @@ export function buildInscribeTx(network, inputs, script, changeAddr, total,
       witnessUtxo: {value: BigInt(u.value),
       script: bitcoin.address.toOutputScript(u.addrInfo.address, network)}});
   }
-  p.addOutput({script, value: 0n});
+  p.addOutput({script: inscriptionScript(key, val), value: 0n});
   p.addOutput({address: changeAddr, value: BigInt(total-txFee)});
   for(let i=0; i<inputs.length; i++)
     p.signInput(i, inputs[i].addrInfo.keyPair);
+  if (network.conf.fee_max)
+    p.setMaximumFeeRate(network.conf.fee_max/1000);
   p.finalizeAllInputs();
   return p.extractTransaction(forEst);
 }
@@ -709,7 +706,7 @@ export function buildTransferTx(network, inputs, signers, toAddr, nameValue,
 }
 
 // inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
-export function buildEditTx(network, inputs, signers, script, dest,
+export function buildEditTx(network, inputs, signers, {key, val}, dest,
   nameValue, extraTotal, changeAddr, txFee, forEst=false)
 {
   const p = new bitcoin.Psbt({network});
@@ -718,7 +715,7 @@ export function buildEditTx(network, inputs, signers, script, dest,
       witnessUtxo: {value: BigInt(inp.value),
         script: bitcoin.address.toOutputScript(inp.addr, network)}});
   }
-  p.addOutput({script, value:0n});
+  p.addOutput({script: inscriptionScript(key, val), value: 0n});
   if (nameValue<txFee){
     p.addOutput({address: dest, value: BigInt(nameValue)});
     const ch = extraTotal-txFee;

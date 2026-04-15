@@ -1112,7 +1112,8 @@ function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
         inscVal.trim(), changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       alert(`Inscription sent!\nTXID: ${txid}`);
-      setInscKey(''); setInscVal('');
+      setInscKey('');
+      setInscVal('');
       onSent?.();
     } catch(err){
       alert(err.message);
