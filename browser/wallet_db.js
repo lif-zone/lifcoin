@@ -326,12 +326,14 @@ export async function fetchWalletData(wallet){
     transactions = hist.map((tx, i)=>{
       const vtx = verboseTxs[i];
       const enrichedVin = (vtx.vin||[]).map(vin=>{
-        if (!vin.txid) return vin;
+        if (!vin.txid)
+          return vin;
         return {...vin, _prevVout:prevMap[vin.txid]?.vout?.[vin.vout]};
       });
       const received = voutToOurAmt(vtx.vout);
       const spent = enrichedVin.reduce((sum, vin)=>{
-        if (!vin._prevVout) return sum;
+        if (!vin._prevVout)
+          return sum;
         const as = vin._prevVout.scriptPubKey?.addresses ||
           (vin._prevVout.scriptPubKey?.address ?
           [vin._prevVout.scriptPubKey.address] : []);
@@ -378,7 +380,8 @@ export async function estimateFee(conf){
   try {
     const cl = await getClient(conf);
     const rate = await cl.request('blockchain.estimatefee', [6]);
-    if (rate>0) return Math.round(rate*1e8);
+    if (rate>0)
+      return Math.round(rate*1e8);
   } catch(e){}
   return fallback;
 }
@@ -414,7 +417,8 @@ export function estimateNameFee(wallet, keyData, changeAddrInfo, feeRate){
     const nameAddr = nameVout.scriptPubKey?.address ||
       nameVout.scriptPubKey?.addresses?.[0];
     const nameAddrInfo = findAddrInWallet(root, ap, network, nameAddr);
-    if (!nameAddrInfo) return 0;
+    if (!nameAddrInfo)
+      return 0;
     const dummyAddr = changeAddrInfo?.address ||
       deriveAddrAt(root, ap, network, 1, 0).address;
     const inputs = [{txid: keyData.tx, vout: keyData.vout, value: nameValue,
