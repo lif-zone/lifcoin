@@ -64,13 +64,18 @@ function Electrum_connect(url){
 const clients = {};
 function getClient(conf){
   const url = conf.electrum;
-  if (!clients[url])
-    clients[url] = (async()=>{
+  if (clients[url])
+    return clients[url];
+  return clients[url] = (async()=>{
+    try {
       const cl = Electrum_connect(url);
       await cl.connect('lif-coin-wallet', '1.4');
       return cl;
-    })().catch(e=>{ delete clients[url]; throw e; });
-  return clients[url];
+    } catch(e){
+      delete clients[url];
+      throw e;
+    }
+  })();
 }
 
 export function getNetworks(servers){
