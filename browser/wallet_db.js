@@ -322,6 +322,40 @@ export async function estimateFee(conf){
   return fallback;
 }
 
+export async function saveKvTx(conf, addrs, keyData, changeAddrInfo, fee, feeRate){
+  const network=conf.network;
+  const nameVout=keyData._tx._vtx.vout[keyData.vout];
+  const nameValue=Math.round(nameVout.value*1e8);
+  const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
+  const nameAddrInfo=addrs.find(a=>a.address==nameAddr);
+  if (!nameAddrInfo) throw new Error('Name UTXO address not found in wallet');
+  const dest=changeAddrInfo.address;
+  const inscriptionScript=bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(keyData.key),Buffer.from('val'),Buffer.from(keyData._editVal)]);
+  const signers=[nameAddrInfo];
+  const inputs=[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}];
+  let extraTotal=0;
+  if (nameValue<fee){
+    const lists=await Promise.all(addrs.map(async(addrInfo)=>{
+      return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo}));
+    }));
+    const allUTXOs=lists.flat().filter(u=>!(u.tx_hash==keyData.tx&&u.tx_pos==keyData.vout));
+    allUTXOs.sort((a,b)=>b.value-a.value);
+    for (const u of allUTXOs){
+      signers.push(u.addrInfo);
+      inputs.push({txid:u.tx_hash,vout:u.tx_pos,value:u.value,addr:u.addrInfo.address});
+      extraTotal+=u.value;
+      if (extraTotal>=fee) break;
+    }
+    if (extraTotal<fee) throw new Error('Insufficient balance to cover fees');
+  }
+  let tx=buildEditTx(network,inputs,signers,inscriptionScript,dest,nameValue,extraTotal,changeAddrInfo.address,fee);
+  const exactFee=calcFee(feeRate,tx);
+  if (exactFee!==fee)
+    tx=buildEditTx(network,inputs,signers,inscriptionScript,dest,nameValue,extraTotal,changeAddrInfo.address,exactFee);
+  const txid=await broadcastTx(conf,tx.toHex());
+  return {txid,exactFee};
+}
+
 export async function transferTx(conf, addrs, keyData, toAddress, changeAddrInfo, fee, feeRate){
   const network=conf.network;
   const nameVout=keyData._tx._vtx.vout[keyData.vout];

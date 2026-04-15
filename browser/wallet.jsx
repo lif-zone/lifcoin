@@ -9,7 +9,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   estimateFee, calcFee, findAddrInWallet, buildSendTx, buildInscribeTx,
   buildTransferTx, buildEditTx,
   getWalletData, fetchWalletData,
-  broadcastTx, listUnspentForAddr, checkKvName, sendTx, transferTx,
+  broadcastTx, listUnspentForAddr, checkKvName, sendTx, transferTx, saveKvTx,
 } from './wallet_db.js';
 
 function json(o){
@@ -860,59 +860,15 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
   }, [feeRate]);
 
   const handleSave = async()=>{
-    const nameVout = keyData._tx._vtx.vout[keyData.vout];
-    const nameValue = Math.round(nameVout.value*1e8);
-    const nameAddr = nameVout.scriptPubKey?.address || nameVout.scriptPubKey?.addresses?.[0];
-    const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
-    if (!nameAddrInfo)
-      return alert('Name UTXO address not found in wallet');
-    const dest = changeAddrInfo.address;
-    const inscriptionScript = bitcoin.script.compile([
-      bitcoin.opcodes.OP_RETURN,
-      Buffer.from('lif'),
-      Buffer.from('key'),
-      Buffer.from(keyData.key),
-      Buffer.from('val'),
-      Buffer.from(keyData._editVal),
-    ]);
-    const signers = [nameAddrInfo];
-    const inputs = [{txid:keyData.tx, vout:keyData.vout, value:nameValue, addr:nameAddr}];
-    let extraTotal = 0;
-    if (nameValue < fee){
-      let allUTXOs = [];
-      try {
-        const lists = await Promise.all(
-          addrs.map(async(addrInfo)=>{
-            return (await listUnspentForAddr(conf, addrInfo.address)).map(u=>({...u, addrInfo}));
-          })
-        );
-        allUTXOs = lists.flat().filter(u=>!(u.tx_hash==keyData.tx && u.tx_pos==keyData.vout));
-      } catch(err){
-        return alert('Failed to fetch UTXOs');
-      }
-      allUTXOs.sort((a, b)=>b.value-a.value);
-      for (const utxo of allUTXOs){
-        signers.push(utxo.addrInfo);
-        inputs.push({txid:utxo.tx_hash, vout:utxo.tx_pos, value:utxo.value, addr:utxo.addrInfo.address});
-        extraTotal += utxo.value;
-        if (extraTotal >= fee) break;
-      }
-      if (extraTotal < fee)
-        return alert('Insufficient balance to cover fees');
-    }
-    let tx=buildEditTx(network,inputs,signers,inscriptionScript,dest,nameValue,extraTotal,changeAddrInfo.address,fee);
-    const exactFee=calcFee(feeRate,tx);
-    if(exactFee!==fee) tx=buildEditTx(network,inputs,signers,inscriptionScript,dest,nameValue,extraTotal,changeAddrInfo.address,exactFee);
-    setFee(exactFee);
-    const txHex = tx.toHex();
     setSending(true);
     try {
-      const txid = await broadcastTx(conf, txHex);
-      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
+      const {txid,exactFee}=await saveKvTx(conf,addrs,keyData,changeAddrInfo,fee,feeRate);
+      setFee(exactFee);
+      const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
     } catch(err){
-      alert('Broadcast failed: '+err.message);
+      alert(err.message);
     } finally {
       setSending(false);
     }

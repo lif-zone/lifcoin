@@ -574,3 +574,8 @@ USER: Pass wallet.jsx:handleTransfer() in the same way to wallet_db.js:transferT
 
 CLAUDE: Added transferTx(conf, addrs, keyData, toAddress, changeAddrInfo, fee, feeRate) to wallet_db.js — extracts nameVout/nameAddr/nameAddrInfo, fetches extra UTXOs if nameValue < fee, builds tx, recalculates exact fee, broadcasts; returns {txid, exactFee} or throws. wallet.jsx:handleTransfer now only validates toAddress, calls transferTx, updates UI state, alerts, calls onSent.
 ---
+
+USER: Pass wallet.jsx:handleSave() in the same way to wallet_db.js:saveKvX()
+
+CLAUDE: Added saveKvTx(conf, addrs, keyData, changeAddrInfo, fee, feeRate) to wallet_db.js — builds inscription script from keyData.key/keyData._editVal, finds nameAddrInfo, fetches extra UTXOs if nameValue < fee, builds/fee-recalcs editTx, broadcasts; returns {txid, exactFee} or throws. wallet.jsx:handleSave now only calls saveKvTx, updates UI state, alerts, calls onSent.
+---
