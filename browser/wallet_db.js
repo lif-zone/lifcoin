@@ -648,7 +648,7 @@ export function findAddrInWallet(root, accountPath, network, targetAddr){
 export function buildSendTx(network, inputs, toAddr, amt, changeAddr, total,
   txFee, forEst=false)
 {
-  const p = new bitcoin.Psbt({network});
+  const p = bitcoin_psbt(network);
   for (const u of inputs){
     p.addInput({hash: u.tx_hash, index: u.tx_pos,
       witnessUtxo: {value: BigInt(u.value),
@@ -663,11 +663,17 @@ export function buildSendTx(network, inputs, toAddr, amt, changeAddr, total,
   return p.extractTransaction(forEst);
 }
 
+function bitcoin_psbt(network){
+  const p = new bitcoin.Psbt({network});
+  if (network.conf.fee_max)
+    p.setMaximumFeeRate(network.conf.fee_max/1000);
+  return p;
+}
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
 export function buildInscribeTx(network, inputs, {key, val}, changeAddr, total,
   txFee, forEst=false)
 {
-  const p = new bitcoin.Psbt({network});
+  const p = bitcoin_psbt(network);
   for (const u of inputs){
     p.addInput({hash: u.tx_hash, index: u.tx_pos,
       witnessUtxo: {value: BigInt(u.value),
@@ -677,8 +683,6 @@ export function buildInscribeTx(network, inputs, {key, val}, changeAddr, total,
   p.addOutput({address: changeAddr, value: BigInt(total-txFee)});
   for(let i=0; i<inputs.length; i++)
     p.signInput(i, inputs[i].addrInfo.keyPair);
-  if (network.conf.fee_max)
-    p.setMaximumFeeRate(network.conf.fee_max/1000);
   p.finalizeAllInputs();
   return p.extractTransaction(forEst);
 }
@@ -687,7 +691,7 @@ export function buildInscribeTx(network, inputs, {key, val}, changeAddr, total,
 export function buildTransferTx(network, inputs, signers, toAddr, nameValue,
   extraTotal, changeAddr, txFee, forEst=false)
 {
-  const p = new bitcoin.Psbt({network});
+  const p = bitcoin_psbt(network);
   for (const inp of inputs){
     p.addInput({hash: inp.txid, index: inp.vout,
       witnessUtxo: {value: BigInt(inp.value),
@@ -709,7 +713,7 @@ export function buildTransferTx(network, inputs, signers, toAddr, nameValue,
 export function buildEditTx(network, inputs, signers, {key, val}, dest,
   nameValue, extraTotal, changeAddr, txFee, forEst=false)
 {
-  const p = new bitcoin.Psbt({network});
+  const p = bitcoin_psbt(network);
   for (const inp of inputs){
     p.addInput({hash: inp.txid, index: inp.vout,
       witnessUtxo: {value: BigInt(inp.value),
