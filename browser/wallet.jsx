@@ -6,7 +6,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   saveWallets, loadWallets,
   getRoot, getNetworks,
   deriveWallet, deriveAddrAt, defaultDerivPath,
-  estimateFee, calcFee, tx_build_send,
+  estimateFee, calcFee, tx_send_build,
   fetchWalletData,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add,
   estimateNameFee, estimateInscribeFee,
@@ -985,7 +985,7 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     try {
       const u = utxos[0];
       const dummyAddr = changeAddrInfo?.address || u.addrInfo.address;
-      const tx = tx_build_send(network, [u], dummyAddr, 1, dummyAddr,
+      const tx = tx_send_build(network, [u], dummyAddr, 1, dummyAddr,
         u.value, 0, true);
       return calcFee(conf.fee_def||1000, tx);
     } catch(e){ return 0; }
@@ -1010,7 +1010,7 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
         break;
     }
     try {
-      const tx = tx_build_send(network, selected, dummyAddr,
+      const tx = tx_send_build(network, selected, dummyAddr,
         Math.min(target, total), dummyAddr, total, 0, true);
       setFee(calcFee(feeRate, tx));
     } catch(e){}

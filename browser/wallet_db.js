@@ -405,7 +405,7 @@ export function estimateInscribeFee(conf, utxos, key, val, changeAddrInfo,
   try {
     const u = utxos[0];
     const dummyAddr = changeAddrInfo?.address||u.addrInfo.address;
-    const tx = kv_tx_build_new(conf.network, [u], {key, val}, dummyAddr, 0, 0,
+    const tx = kv_tx_new_build(conf.network, [u], {key, val}, dummyAddr, 0, 0,
       true);
     return calcFee(feeRate, tx);
   } catch(e){ return 0; }
@@ -431,11 +431,11 @@ export function estimateNameFee(wallet, keyData, changeAddrInfo, feeRate){
     const signers = [nameAddrInfo];
     let tx;
     if (keyData._editVal!==undefined){
-      tx = kv_tx_build_edit(network, inputs, signers,
+      tx = kv_tx_edit_build(network, inputs, signers,
         {key: keyData.key, val: keyData._editVal},
         dummyAddr, nameValue, 0, dummyAddr, 0, true);
     } else {
-      tx = kv_tx_build_send(network, inputs, signers, dummyAddr, nameValue,
+      tx = kv_tx_send_build(network, inputs, signers, dummyAddr, nameValue,
         0, dummyAddr, 0, true);
     }
     return calcFee(feeRate, tx);
@@ -466,7 +466,7 @@ export async function kv_tx_add(conf, addrs, utxos, key, val, changeAddrInfo,
   }
   if (total<fee)
     throw new Error('Insufficient balance to cover fee');
-  const tx = kv_tx_build_new(network, selected, {key, val},
+  const tx = kv_tx_new_build(network, selected, {key, val},
     changeAddrInfo.address, total, fee);
   const exactFee = calcFee(feeRate, tx);
   const txid = await tx_broadcast(conf, tx.toHex());
@@ -520,11 +520,11 @@ export async function kv_tx_edit(conf, addrs, keyData, changeAddrInfo, fee,
       throw new Error('Insufficient balance to cover fees');
   }
   let kv = {key: keyData.key, val: keyData._editVal};
-  let tx = kv_tx_build_edit(network, inputs, signers, kv,
+  let tx = kv_tx_edit_build(network, inputs, signers, kv,
     dest, nameValue, extraTotal, changeAddrInfo.address, fee);
   const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee){
-    tx = kv_tx_build_edit(network, inputs, signers, kv, dest,
+    tx = kv_tx_edit_build(network, inputs, signers, kv, dest,
       nameValue, extraTotal, changeAddrInfo.address, exactFee);
   }
   const txid = await tx_broadcast(conf, tx.toHex());
@@ -565,11 +565,11 @@ export async function kv_tx_send(conf, addrs, keyData, toAddress,
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  let tx = kv_tx_build_send(network, inputs, signers, toAddress, nameValue,
+  let tx = kv_tx_send_build(network, inputs, signers, toAddress, nameValue,
     extraTotal, changeAddrInfo.address, fee);
   const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee){
-    tx = kv_tx_build_send(network, inputs, signers, toAddress, nameValue,
+    tx = kv_tx_send_build(network, inputs, signers, toAddress, nameValue,
       extraTotal, changeAddrInfo.address, exactFee);
   }
   const txid = await tx_broadcast(conf, tx.toHex());
@@ -600,13 +600,13 @@ export async function tx_send(conf, addrs, utxos, toAddress, amountValue,
   }
   if (total<amountValue+fee)
     throw new Error('Insufficient balance');
-  let tx = tx_build_send(network, selected, toAddress, amountValue,
+  let tx = tx_send_build(network, selected, toAddress, amountValue,
     changeAddrInfo.address, total, fee);
   const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee){
     if (total<amountValue+exactFee)
       throw new Error('Insufficient balance');
-    tx = tx_build_send(network, selected, toAddress, amountValue,
+    tx = tx_send_build(network, selected, toAddress, amountValue,
       changeAddrInfo.address, total, exactFee);
   }
   const txid = await tx_broadcast(conf, tx.toHex());
@@ -645,7 +645,7 @@ export function findAddrInWallet(root, accountPath, network, targetAddr){
 }
 
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
-export function tx_build_send(network, inputs, toAddr, amt, changeAddr, total,
+export function tx_send_build(network, inputs, toAddr, amt, changeAddr, total,
   txFee, forEst=false)
 {
   const p = bitcoin_psbt(network);
@@ -670,7 +670,7 @@ function bitcoin_psbt(network){
   return p;
 }
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
-export function kv_tx_build_new(network, inputs, {key, val}, changeAddr, total,
+export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
   txFee, forEst=false)
 {
   const p = bitcoin_psbt(network);
@@ -688,7 +688,7 @@ export function kv_tx_build_new(network, inputs, {key, val}, changeAddr, total,
 }
 
 // inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
-export function kv_tx_build_send(network, inputs, signers, toAddr, nameValue,
+export function kv_tx_send_build(network, inputs, signers, toAddr, nameValue,
   extraTotal, changeAddr, txFee, forEst=false)
 {
   const p = bitcoin_psbt(network);
@@ -710,7 +710,7 @@ export function kv_tx_build_send(network, inputs, signers, toAddr, nameValue,
 }
 
 // inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
-export function kv_tx_build_edit(network, inputs, signers, {key, val}, dest,
+export function kv_tx_edit_build(network, inputs, signers, {key, val}, dest,
   nameValue, extraTotal, changeAddr, txFee, forEst=false)
 {
   const p = bitcoin_psbt(network);
