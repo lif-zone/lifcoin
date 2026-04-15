@@ -67,7 +67,7 @@ function getClient(conf){
   if (!clients[url])
     clients[url] = (async()=>{
       const cl = Electrum_connect(url);
-      await cl.connect('lif-coin-wallet','1.4');
+      await cl.connect('lif-coin-wallet', '1.4');
       return cl;
     })().catch(e=>{ delete clients[url]; throw e; });
   return clients[url];
@@ -143,7 +143,7 @@ export function getScriptHash(addr, network){
   return Buffer.from(hash.reverse()).toString('hex');
 }
 
-const WALLET_STORED_FIELDS = ['id','name','network','mnemonic','passphrase','derivPath'];
+const WALLET_STORED_FIELDS = ['id', 'name', 'network', 'mnemonic', 'passphrase', 'derivPath'];
 
 const walletStore = {}; // id → single wallet object instance (mutated in place)
 
@@ -156,7 +156,7 @@ export function loadWallets(networks){
         walletStore[w.id].conf = conf;
         return walletStore[w.id];
       }
-      const wallet = {...w,conf};
+      const wallet = {...w, conf};
       walletStore[w.id] = wallet;
       return wallet;
     });
@@ -212,16 +212,16 @@ async function loadWalletCache(wallet){
     return;
   try {
     const {conf} = wallet;
-    const root = getRoot(wallet.mnemonic,conf.network,wallet.passphrase||'');
+    const root = getRoot(wallet.mnemonic, conf.network, wallet.passphrase||'');
     const ap = wallet.derivPath||defaultDerivPath(conf);
-    const addrs = (cached.addrs||[]).map(a=>({...a,...deriveAddrAt(root,ap,conf.network,a.chain,a.index)}));
+    const addrs = (cached.addrs||[]).map(a=>({...a, ...deriveAddrAt(root, ap, conf.network, a.chain, a.index)}));
     const changeAddrInfo = cached.changeAddrInfo
-      ?{...cached.changeAddrInfo,...deriveAddrAt(root,ap,conf.network,cached.changeAddrInfo.chain,cached.changeAddrInfo.index)}
+      ?{...cached.changeAddrInfo, ...deriveAddrAt(root, ap, conf.network, cached.changeAddrInfo.chain, cached.changeAddrInfo.index)}
       :null;
     const utxos = (cached.utxos||[]).map(u=>({
-      ...u,addrInfo:addrs.find(a=>a.address==u.address)||deriveAddrAt(root,ap,conf.network,u.chain,u.index)
+      ...u, addrInfo:addrs.find(a=>a.address==u.address)||deriveAddrAt(root, ap, conf.network, u.chain, u.index)
     }));
-    Object.assign(wallet,{...cached,addrs,changeAddrInfo,utxos});
+    Object.assign(wallet, {...cached, addrs, changeAddrInfo, utxos});
   } catch(e){}
 }
 
@@ -230,11 +230,11 @@ function serializeWallet(wallet){
     balance: wallet.balance,
     receiveAddress: wallet.receiveAddress,
     feeRate: wallet.feeRate,
-    addrs: (wallet.addrs||[]).map(({address,chain,index,hist})=>({address,chain,index,hist})),
+    addrs: (wallet.addrs||[]).map(({address, chain, index, hist})=>({address, chain, index, hist})),
     changeAddrInfo: wallet.changeAddrInfo
-      ?{address:wallet.changeAddrInfo.address,chain:wallet.changeAddrInfo.chain,index:wallet.changeAddrInfo.index}
+      ?{address:wallet.changeAddrInfo.address, chain:wallet.changeAddrInfo.chain, index:wallet.changeAddrInfo.index}
       :null,
-    utxos: (wallet.utxos||[]).map(({tx_hash,tx_pos,value,address,chain,index})=>({tx_hash,tx_pos,value,address,chain,index})),
+    utxos: (wallet.utxos||[]).map(({tx_hash, tx_pos, value, address, chain, index})=>({tx_hash, tx_pos, value, address, chain, index})),
     transactions: wallet.transactions||[],
     ownedKeys: wallet.ownedKeys||[],
   };
@@ -252,66 +252,66 @@ export async function fetchWalletData(wallet){
   const conf = wallet.conf;
   const network = conf.network;
   const cl = await getClient(conf);
-  const root = getRoot(wallet.mnemonic,network,wallet.passphrase||'');
+  const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
   const ap = wallet.derivPath||defaultDerivPath(conf);
-  const [extRes,chgRes] = await Promise.all([
-    scanAddresses(conf,root,ap,0),
-    scanAddresses(conf,root,ap,1),
+  const [extRes, chgRes] = await Promise.all([
+    scanAddresses(conf, root, ap, 0),
+    scanAddresses(conf, root, ap, 1),
   ]);
-  const addrs = [...extRes.used,...chgRes.used];
-  const receiveAddress = deriveAddrAt(root,ap,network,0,extRes.nextIndex).address;
-  const changeAddrInfo = deriveAddrAt(root,ap,network,1,chgRes.nextIndex);
+  const addrs = [...extRes.used, ...chgRes.used];
+  const receiveAddress = deriveAddrAt(root, ap, network, 0, extRes.nextIndex).address;
+  const changeAddrInfo = deriveAddrAt(root, ap, network, 1, chgRes.nextIndex);
   const walletAddrSet = new Set(addrs.map(a=>a.address));
-  const [utxoLists,bals] = await Promise.all([
+  const [utxoLists, bals] = await Promise.all([
     Promise.all(addrs.map(async(a)=>{
-      const sh = getScriptHash(a.address,network);
-      return (await cl.blockchain_scripthash_listunspent(sh)).map(u=>({...u,address:a.address,chain:a.chain,index:a.index}));
+      const sh = getScriptHash(a.address, network);
+      return (await cl.blockchain_scripthash_listunspent(sh)).map(u=>({...u, address:a.address, chain:a.chain, index:a.index}));
     })),
-    Promise.all(addrs.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address,network)))),
+    Promise.all(addrs.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address, network)))),
   ]);
-  const utxos = utxoLists.flat().map(u=>({...u,addrInfo:addrs.find(a=>a.address==u.address)}));
-  const balance = bals.reduce((s,b)=>s+b.confirmed+b.unconfirmed,0);
+  const utxos = utxoLists.flat().map(u=>({...u, addrInfo:addrs.find(a=>a.address==u.address)}));
+  const balance = bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0);
   const feeRate = await estimateFee(conf);
   // Transactions
   const txByHash = new Map();
   for (const a of addrs)
     for (const tx of (a.hist||[]))
-      txByHash.set(tx.tx_hash,tx);
-  const hist = [...txByHash.values()].sort((a,b)=>(b.height||1e9)-(a.height||1e9));
+      txByHash.set(tx.tx_hash, tx);
+  const hist = [...txByHash.values()].sort((a, b)=>(b.height||1e9)-(a.height||1e9));
   let transactions = [], ownedKeys=[];
   if (hist.length){
     const heights = [...new Set(hist.filter(t=>t.height>0).map(t=>t.height))];
-    const [verboseTxs,...headers] = await Promise.all([
-      Promise.all(hist.map(t=>cl.blockchain_transaction_get(t.tx_hash,true))),
+    const [verboseTxs, ...headers] = await Promise.all([
+      Promise.all(hist.map(t=>cl.blockchain_transaction_get(t.tx_hash, true))),
       ...heights.map(h=>cl.blockchain_block_header(h)),
     ]);
     const tsMap = {};
-    heights.forEach((h,i)=>{
-      tsMap[h] = Buffer.from(headers[i],'hex').readUInt32LE(68);
+    heights.forEach((h, i)=>{
+      tsMap[h] = Buffer.from(headers[i], 'hex').readUInt32LE(68);
     });
     const histTxIds = new Set(hist.map(t=>t.tx_hash));
     const prevIds = [...new Set(verboseTxs.flatMap(vtx=>(vtx.vin||[]).map(vin=>vin.txid).filter(id=>id&&!histTxIds.has(id))))];
-    const prevList = await Promise.all(prevIds.map(id=>cl.blockchain_transaction_get(id,true)));
+    const prevList = await Promise.all(prevIds.map(id=>cl.blockchain_transaction_get(id, true)));
     const prevMap = {};
-    prevIds.forEach((id,i)=>{ prevMap[id]=prevList[i]; });
+    prevIds.forEach((id, i)=>{ prevMap[id]=prevList[i]; });
     verboseTxs.forEach(vtx=>{ prevMap[vtx.txid]=vtx; });
-    const voutToOurAmt=(vouts)=>(vouts||[]).reduce((sum,vout)=>{
+    const voutToOurAmt=(vouts)=>(vouts||[]).reduce((sum, vout)=>{
       const as = vout.scriptPubKey?.addresses||(vout.scriptPubKey?.address?[vout.scriptPubKey.address]:[]);
       return as.some(a=>walletAddrSet.has(a))?sum+Math.round(vout.value*1e8):sum;
-    },0);
-    transactions = hist.map((tx,i)=>{
+    }, 0);
+    transactions = hist.map((tx, i)=>{
       const vtx = verboseTxs[i];
       const enrichedVin = (vtx.vin||[]).map(vin=>{
         if (!vin.txid) return vin;
-        return {...vin,_prevVout:prevMap[vin.txid]?.vout?.[vin.vout]};
+        return {...vin, _prevVout:prevMap[vin.txid]?.vout?.[vin.vout]};
       });
       const received = voutToOurAmt(vtx.vout);
-      const spent = enrichedVin.reduce((sum,vin)=>{
+      const spent = enrichedVin.reduce((sum, vin)=>{
         if (!vin._prevVout) return sum;
         const as = vin._prevVout.scriptPubKey?.addresses||(vin._prevVout.scriptPubKey?.address?[vin._prevVout.scriptPubKey.address]:[]);
         return as.some(a=>walletAddrSet.has(a))?sum+Math.round(vin._prevVout.value*1e8):sum;
-      },0);
-      return {...tx,timestamp:tx.height>0?tsMap[tx.height]:null,amount:received-spent,_vtx:{...vtx,vin:enrichedVin}};
+      }, 0);
+      return {...tx, timestamp:tx.height>0?tsMap[tx.height]:null, amount:received-spent, _vtx:{...vtx, vin:enrichedVin}};
     });
     const keyMap = new Map();
     for (const etx of transactions){
@@ -329,15 +329,15 @@ export async function fetchWalletData(wallet){
           const existing = keyMap.get(kv.key);
           if (!existing||priority>=existing._priority){
             const _kstatus = vout.spent?'spent':isUnconfirmed?'receiving':'confirmed';
-            keyMap.set(kv.key,{key:kv.key,val:kv.val,tx:etx.tx_hash,vout:i,_kstatus,_priority:priority});
+            keyMap.set(kv.key, {key:kv.key, val:kv.val, tx:etx.tx_hash, vout:i, _kstatus, _priority:priority});
           }
         }
       }
     }
     ownedKeys = [...keyMap.values()];
   }
-  Object.assign(wallet,{balance,receiveAddress,feeRate,addrs,changeAddrInfo,utxos,transactions,ownedKeys});
-  await dbPut('walletData:'+wallet.id,serializeWallet(wallet));
+  Object.assign(wallet, {balance, receiveAddress, feeRate, addrs, changeAddrInfo, utxos, transactions, ownedKeys});
+  await dbPut('walletData:'+wallet.id, serializeWallet(wallet));
   return wallet;
 }
 
@@ -358,13 +358,13 @@ export function estimateInscribeFee(conf, utxos, key, val, changeAddrInfo, feeRa
     const u = utxos[0];
     const dummyAddr = changeAddrInfo?.address||u.addrInfo.address;
     const script = bitcoin.script.compile([
-      bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),
+      bitcoin.opcodes.OP_RETURN, Buffer.from('lif'),
       Buffer.from('key'),
       Buffer.from(key),
       Buffer.from('val'),
       Buffer.from(val)]);
-    const tx = buildInscribeTx(conf.network,[u],script,dummyAddr,0,0,true);
-    return calcFee(feeRate,tx);
+    const tx = buildInscribeTx(conf.network, [u], script, dummyAddr, 0, 0, true);
+    return calcFee(feeRate, tx);
   } catch(e){ return 0; }
 }
 
@@ -372,39 +372,39 @@ export function estimateNameFee(wallet, keyData, changeAddrInfo, feeRate){
   try {
     const conf = wallet.conf;
     const network = conf.network;
-    const root = getRoot(wallet.mnemonic,network,wallet.passphrase||'');
+    const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
     const ap = wallet.derivPath||defaultDerivPath(conf);
     const nameVout = keyData._tx._vtx.vout[keyData.vout];
     const nameValue = Math.round(nameVout.value*1e8);
     const nameAddr = nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
-    const nameAddrInfo = findAddrInWallet(root,ap,network,nameAddr);
+    const nameAddrInfo = findAddrInWallet(root, ap, network, nameAddr);
     if (!nameAddrInfo) return 0;
-    const dummyAddr = changeAddrInfo?.address||deriveAddrAt(root,ap,network,1,0).address;
-    const inputs = [{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}];
+    const dummyAddr = changeAddrInfo?.address||deriveAddrAt(root, ap, network, 1, 0).address;
+    const inputs = [{txid:keyData.tx, vout:keyData.vout, value:nameValue, addr:nameAddr}];
     const signers = [nameAddrInfo];
     let tx;
     if (keyData._editVal!==undefined){
-      const script = bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(keyData.key),Buffer.from('val'),Buffer.from(keyData._editVal)]);
-      tx = buildEditTx(network,inputs,signers,script,dummyAddr,nameValue,0,dummyAddr,0,true);
+      const script = bitcoin.script.compile([bitcoin.opcodes.OP_RETURN, Buffer.from('lif'), Buffer.from('key'), Buffer.from(keyData.key), Buffer.from('val'), Buffer.from(keyData._editVal)]);
+      tx = buildEditTx(network, inputs, signers, script, dummyAddr, nameValue, 0, dummyAddr, 0, true);
     } else {
-      tx = buildTransferTx(network,inputs,signers,dummyAddr,nameValue,0,dummyAddr,0,true);
+      tx = buildTransferTx(network, inputs, signers, dummyAddr, nameValue, 0, dummyAddr, 0, true);
     }
-    return calcFee(feeRate,tx);
+    return calcFee(feeRate, tx);
   } catch(e){ return 0; }
 }
 
 export async function addKvTx(conf, addrs, utxos, key, val, changeAddrInfo, fee, feeRate){
   const network = conf.network;
-  const inscriptionScript = bitcoin.script.compile([bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),Buffer.from('key'),Buffer.from(key),Buffer.from('val'),Buffer.from(val)]);
+  const inscriptionScript = bitcoin.script.compile([bitcoin.opcodes.OP_RETURN, Buffer.from('lif'), Buffer.from('key'), Buffer.from(key), Buffer.from('val'), Buffer.from(val)]);
   const allUTXOs = utxos.length ? utxos : await (async()=>{
     const lists = await Promise.all(addrs.map(async(addrInfo)=>{
-      return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo}));
+      return (await listUnspentForAddr(conf, addrInfo.address)).map(u=>({...u, addrInfo}));
     }));
     return lists.flat();
   })();
   if (!allUTXOs.length)
     throw new Error('No funds available');
-  allUTXOs.sort((a,b)=>b.value-a.value);
+  allUTXOs.sort((a, b)=>b.value-a.value);
   const selected = [];
   let total = 0;
   for (const u of allUTXOs){
@@ -415,10 +415,10 @@ export async function addKvTx(conf, addrs, utxos, key, val, changeAddrInfo, fee,
   }
   if (total<fee)
     throw new Error('Insufficient balance to cover fee');
-  const tx = buildInscribeTx(network,selected,inscriptionScript,changeAddrInfo.address,total,fee);
-  const exactFee = calcFee(feeRate,tx);
-  const txid = await broadcastTx(conf,tx.toHex());
-  return {txid,exactFee};
+  const tx = buildInscribeTx(network, selected, inscriptionScript, changeAddrInfo.address, total, fee);
+  const exactFee = calcFee(feeRate, tx);
+  const txid = await broadcastTx(conf, tx.toHex());
+  return {txid, exactFee};
 }
 
 export async function saveKvTx(conf, addrs, keyData, changeAddrInfo, fee, feeRate){
@@ -431,23 +431,23 @@ export async function saveKvTx(conf, addrs, keyData, changeAddrInfo, fee, feeRat
     throw new Error('Name UTXO address not found in wallet');
   const dest = changeAddrInfo.address;
   const inscriptionScript = bitcoin.script.compile([
-    bitcoin.opcodes.OP_RETURN,Buffer.from('lif'),
+    bitcoin.opcodes.OP_RETURN, Buffer.from('lif'),
     Buffer.from('key'),
     Buffer.from(keyData.key),
     Buffer.from('val'),
     Buffer.from(keyData._editVal)]);
   const signers = [nameAddrInfo];
-  const inputs = [{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}];
+  const inputs = [{txid:keyData.tx, vout:keyData.vout, value:nameValue, addr:nameAddr}];
   let extraTotal = 0;
   if (nameValue<fee){
     const lists = await Promise.all(addrs.map(async(addrInfo)=>{
-      return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo}));
+      return (await listUnspentForAddr(conf, addrInfo.address)).map(u=>({...u, addrInfo}));
     }));
     const allUTXOs = lists.flat().filter(u=>!(u.tx_hash==keyData.tx&&u.tx_pos==keyData.vout));
-    allUTXOs.sort((a,b)=>b.value-a.value);
+    allUTXOs.sort((a, b)=>b.value-a.value);
     for (const u of allUTXOs){
       signers.push(u.addrInfo);
-      inputs.push({txid:u.tx_hash,vout:u.tx_pos,value:u.value,addr:u.addrInfo.address});
+      inputs.push({txid:u.tx_hash, vout:u.tx_pos, value:u.value, addr:u.addrInfo.address});
       extraTotal += u.value;
       if (extraTotal>=fee)
         break;
@@ -455,12 +455,12 @@ export async function saveKvTx(conf, addrs, keyData, changeAddrInfo, fee, feeRat
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  let tx = buildEditTx(network,inputs,signers,inscriptionScript,dest,nameValue,extraTotal,changeAddrInfo.address,fee);
-  const exactFee = calcFee(feeRate,tx);
+  let tx = buildEditTx(network, inputs, signers, inscriptionScript, dest, nameValue, extraTotal, changeAddrInfo.address, fee);
+  const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee)
-    tx = buildEditTx(network,inputs,signers,inscriptionScript,dest,nameValue,extraTotal,changeAddrInfo.address,exactFee);
-  const txid = await broadcastTx(conf,tx.toHex());
-  return {txid,exactFee};
+    tx = buildEditTx(network, inputs, signers, inscriptionScript, dest, nameValue, extraTotal, changeAddrInfo.address, exactFee);
+  const txid = await broadcastTx(conf, tx.toHex());
+  return {txid, exactFee};
 }
 
 export async function transferTx(conf, addrs, keyData, toAddress, changeAddrInfo, fee, feeRate){
@@ -472,17 +472,17 @@ export async function transferTx(conf, addrs, keyData, toAddress, changeAddrInfo
   if (!nameAddrInfo)
     throw new Error('Name UTXO address not found in wallet');
   const signers = [nameAddrInfo];
-  const inputs = [{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}];
+  const inputs = [{txid:keyData.tx, vout:keyData.vout, value:nameValue, addr:nameAddr}];
   let extraTotal = 0;
   if (nameValue<fee){
     const lists = await Promise.all(addrs.map(async(addrInfo)=>{
-      return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo}));
+      return (await listUnspentForAddr(conf, addrInfo.address)).map(u=>({...u, addrInfo}));
     }));
     const allUTXOs = lists.flat().filter(u=>!(u.tx_hash==keyData.tx&&u.tx_pos==keyData.vout));
-    allUTXOs.sort((a,b)=>b.value-a.value);
+    allUTXOs.sort((a, b)=>b.value-a.value);
     for (const u of allUTXOs){
       signers.push(u.addrInfo);
-      inputs.push({txid:u.tx_hash,vout:u.tx_pos,value:u.value,addr:u.addrInfo.address});
+      inputs.push({txid:u.tx_hash, vout:u.tx_pos, value:u.value, addr:u.addrInfo.address});
       extraTotal += u.value;
       if (extraTotal>=fee)
         break;
@@ -490,25 +490,25 @@ export async function transferTx(conf, addrs, keyData, toAddress, changeAddrInfo
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  let tx = buildTransferTx(network,inputs,signers,toAddress,nameValue,extraTotal,changeAddrInfo.address,fee);
-  const exactFee = calcFee(feeRate,tx);
+  let tx = buildTransferTx(network, inputs, signers, toAddress, nameValue, extraTotal, changeAddrInfo.address, fee);
+  const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee)
-    tx = buildTransferTx(network,inputs,signers,toAddress,nameValue,extraTotal,changeAddrInfo.address,exactFee);
-  const txid = await broadcastTx(conf,tx.toHex());
-  return {txid,exactFee};
+    tx = buildTransferTx(network, inputs, signers, toAddress, nameValue, extraTotal, changeAddrInfo.address, exactFee);
+  const txid = await broadcastTx(conf, tx.toHex());
+  return {txid, exactFee};
 }
 
 export async function sendTx(conf, addrs, utxos, toAddress, amountValue, changeAddrInfo, fee, feeRate){
   const network = conf.network;
   const allUTXOs = utxos.length ? utxos : await (async()=>{
     const lists = await Promise.all(addrs.map(async(addrInfo)=>{
-      return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo}));
+      return (await listUnspentForAddr(conf, addrInfo.address)).map(u=>({...u, addrInfo}));
     }));
     return lists.flat();
   })();
   if (!allUTXOs.length)
     throw new Error('No funds available');
-  allUTXOs.sort((a,b)=>b.value-a.value);
+  allUTXOs.sort((a, b)=>b.value-a.value);
   const selected = [];
   let total = 0;
   for (const u of allUTXOs){
@@ -519,14 +519,14 @@ export async function sendTx(conf, addrs, utxos, toAddress, amountValue, changeA
   }
   if (total<amountValue+fee)
     throw new Error('Insufficient balance');
-  let tx = buildSendTx(network,selected,toAddress,amountValue,changeAddrInfo.address,total,fee);
-  const exactFee = calcFee(feeRate,tx);
+  let tx = buildSendTx(network, selected, toAddress, amountValue, changeAddrInfo.address, total, fee);
+  const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee){
     if (total<amountValue+exactFee)
       throw new Error('Insufficient balance');
-    tx = buildSendTx(network,selected,toAddress,amountValue,changeAddrInfo.address,total,exactFee);
+    tx = buildSendTx(network, selected, toAddress, amountValue, changeAddrInfo.address, total, exactFee);
   }
-  const txid = await broadcastTx(conf,tx.toHex());
+  const txid = await broadcastTx(conf, tx.toHex());
   return {txid, exactFee};
 }
 
@@ -552,7 +552,7 @@ export function calcFee(rateSatPerKb, tx){
 export function findAddrInWallet(root, accountPath, network, targetAddr){
   for (let ch=0; ch<2; ch++){
     for (let idx=0; idx<30; idx++){
-      const info = deriveAddrAt(root,accountPath,network,ch,idx);
+      const info = deriveAddrAt(root, accountPath, network, ch, idx);
       if (info.address==targetAddr)
         return info;
     }
@@ -560,28 +560,28 @@ export function findAddrInWallet(root, accountPath, network, targetAddr){
   return null;
 }
 
-// inputs: [{tx_hash, tx_pos, value, addrInfo:{address,keyPair}}]
+// inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
 export function buildSendTx(network, inputs, toAddr, amt, changeAddr, total, txFee, forEst=false){
   const p = new bitcoin.Psbt({network});
-  for (const u of inputs) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
-  p.addOutput({address:toAddr,value:BigInt(amt)});
+  for (const u of inputs) p.addInput({hash:u.tx_hash, index:u.tx_pos, witnessUtxo:{value:BigInt(u.value), script:bitcoin.address.toOutputScript(u.addrInfo.address, network)}});
+  p.addOutput({address:toAddr, value:BigInt(amt)});
   const ch = total-amt-txFee;
   if (ch>546)
-    p.addOutput({address:changeAddr,value:BigInt(ch)});
+    p.addOutput({address:changeAddr, value:BigInt(ch)});
   for(let i=0;i<inputs.length;i++)
-    p.signInput(i,inputs[i].addrInfo.keyPair);
+    p.signInput(i, inputs[i].addrInfo.keyPair);
   p.finalizeAllInputs();
   return p.extractTransaction(forEst);
 }
 
-// inputs: [{tx_hash, tx_pos, value, addrInfo:{address,keyPair}}]
+// inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
 export function buildInscribeTx(network, inputs, script, changeAddr, total, txFee, forEst=false){
   const p = new bitcoin.Psbt({network});
-  for (const u of inputs) p.addInput({hash:u.tx_hash,index:u.tx_pos,witnessUtxo:{value:BigInt(u.value),script:bitcoin.address.toOutputScript(u.addrInfo.address,network)}});
-  p.addOutput({script,value:0n});
-  p.addOutput({address:changeAddr,value:BigInt(total-txFee)});
+  for (const u of inputs) p.addInput({hash:u.tx_hash, index:u.tx_pos, witnessUtxo:{value:BigInt(u.value), script:bitcoin.address.toOutputScript(u.addrInfo.address, network)}});
+  p.addOutput({script, value:0n});
+  p.addOutput({address:changeAddr, value:BigInt(total-txFee)});
   for(let i=0;i<inputs.length;i++)
-    p.signInput(i,inputs[i].addrInfo.keyPair);
+    p.signInput(i, inputs[i].addrInfo.keyPair);
   p.finalizeAllInputs();
   return p.extractTransaction(forEst);
 }
@@ -589,16 +589,16 @@ export function buildInscribeTx(network, inputs, script, changeAddr, total, txFe
 // inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
 export function buildTransferTx(network, inputs, signers, toAddr, nameValue, extraTotal, changeAddr, txFee, forEst=false){
   const p = new bitcoin.Psbt({network});
-  for (const inp of inputs) p.addInput({hash:inp.txid,index:inp.vout,witnessUtxo:{value:BigInt(inp.value),script:bitcoin.address.toOutputScript(inp.addr,network)}});
+  for (const inp of inputs) p.addInput({hash:inp.txid, index:inp.vout, witnessUtxo:{value:BigInt(inp.value), script:bitcoin.address.toOutputScript(inp.addr, network)}});
   if (nameValue<txFee){
-    p.addOutput({address:toAddr,value:BigInt(nameValue)});
+    p.addOutput({address:toAddr, value:BigInt(nameValue)});
     const ch = extraTotal-txFee;
     if (ch>546)
-      p.addOutput({address:changeAddr,value:BigInt(ch)});
+      p.addOutput({address:changeAddr, value:BigInt(ch)});
   } else
-    p.addOutput({address:toAddr,value:BigInt(nameValue-txFee)});
+    p.addOutput({address:toAddr, value:BigInt(nameValue-txFee)});
   for(let i=0;i<signers.length;i++)
-    p.signInput(i,signers[i].keyPair);
+    p.signInput(i, signers[i].keyPair);
   p.finalizeAllInputs();
   return p.extractTransaction(forEst);
 }
@@ -606,17 +606,17 @@ export function buildTransferTx(network, inputs, signers, toAddr, nameValue, ext
 // inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
 export function buildEditTx(network, inputs, signers, script, dest, nameValue, extraTotal, changeAddr, txFee, forEst=false){
   const p = new bitcoin.Psbt({network});
-  for (const inp of inputs) p.addInput({hash:inp.txid,index:inp.vout,witnessUtxo:{value:BigInt(inp.value),script:bitcoin.address.toOutputScript(inp.addr,network)}});
-  p.addOutput({script,value:0n});
+  for (const inp of inputs) p.addInput({hash:inp.txid, index:inp.vout, witnessUtxo:{value:BigInt(inp.value), script:bitcoin.address.toOutputScript(inp.addr, network)}});
+  p.addOutput({script, value:0n});
   if (nameValue<txFee){
-    p.addOutput({address:dest,value:BigInt(nameValue)});
+    p.addOutput({address:dest, value:BigInt(nameValue)});
     const ch = extraTotal-txFee;
     if (ch>546)
-      p.addOutput({address:changeAddr,value:BigInt(ch)});
+      p.addOutput({address:changeAddr, value:BigInt(ch)});
   } else
-    p.addOutput({address:dest,value:BigInt(nameValue-txFee)});
+    p.addOutput({address:dest, value:BigInt(nameValue-txFee)});
   for(let i=0;i<signers.length;i++)
-    p.signInput(i,signers[i].keyPair);
+    p.signInput(i, signers[i].keyPair);
   p.finalizeAllInputs();
   return p.extractTransaction(forEst);
 }
