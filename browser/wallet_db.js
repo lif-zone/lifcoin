@@ -344,7 +344,7 @@ export async function fetchWalletData(wallet){
     const keyMap = new Map();
     for (const etx of transactions){
       const vouts = etx._vtx?.vout||[];
-      for (let i=0;i<vouts.length;i++){
+      for (let i=0; i<vouts.length; i++){
         const vout = vouts[i];
         if (!vout.lif_kv)
           continue;
@@ -652,9 +652,8 @@ export function buildSendTx(network, inputs, toAddr, amt, changeAddr, total,
   }
   p.addOutput({address: toAddr, value: BigInt(amt)});
   const ch = total-amt-txFee;
-  if (ch>546)
-    p.addOutput({address: changeAddr, value: BigInt(ch)});
-  for(let i=0;i<inputs.length;i++)
+  p.addOutput({address: changeAddr, value: BigInt(ch)});
+  for(let i=0; i<inputs.length; i++)
     p.signInput(i, inputs[i].addrInfo.keyPair);
   p.finalizeAllInputs();
   return p.extractTransaction(forEst);
@@ -672,7 +671,7 @@ export function buildInscribeTx(network, inputs, script, changeAddr, total,
   }
   p.addOutput({script, value: 0n});
   p.addOutput({address: changeAddr, value: BigInt(total-txFee)});
-  for(let i=0;i<inputs.length;i++)
+  for(let i=0; i<inputs.length; i++)
     p.signInput(i, inputs[i].addrInfo.keyPair);
   p.finalizeAllInputs();
   return p.extractTransaction(forEst);
@@ -691,11 +690,10 @@ export function buildTransferTx(network, inputs, signers, toAddr, nameValue,
   if (nameValue<txFee){
     p.addOutput({address: toAddr, value: BigInt(nameValue)});
     const ch = extraTotal-txFee;
-    if (ch>546)
-      p.addOutput({address: changeAddr, value: BigInt(ch)});
+    p.addOutput({address: changeAddr, value: BigInt(ch)});
   } else
     p.addOutput({address: toAddr, value: BigInt(nameValue-txFee)});
-  for(let i=0;i<signers.length;i++)
+  for(let i=0; i<signers.length; i++)
     p.signInput(i, signers[i].keyPair);
   p.finalizeAllInputs();
   return p.extractTransaction(forEst);
@@ -715,11 +713,10 @@ export function buildEditTx(network, inputs, signers, script, dest,
   if (nameValue<txFee){
     p.addOutput({address:dest, value:BigInt(nameValue)});
     const ch = extraTotal-txFee;
-    if (ch>546)
-      p.addOutput({address:changeAddr, value:BigInt(ch)});
+    p.addOutput({address:changeAddr, value:BigInt(ch)});
   } else
     p.addOutput({address:dest, value:BigInt(nameValue-txFee)});
-  for(let i=0;i<signers.length;i++)
+  for(let i=0; i<signers.length; i++)
     p.signInput(i, signers[i].keyPair);
   p.finalizeAllInputs();
   return p.extractTransaction(forEst);
