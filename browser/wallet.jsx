@@ -7,7 +7,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   getRoot, getNetworks,
   deriveWallet, deriveAddrAt, defaultDerivPath,
   estimateFee, calcFee, buildSendTx,
-  getWalletData, fetchWalletData,
+  fetchWalletData,
   broadcastTx, checkKvName, sendTx, transferTx, saveKvTx, addKvTx, estimateNameFee, estimateInscribeFee,
 } from './wallet_db.js';
 
@@ -187,10 +187,9 @@ function HomeScreen({wallets, onSelect, onAddNew}){
 // Wallet Card (summary box on home screen)
 function WalletCard({wallet, onClick}){
   const conf = wallet.conf;
-  const _init = getWalletData(wallet.id);
-  const [balance, setBalance] = useState(_init?.balance ?? null);
-  const [txCount, setTxCount] = useState(_init?.transactions?.length ?? null);
-  const [keysOwned, setKeysOwned] = useState(_init?.ownedKeys?.length ?? 0);
+  const [balance, setBalance] = useState(wallet.balance ?? null);
+  const [txCount, setTxCount] = useState(wallet.transactions?.length ?? null);
+  const [keysOwned, setKeysOwned] = useState(wallet.ownedKeys?.length ?? 0);
   const [connErr, setConnErr] = useState(false);
   const derived = useMemo(()=>{
     try { getRoot(wallet.mnemonic, conf.network, wallet.passphrase||''); return true; }
@@ -376,18 +375,17 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
 function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx, onSelectKey}){
   const conf = wallet.conf;
   const network = conf.network;
-  const _init = getWalletData(wallet.id);
   const [connected, setConnected] = useState(false);
-  const [balance, setBalance] = useState(_init?.balance ?? null);
-  const [transactions, setTransactions] = useState(_init?.transactions ?? []);
-  const [ownedKeys, setOwnedKeys] = useState(_init?.ownedKeys ?? []);
+  const [balance, setBalance] = useState(wallet.balance ?? null);
+  const [transactions, setTransactions] = useState(wallet.transactions ?? []);
+  const [ownedKeys, setOwnedKeys] = useState(wallet.ownedKeys ?? []);
   const [subscreen, setSubscreen] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [connErr, setConnErr] = useState(false);
-  const [receiveAddress, setReceiveAddress] = useState(_init?.receiveAddress ?? null);
-  const [allAddrs, setAllAddrs] = useState(_init?.addrs ?? []);
-  const [changeAddrInfo, setChangeAddrInfo] = useState(_init?.changeAddrInfo ?? null);
-  const [allUTXOs, setAllUTXOs] = useState(_init?.utxos ?? []);
+  const [receiveAddress, setReceiveAddress] = useState(wallet.receiveAddress ?? null);
+  const [allAddrs, setAllAddrs] = useState(wallet.addrs ?? []);
+  const [changeAddrInfo, setChangeAddrInfo] = useState(wallet.changeAddrInfo ?? null);
+  const [allUTXOs, setAllUTXOs] = useState(wallet.utxos ?? []);
 
   const applyData = (data)=>{
     setBalance(data.balance);
@@ -717,11 +715,11 @@ function KeyDetailScreen({keyData, conf, onViewTx, onTransfer, onEdit}){
 function NameTransferScreen({wallet, keyData, onSent}){
   const conf = wallet.conf;
   const network = conf.network;
-  const _cached = getWalletData(wallet.id);
+
   const [toAddress, setToAddress] = useState('');
   const [sending, setSending] = useState(false);
-  const [addrs, setAddrs] = useState(_cached?.addrs ?? []);
-  const [changeAddrInfo, setChangeAddrInfo] = useState(_cached?.changeAddrInfo ?? null);
+  const [addrs, setAddrs] = useState(wallet.addrs ?? []);
+  const [changeAddrInfo, setChangeAddrInfo] = useState(wallet.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
   const [fee, setFee] = useState(()=>estimateNameFee(wallet,keyData,null,conf.fee_def||1000));
 
@@ -730,7 +728,7 @@ function NameTransferScreen({wallet, keyData, onSent}){
       try {
         const rate = await estimateFee(conf);
         setFeeRate(rate);
-        if (!_cached){
+        if (!wallet.addrs){
           const data = await fetchWalletData(wallet);
           setAddrs(data.addrs);
           setChangeAddrInfo(data.changeAddrInfo);
@@ -782,10 +780,10 @@ function NameTransferScreen({wallet, keyData, onSent}){
 function NameEditScreen({wallet, keyData, onSent}){
   const conf = wallet.conf;
   const network = conf.network;
-  const _cached = getWalletData(wallet.id);
+
   const [sending, setSending] = useState(false);
-  const [addrs, setAddrs] = useState(_cached?.addrs ?? []);
-  const [changeAddrInfo, setChangeAddrInfo] = useState(_cached?.changeAddrInfo ?? null);
+  const [addrs, setAddrs] = useState(wallet.addrs ?? []);
+  const [changeAddrInfo, setChangeAddrInfo] = useState(wallet.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
   const [fee, setFee] = useState(()=>estimateNameFee(wallet,keyData,null,conf.fee_def||1000));
 
@@ -794,7 +792,7 @@ function NameEditScreen({wallet, keyData, onSent}){
       try {
         const rate = await estimateFee(conf);
         setFeeRate(rate);
-        if (!_cached){
+        if (!wallet.addrs){
           const data = await fetchWalletData(wallet);
           setAddrs(data.addrs);
           setChangeAddrInfo(data.changeAddrInfo);

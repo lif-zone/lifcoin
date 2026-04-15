@@ -609,3 +609,8 @@ USER: wallet object should have conf inside it. I dont want a raw localStorage w
 
 CLAUDE: wallet_db.js: loadWallets(networks) now attaches conf to each wallet on load; saveWallets(wallets) strips to WALLET_STORED_FIELDS before writing — localStorage boundary is fully encapsulated. wallet.jsx: single wallets state initialized via loadWallets(getNetworks(loadServers())); useEffect([networks]) refreshes conf when servers change; addWallet attaches conf inline; enrichedWallets removed entirely.
 ---
+
+USER: what is "hydrated wallet"? all data for wallets should just be inside the wallet object. function that adds data into wallet should be idempotent (skip if already there).
+
+CLAUDE: Removed store.data and hydrateWalletData. Added walletStore (id→single wallet instance) and loadWalletCache(wallet) — reads IndexedDB, re-derives keyPairs, Object.assigns fields directly into wallet; idempotent (skips if wallet.addrs defined). loadWallets returns the same object instance per wallet (conf updated in-place if networks change). fetchWalletData Object.assigns fetched data into wallet and returns it. Renamed serializeWalletData→serializeWallet (takes wallet directly). Removed getWalletData export. wallet.jsx: all _init/getWalletData(wallet.id) and _cached/getWalletData(wallet.id) replaced with wallet.* directly.
+---

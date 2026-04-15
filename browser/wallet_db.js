@@ -145,10 +145,21 @@ export function getScriptHash(addr, network){
 
 const WALLET_STORED_FIELDS = ['id','name','network','mnemonic','passphrase','derivPath'];
 
+const walletStore = {}; // id → single wallet object instance (mutated in place)
+
 export function loadWallets(networks){
   try {
-    const raw = JSON.parse(localStorage.getItem('wallets')||'[]');
-    return raw.map(w=>({...w, conf: networks[w.network]||Object.values(networks)[0]}));
+    const raw=JSON.parse(localStorage.getItem('wallets')||'[]');
+    return raw.map(w=>{
+      const conf=networks[w.network]||Object.values(networks)[0];
+      if (walletStore[w.id]){
+        walletStore[w.id].conf=conf;
+        return walletStore[w.id];
+      }
+      const wallet={...w,conf};
+      walletStore[w.id]=wallet;
+      return wallet;
+    });
   } catch { return []; }
 }
 
@@ -177,12 +188,14 @@ export async function dbPut(id, data){
   try { await db.put('cache', data, id); } catch{}
 }
 
-// In-memory wallet data store
-const store = { data: {} };
-
-function hydrateWalletData(wallet, cached){
+// Populate wallet with cached data from IndexedDB (re-derives keyPairs from mnemonic).
+// Idempotent: does nothing if wallet already has data (wallet.addrs defined).
+async function loadWalletCache(wallet){
+  if (wallet.addrs) return;
+  const cached=await dbGet('walletData:'+wallet.id);
+  if (!cached) return;
   try {
-    const conf=wallet.conf;
+    const {conf}=wallet;
     const root=getRoot(wallet.mnemonic,conf.network,wallet.passphrase||'');
     const ap=wallet.derivPath||defaultDerivPath(conf);
     const addrs=(cached.addrs||[]).map(a=>({...a,...deriveAddrAt(root,ap,conf.network,a.chain,a.index)}));
@@ -192,22 +205,22 @@ function hydrateWalletData(wallet, cached){
     const utxos=(cached.utxos||[]).map(u=>({
       ...u,addrInfo:addrs.find(a=>a.address==u.address)||deriveAddrAt(root,ap,conf.network,u.chain,u.index)
     }));
-    return {...cached,addrs,changeAddrInfo,utxos};
-  } catch(e){ return null; }
+    Object.assign(wallet,{...cached,addrs,changeAddrInfo,utxos});
+  } catch(e){}
 }
 
-function serializeWalletData(data){
+function serializeWallet(wallet){
   return {
-    balance: data.balance,
-    receiveAddress: data.receiveAddress,
-    feeRate: data.feeRate,
-    addrs: (data.addrs||[]).map(({address,chain,index,hist})=>({address,chain,index,hist})),
-    changeAddrInfo: data.changeAddrInfo
-      ?{address:data.changeAddrInfo.address,chain:data.changeAddrInfo.chain,index:data.changeAddrInfo.index}
+    balance: wallet.balance,
+    receiveAddress: wallet.receiveAddress,
+    feeRate: wallet.feeRate,
+    addrs: (wallet.addrs||[]).map(({address,chain,index,hist})=>({address,chain,index,hist})),
+    changeAddrInfo: wallet.changeAddrInfo
+      ?{address:wallet.changeAddrInfo.address,chain:wallet.changeAddrInfo.chain,index:wallet.changeAddrInfo.index}
       :null,
-    utxos: (data.utxos||[]).map(({tx_hash,tx_pos,value,address,chain,index})=>({tx_hash,tx_pos,value,address,chain,index})),
-    transactions: data.transactions||[],
-    ownedKeys: data.ownedKeys||[],
+    utxos: (wallet.utxos||[]).map(({tx_hash,tx_pos,value,address,chain,index})=>({tx_hash,tx_pos,value,address,chain,index})),
+    transactions: wallet.transactions||[],
+    ownedKeys: wallet.ownedKeys||[],
   };
 }
 
@@ -215,15 +228,9 @@ function serializeWalletData(data){
 {
   const _networks=getNetworks(loadServers());
   for (const w of loadWallets(_networks)){
-    const cached=await dbGet('walletData:'+w.id);
-    if (cached){
-      const hydrated=hydrateWalletData(w,cached);
-      if (hydrated) store.data[w.id]=hydrated;
-    }
+    await loadWalletCache(w);
   }
 }
-
-export function getWalletData(id){ return store.data[id]||null; }
 
 export async function fetchWalletData(wallet){
   const conf=wallet.conf;
@@ -309,10 +316,9 @@ export async function fetchWalletData(wallet){
     }
     ownedKeys=[...keyMap.values()];
   }
-  const data={balance,receiveAddress,feeRate,addrs,changeAddrInfo,utxos,transactions,ownedKeys};
-  store.data[wallet.id]=data;
-  await dbPut('walletData:'+wallet.id,serializeWalletData(data));
-  return data;
+  Object.assign(wallet,{balance,receiveAddress,feeRate,addrs,changeAddrInfo,utxos,transactions,ownedKeys});
+  await dbPut('walletData:'+wallet.id,serializeWallet(wallet));
+  return wallet;
 }
 
 export async function estimateFee(conf){
