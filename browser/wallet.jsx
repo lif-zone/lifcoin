@@ -8,7 +8,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   deriveWallet, deriveAddrAt, defaultDerivPath,
   estimateFee, calcFee, tx_build_send,
   fetchWalletData,
-  kv_get, tx_send, transferTx, kv_tx_save, addKvTx,
+  kv_get, tx_send, kv_tx_trans, kv_tx_save, addKvTx,
   estimateNameFee, estimateInscribeFee,
 } from './wallet_db.js';
 
@@ -762,7 +762,7 @@ function NameTransferScreen({wallet, keyData, onSent}){
       return alert('Enter recipient address');
     setSending(true);
     try {
-      const {txid, exactFee} = await transferTx(conf, addrs, keyData,
+      const {txid, exactFee} = await kv_tx_trans(conf, addrs, keyData,
         toAddress.trim(), changeAddrInfo, fee, feeRate);
       setFee(exactFee);
       const explorerLink = conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';

@@ -531,7 +531,7 @@ export async function kv_tx_save(conf, addrs, keyData, changeAddrInfo, fee,
   return {txid, exactFee};
 }
 
-export async function transferTx(conf, addrs, keyData, toAddress,
+export async function kv_tx_trans(conf, addrs, keyData, toAddress,
   changeAddrInfo, fee, feeRate)
 {
   const network = conf.network;
