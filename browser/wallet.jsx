@@ -4,11 +4,12 @@ import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import {DEFAULT_NETWORKS, saveServers, loadServers,
   saveWallets, loadWallets,
-  getRoot, getNetworks, Electrum_connect,
-  getScriptHash, scanAddresses, deriveWallet, deriveAddrAt, defaultDerivPath,
+  getRoot, getNetworks,
+  deriveWallet, deriveAddrAt, defaultDerivPath,
   estimateFee, calcFee, findAddrInWallet, buildSendTx, buildInscribeTx,
   buildTransferTx, buildEditTx,
   getWalletData, fetchWalletData,
+  broadcastTx, listUnspentForAddr, checkKvName,
 } from './wallet_db.js';
 
 function json(o){
@@ -201,20 +202,15 @@ function WalletCard({wallet, networks, onClick}){
 
   useEffect(()=>{
     if (!derived) return;
-    let cl;
     (async()=>{
-      cl = Electrum_connect(conf.electrum);
       try {
-        await cl.connect('lif-coin-wallet', '1.4');
-        const data = await fetchWalletData(wallet, conf, cl);
+        const data = await fetchWalletData(wallet, conf);
         setBalance(data.balance);
         setTxCount(data.transactions.length);
         setKeysOwned(data.ownedKeys.length);
       } catch(e){
         console.error('WalletCard fetch error:', e);
         setConnErr(true);
-      } finally {
-        try { cl?.close(); } catch {}
       }
     })();
   }, [wallet.id, wallet.network, conf.electrum]);
@@ -384,7 +380,7 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const network = conf.network;
   const _init = getWalletData(wallet.id);
-  const [client, setClient] = useState(null);
+  const [connected, setConnected] = useState(false);
   const [balance, setBalance] = useState(_init?.balance ?? null);
   const [transactions, setTransactions] = useState(_init?.transactions ?? []);
   const [ownedKeys, setOwnedKeys] = useState(_init?.ownedKeys ?? []);
@@ -408,13 +404,11 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
 
   useEffect(()=>{
     try { getRoot(wallet.mnemonic, network, wallet.passphrase||''); } catch(e){ return; }
-    const cl = Electrum_connect(conf.electrum);
     (async()=>{
       try {
-        await cl.connect('lif-coin-wallet', '1.4');
-        setClient(cl);
         setLoading(true);
-        applyData(await fetchWalletData(wallet, conf, cl));
+        applyData(await fetchWalletData(wallet, conf));
+        setConnected(true);
       } catch(e){
         console.error('Connect error:', e);
         setConnErr(true);
@@ -422,7 +416,6 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
         setLoading(false);
       }
     })();
-    return ()=>cl.close();
   }, [wallet.id, wallet.network]);
 
   const symbol = conf.symbol||'BTC';
@@ -458,12 +451,12 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
         >Receive</button>
         <button
           onClick={()=>setSubscreen('send')}
-          disabled={!client || !allAddrs.length}
+          disabled={!allAddrs.length}
           style={{fontWeight: subscreen=='send' ? 'bold' : 'normal'}}
         >Send</button>
         <button
           onClick={()=>setSubscreen('inscribe')}
-          disabled={!client || !allAddrs.length}
+          disabled={!allAddrs.length}
           style={{fontWeight: subscreen=='inscribe' ? 'bold' : 'normal'}}
         >Inscribe</button>
         <button
@@ -518,16 +511,14 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
               })}
             </ul>
           )}
-          {client && (
-            <button style={{marginTop: 10}} onClick={async()=>{
-              setLoading(true);
-              try { applyData(await fetchWalletData(wallet, conf, client)); }
-              catch(e){ console.error('Refresh error:', e); }
-              finally { setLoading(false); }
-            }}>
-              Refresh
-            </button>
-          )}
+          <button style={{marginTop: 10}} onClick={async()=>{
+            setLoading(true);
+            try { applyData(await fetchWalletData(wallet, conf)); }
+            catch(e){ console.error('Refresh error:', e); }
+            finally { setLoading(false); }
+          }}>
+            Refresh
+          </button>
         </div>
       )}
       {subscreen=='receive' && receiveAddress && (
@@ -536,26 +527,24 @@ function WalletDetailScreen({wallet, networks, onDelete, onUpdate, onBack, onSel
           symbol={symbol}
         />
       )}
-      {subscreen=='send' && client && allAddrs.length>0 && (
+      {subscreen=='send' && allAddrs.length>0 && (
         <SendScreen
-          client={client}
           addrs={allAddrs}
           changeAddrInfo={changeAddrInfo}
           network={network}
           conf={conf}
           utxos={allUTXOs}
-          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet,conf,client)); } catch(e){} finally { setLoading(false); } }}
+          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet,conf)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
-      {subscreen=='inscribe' && client && allAddrs.length>0 && (
+      {subscreen=='inscribe' && allAddrs.length>0 && (
         <InscribeScreen
-          client={client}
           addrs={allAddrs}
           changeAddrInfo={changeAddrInfo}
           network={network}
           conf={conf}
           utxos={allUTXOs}
-          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet,conf,client)); } catch(e){} finally { setLoading(false); } }}
+          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet,conf)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
       {subscreen=='wallet-settings' && (
@@ -731,12 +720,11 @@ function KeyDetailScreen({keyData, conf, onViewTx, onTransfer, onEdit}){
 function NameTransferScreen({wallet, networks, keyData, onSent}){
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const network = conf.network;
+  const _cached = getWalletData(wallet.id);
   const [toAddress, setToAddress] = useState('');
   const [sending, setSending] = useState(false);
-  const [client, setClient] = useState(null);
-  const [addrs, setAddrs] = useState([]);
-  const [changeAddrInfo, setChangeAddrInfo] = useState(null);
-  const [connErr, setConnErr] = useState(false);
+  const [addrs, setAddrs] = useState(_cached?.addrs ?? []);
+  const [changeAddrInfo, setChangeAddrInfo] = useState(_cached?.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
   const [fee, setFee] = useState(()=>{
     try {
@@ -754,27 +742,17 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
   });
 
   useEffect(()=>{
-    const cl = Electrum_connect(conf.electrum);
     (async()=>{
       try {
-        await cl.connect('lif-coin-wallet', '1.4');
-        setClient(cl);
-        const rate = await estimateFee(cl, conf);
+        const rate = await estimateFee(conf);
         setFeeRate(rate);
-        const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
-        const accountPath = wallet.derivPath || defaultDerivPath(conf);
-        const [extRes, chgRes] = await Promise.all([
-          scanAddresses(cl, root, accountPath, network, 0),
-          scanAddresses(cl, root, accountPath, network, 1),
-        ]);
-        setAddrs([...extRes.used, ...chgRes.used]);
-        setChangeAddrInfo(deriveAddrAt(root, accountPath, network, 1, chgRes.nextIndex));
-      } catch(e){
-        console.error('NameTransfer connect error:', e);
-        setConnErr(true);
-      }
+        if (!_cached){
+          const data = await fetchWalletData(wallet, conf);
+          setAddrs(data.addrs);
+          setChangeAddrInfo(data.changeAddrInfo);
+        }
+      } catch(e){ console.error('NameTransfer init error:', e); }
     })();
-    return ()=>{ try { cl.close(); } catch {} };
   }, []);
   useEffect(()=>{
     try {
@@ -794,8 +772,6 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
   const handleTransfer = async()=>{
     if (!toAddress.trim())
       return alert('Enter recipient address');
-    if (!client)
-      return alert('Not connected');
     const nameVout = keyData._tx._vtx.vout[keyData.vout];
     const nameValue = Math.round(nameVout.value*1e8);
     const nameAddr = nameVout.scriptPubKey?.address || nameVout.scriptPubKey?.addresses?.[0];
@@ -810,9 +786,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
       try {
         const lists = await Promise.all(
           addrs.map(async(addrInfo)=>{
-            const sh = getScriptHash(addrInfo.address, network);
-            const utxos = await client.blockchain_scripthash_listunspent(sh);
-            return utxos.map(u=>({...u, addrInfo}));
+            return (await listUnspentForAddr(conf, addrInfo.address)).map(u=>({...u, addrInfo}));
           })
         );
         allUTXOs = lists.flat().filter(u=>!(u.tx_hash==keyData.tx && u.tx_pos==keyData.vout));
@@ -836,7 +810,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
     const txHex = tx.toHex();
     setSending(true);
     try {
-      const txid = await client.blockchain_transaction_broadcast(txHex);
+      const txid = await broadcastTx(conf, txHex);
       const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
       alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
@@ -853,7 +827,6 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         Transferring: <span style={{fontFamily: 'monospace'}}>{keyData.key}</span>
       </div>
-      {connErr && <p style={{color: '#c00'}}>Connection error</p>}
       <input
         placeholder="Recipient address"
         value={toAddress}
@@ -861,7 +834,7 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
         style={{display: 'block', width: '100%', marginTop: 12, boxSizing: 'border-box'}}
       />
       <FeeField value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handleTransfer} disabled={sending||!client} style={{marginTop: 8}}>
+      <button onClick={handleTransfer} disabled={sending} style={{marginTop: 8}}>
         {sending ? 'Transferring…' : 'Transfer'}
       </button>
     </div>
@@ -872,11 +845,10 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
 function NameEditScreen({wallet, networks, keyData, onSent}){
   const conf = networks[wallet.network] || Object.values(networks)[0];
   const network = conf.network;
+  const _cached = getWalletData(wallet.id);
   const [sending, setSending] = useState(false);
-  const [client, setClient] = useState(null);
-  const [addrs, setAddrs] = useState([]);
-  const [changeAddrInfo, setChangeAddrInfo] = useState(null);
-  const [connErr, setConnErr] = useState(false);
+  const [addrs, setAddrs] = useState(_cached?.addrs ?? []);
+  const [changeAddrInfo, setChangeAddrInfo] = useState(_cached?.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
   const [fee, setFee] = useState(()=>{
     try {
@@ -895,27 +867,17 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
   });
 
   useEffect(()=>{
-    const cl = Electrum_connect(conf.electrum);
     (async()=>{
       try {
-        await cl.connect('lif-coin-wallet', '1.4');
-        setClient(cl);
-        const rate = await estimateFee(cl, conf);
+        const rate = await estimateFee(conf);
         setFeeRate(rate);
-        const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
-        const accountPath = wallet.derivPath || defaultDerivPath(conf);
-        const [extRes, chgRes] = await Promise.all([
-          scanAddresses(cl, root, accountPath, network, 0),
-          scanAddresses(cl, root, accountPath, network, 1),
-        ]);
-        setAddrs([...extRes.used, ...chgRes.used]);
-        setChangeAddrInfo(deriveAddrAt(root, accountPath, network, 1, chgRes.nextIndex));
-      } catch(e){
-        console.error('NameEdit connect error:', e);
-        setConnErr(true);
-      }
+        if (!_cached){
+          const data = await fetchWalletData(wallet, conf);
+          setAddrs(data.addrs);
+          setChangeAddrInfo(data.changeAddrInfo);
+        }
+      } catch(e){ console.error('NameEdit init error:', e); }
     })();
-    return ()=>{ try { cl.close(); } catch {} };
   }, []);
   useEffect(()=>{
     try {
@@ -934,8 +896,6 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
   }, [feeRate]);
 
   const handleSave = async()=>{
-    if (!client)
-      return alert('Not connected');
     const nameVout = keyData._tx._vtx.vout[keyData.vout];
     const nameValue = Math.round(nameVout.value*1e8);
     const nameAddr = nameVout.scriptPubKey?.address || nameVout.scriptPubKey?.addresses?.[0];
@@ -959,9 +919,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
       try {
         const lists = await Promise.all(
           addrs.map(async(addrInfo)=>{
-            const sh = getScriptHash(addrInfo.address, network);
-            const utxos = await client.blockchain_scripthash_listunspent(sh);
-            return utxos.map(u=>({...u, addrInfo}));
+            return (await listUnspentForAddr(conf, addrInfo.address)).map(u=>({...u, addrInfo}));
           })
         );
         allUTXOs = lists.flat().filter(u=>!(u.tx_hash==keyData.tx && u.tx_pos==keyData.vout));
@@ -985,7 +943,7 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
     const txHex = tx.toHex();
     setSending(true);
     try {
-      const txid = await client.blockchain_transaction_broadcast(txHex);
+      const txid = await broadcastTx(conf, txHex);
       const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
       alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
@@ -1005,9 +963,8 @@ function NameEditScreen({wallet, networks, keyData, onSent}){
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         New value: <span style={{fontFamily: 'monospace'}}>{keyData._editVal}</span>
       </div>
-      {connErr && <p style={{color: '#c00'}}>Connection error</p>}
       <FeeField value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handleSave} disabled={sending||!client} style={{marginTop: 12}}>
+      <button onClick={handleSave} disabled={sending} style={{marginTop: 12}}>
         {sending ? 'Saving…' : 'Save'}
       </button>
     </div>
@@ -1126,7 +1083,7 @@ function FeeField({value, onChange, conf}){
 }
 
 // Send Screen
-function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos}){
+function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
@@ -1141,12 +1098,11 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos
     } catch(e){ return 0; }
   });
   useEffect(()=>{
-    if (!client) return;
     (async()=>{
-      const rate = await estimateFee(client, conf);
+      const rate = await estimateFee(conf);
       setFeeRate(rate);
     })();
-  }, [client]);
+  }, [conf.electrum]);
   useEffect(()=>{
     if (!utxos.length) return;
     const dummyAddr=changeAddrInfo?.address||utxos[0].addrInfo.address;
@@ -1161,14 +1117,14 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos
     } catch(e){}
   }, [amountSat, feeRate, utxos]);
   const handleSend = async ()=>{
-    if (!client || !addrs.length)
+    if (!addrs.length)
       return;
     const amountValue = Math.round(parseFloat(amountSat)*1e8);
     if (isNaN(amountValue) || amountValue<=0)
       return alert('Invalid amount');
     const allUTXOs = utxos.length ? utxos : await (async()=>{
       try {
-        const lists = await Promise.all(addrs.map(async(addrInfo)=>{ const sh=getScriptHash(addrInfo.address,network); return (await client.blockchain_scripthash_listunspent(sh)).map(u=>({...u,addrInfo})); }));
+        const lists = await Promise.all(addrs.map(async(addrInfo)=>{ return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo})); }));
         return lists.flat();
       } catch { return []; }
     })();
@@ -1193,7 +1149,7 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos
     const txHex=tx.toHex();
     setSending(true);
     try {
-      const txid = await client.blockchain_transaction_broadcast(txHex);
+      const txid = await broadcastTx(conf, txHex);
       const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
       alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
       setToAddress('');
@@ -1231,7 +1187,7 @@ function SendScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos
 }
 
 // Inscribe Screen
-function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, utxos}){
+function InscribeScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
   const [inscKey, setInscKey] = useState('');
   const [inscVal, setInscVal] = useState('');
   const [sending, setSending] = useState(false);
@@ -1249,12 +1205,11 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, u
     } catch(e){ return 0; }
   });
   useEffect(()=>{
-    if (!client) return;
     (async()=>{
-      const rate = await estimateFee(client, conf);
+      const rate = await estimateFee(conf);
       setFeeRate(rate);
     })();
-  }, [client]);
+  }, [conf.electrum]);
   useEffect(()=>{
     if (!utxos.length) return;
     try {
@@ -1269,7 +1224,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, u
 
   useEffect(()=>{
     const key = inscKey.trim();
-    if (!key || !client){
+    if (!key){
       setNameStatus(null);
       return;
     }
@@ -1277,7 +1232,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, u
     const timer = setTimeout(()=>{
       (async()=>{
         try {
-          let kv = await client.request('blockchain.lif_kv.get', [key]);
+          let kv = await checkKvName(conf, key);
           if (kv===undefined) // this electrumx client returns undefined for error responses
             setNameStatus('available');
           else
@@ -1288,7 +1243,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, u
       })();
     }, 500);
     return ()=>clearTimeout(timer);
-  }, [inscKey, client]);
+  }, [inscKey]);
   const handleInscribe = async()=>{
     if (!inscKey.trim())
       return alert('Key is required');
@@ -1304,7 +1259,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, u
     ]);
     const allUTXOs = utxos.length ? utxos : await (async()=>{
       try {
-        const lists = await Promise.all(addrs.map(async(addrInfo)=>{ const sh=getScriptHash(addrInfo.address,network); return (await client.blockchain_scripthash_listunspent(sh)).map(u=>({...u,addrInfo})); }));
+        const lists = await Promise.all(addrs.map(async(addrInfo)=>{ return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo})); }));
         return lists.flat();
       } catch { return []; }
     })();
@@ -1325,7 +1280,7 @@ function InscribeScreen({client, addrs, changeAddrInfo, network, conf, onSent, u
     const txHex=tx.toHex();
     setSending(true);
     try {
-      const txid = await client.blockchain_transaction_broadcast(txHex);
+      const txid = await broadcastTx(conf, txHex);
       alert(`Inscription sent!\nTXID: ${txid}`);
       setInscKey('');
       setInscVal('');

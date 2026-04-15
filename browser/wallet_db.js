@@ -54,11 +54,23 @@ export const DEFAULT_NETWORKS = {
   },
 };
 
-export function Electrum_connect(url){
+function Electrum_connect(url){
   let u = URL.parse(url);
   let protocol = u.protocol.slice(0, -1);
   let port = u.port || (protocol=='wss' ? '443' : protocol=='ws' ? '80' : '');
   return new ElectrumClient(u.hostname, port+u.pathname, protocol);
+}
+
+const clients = {};
+function getClient(conf){
+  const url=conf.electrum;
+  if (!clients[url])
+    clients[url]=(async()=>{
+      const cl=Electrum_connect(url);
+      await cl.connect('lif-coin-wallet','1.4');
+      return cl;
+    })().catch(e=>{ delete clients[url]; throw e; });
+  return clients[url];
 }
 
 export function getNetworks(servers){
@@ -98,7 +110,9 @@ export function deriveWallet(mnemonic, networkKey, networks, passphrase='', deri
 
 // Scan used addresses on chain (0=external, 1=change) with gap limit of 20.
 // Returns {used: [{address, keyPair, chain, index, hist}], nextIndex}
-export async function scanAddresses(cl, root, accountPath, network, chain){
+export async function scanAddresses(conf, root, accountPath, chain){
+  const network=conf.network;
+  const cl=await getClient(conf);
   const GAP = 20;
   const used = [];
   let lastUsed = -1;
@@ -209,13 +223,14 @@ function serializeWalletData(data){
 
 export function getWalletData(id){ return store.data[id]||null; }
 
-export async function fetchWalletData(wallet, conf, client){
+export async function fetchWalletData(wallet, conf){
   const network=conf.network;
+  const cl=await getClient(conf);
   const root=getRoot(wallet.mnemonic,network,wallet.passphrase||'');
   const ap=wallet.derivPath||defaultDerivPath(conf);
   const [extRes,chgRes]=await Promise.all([
-    scanAddresses(client,root,ap,network,0),
-    scanAddresses(client,root,ap,network,1),
+    scanAddresses(conf,root,ap,0),
+    scanAddresses(conf,root,ap,1),
   ]);
   const addrs=[...extRes.used,...chgRes.used];
   const receiveAddress=deriveAddrAt(root,ap,network,0,extRes.nextIndex).address;
@@ -224,13 +239,13 @@ export async function fetchWalletData(wallet, conf, client){
   const [utxoLists,bals]=await Promise.all([
     Promise.all(addrs.map(async(a)=>{
       const sh=getScriptHash(a.address,network);
-      return (await client.blockchain_scripthash_listunspent(sh)).map(u=>({...u,address:a.address,chain:a.chain,index:a.index}));
+      return (await cl.blockchain_scripthash_listunspent(sh)).map(u=>({...u,address:a.address,chain:a.chain,index:a.index}));
     })),
-    Promise.all(addrs.map(a=>client.blockchain_scripthash_getBalance(getScriptHash(a.address,network)))),
+    Promise.all(addrs.map(a=>cl.blockchain_scripthash_getBalance(getScriptHash(a.address,network)))),
   ]);
   const utxos=utxoLists.flat().map(u=>({...u,addrInfo:addrs.find(a=>a.address==u.address)}));
   const balance=bals.reduce((s,b)=>s+b.confirmed+b.unconfirmed,0);
-  const feeRate=await estimateFee(client,conf);
+  const feeRate=await estimateFee(conf);
   // Transactions
   const txByHash=new Map();
   for (const a of addrs)
@@ -241,14 +256,14 @@ export async function fetchWalletData(wallet, conf, client){
   if (hist.length){
     const heights=[...new Set(hist.filter(t=>t.height>0).map(t=>t.height))];
     const [verboseTxs,...headers]=await Promise.all([
-      Promise.all(hist.map(t=>client.blockchain_transaction_get(t.tx_hash,true))),
-      ...heights.map(h=>client.blockchain_block_header(h)),
+      Promise.all(hist.map(t=>cl.blockchain_transaction_get(t.tx_hash,true))),
+      ...heights.map(h=>cl.blockchain_block_header(h)),
     ]);
     const tsMap={};
     heights.forEach((h,i)=>{ tsMap[h]=Buffer.from(headers[i],'hex').readUInt32LE(68); });
     const histTxIds=new Set(hist.map(t=>t.tx_hash));
     const prevIds=[...new Set(verboseTxs.flatMap(vtx=>(vtx.vin||[]).map(vin=>vin.txid).filter(id=>id&&!histTxIds.has(id))))];
-    const prevList=await Promise.all(prevIds.map(id=>client.blockchain_transaction_get(id,true)));
+    const prevList=await Promise.all(prevIds.map(id=>cl.blockchain_transaction_get(id,true)));
     const prevMap={};
     prevIds.forEach((id,i)=>{ prevMap[id]=prevList[i]; });
     verboseTxs.forEach(vtx=>{ prevMap[vtx.txid]=vtx; });
@@ -297,13 +312,29 @@ export async function fetchWalletData(wallet, conf, client){
   return data;
 }
 
-export async function estimateFee(client, conf){
+export async function estimateFee(conf){
   const fallback = conf.fee_def||1000;
   try {
-    const rate = await client.request('blockchain.estimatefee', [6]);
+    const cl=await getClient(conf);
+    const rate = await cl.request('blockchain.estimatefee', [6]);
     if (rate>0) return Math.round(rate*1e8);
   } catch(e){}
   return fallback;
+}
+
+export async function broadcastTx(conf, txHex){
+  const cl=await getClient(conf);
+  return cl.blockchain_transaction_broadcast(txHex);
+}
+
+export async function listUnspentForAddr(conf, addr){
+  const cl=await getClient(conf);
+  return cl.blockchain_scripthash_listunspent(getScriptHash(addr, conf.network));
+}
+
+export async function checkKvName(conf, key){
+  const cl=await getClient(conf);
+  return cl.request('blockchain.lif_kv.get', [key]);
 }
 
 export function calcFee(rateSatPerKb, tx){
