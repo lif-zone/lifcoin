@@ -233,7 +233,7 @@ async function loadWalletCache(wallet){
         cached.changeAddrInfo.chain, cached.changeAddrInfo.index)}
       :null;
     const utxos = (cached.utxos||[]).map(u=>({
-      ...u, addrInfo:addrs.find(a=>a.address==u.address)||deriveAddrAt(root,
+      ...u, addrInfo: addrs.find(a=>a.address==u.address)||deriveAddrAt(root,
         ap, conf.network, u.chain, u.index)
     }));
     Object.assign(wallet, {...cached, addrs, changeAddrInfo, utxos});
@@ -248,8 +248,8 @@ function serializeWallet(wallet){
     addrs: (wallet.addrs||[]).map(({address, chain, index, hist})=>(
       {address, chain, index, hist})),
     changeAddrInfo: wallet.changeAddrInfo
-      ?{address:wallet.changeAddrInfo.address,
-        chain:wallet.changeAddrInfo.chain, index:wallet.changeAddrInfo.index}
+      ?{address: wallet.changeAddrInfo.address,
+        chain: wallet.changeAddrInfo.chain, index: wallet.changeAddrInfo.index}
       :null,
     utxos: (wallet.utxos||[]).map(
       ({tx_hash, tx_pos, value, address, chain, index})=>
@@ -286,12 +286,12 @@ export async function fetchWalletData(wallet){
     Promise.all(addrs.map(async(a)=>{
       const sh = getScriptHash(a.address, network);
       return (await cl.blockchain_scripthash_listunspent(sh)).map(
-        u=>({...u, address:a.address, chain:a.chain, index:a.index}));
+        u=>({...u, address: a.address, chain: a.chain, index: a.index}));
     })),
     Promise.all(addrs.map(a=>cl.blockchain_scripthash_getBalance(
       getScriptHash(a.address, network)))),
   ]);
-  const utxos = utxoLists.flat().map(u=>({...u, addrInfo:addrs.find(
+  const utxos = utxoLists.flat().map(u=>({...u, addrInfo: addrs.find(
     a=>a.address==u.address)}));
   const balance = bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0);
   const feeRate = await estimateFee(conf);
@@ -333,7 +333,7 @@ export async function fetchWalletData(wallet){
       const enrichedVin = (vtx.vin||[]).map(vin=>{
         if (!vin.txid)
           return vin;
-        return {...vin, _prevVout:prevMap[vin.txid]?.vout?.[vin.vout]};
+        return {...vin, _prevVout: prevMap[vin.txid]?.vout?.[vin.vout]};
       });
       const received = voutToOurAmt(vtx.vout);
       const spent = enrichedVin.reduce((sum, vin)=>{
@@ -345,8 +345,8 @@ export async function fetchWalletData(wallet){
         return as.some(a=>walletAddrSet.has(a)) ?
           sum+Math.round(vin._prevVout.value*1e8) : sum;
       }, 0);
-      return {...tx, timestamp:tx.height>0 ? tsMap[tx.height] : null,
-        amount:received-spent, _vtx:{...vtx, vin:enrichedVin}};
+      return {...tx, timestamp: tx.height>0 ? tsMap[tx.height] : null,
+        amount: received-spent, _vtx:{...vtx, vin: enrichedVin}};
     });
     const keyMap = new Map();
     for (const etx of transactions){
@@ -366,8 +366,8 @@ export async function fetchWalletData(wallet){
           if (!existing||priority>=existing._priority){
             const _kstatus = vout.spent ? 'spent' : isUnconfirmed ?
               'receiving' : 'confirmed';
-            keyMap.set(kv.key, {key:kv.key, val:kv.val, tx:etx.tx_hash,
-              vout:i, _kstatus, _priority:priority});
+            keyMap.set(kv.key, {key: kv.key, val: kv.val, tx: etx.tx_hash,
+              vout: i, _kstatus, _priority: priority});
           }
         }
       }
@@ -716,15 +716,15 @@ export function buildEditTx(network, inputs, signers, script, dest,
   for (const inp of inputs){
     p.addInput({hash: inp.txid, index: inp.vout,
       witnessUtxo: {value: BigInt(inp.value),
-        script:bitcoin.address.toOutputScript(inp.addr, network)}});
+        script: bitcoin.address.toOutputScript(inp.addr, network)}});
   }
   p.addOutput({script, value:0n});
   if (nameValue<txFee){
-    p.addOutput({address:dest, value:BigInt(nameValue)});
+    p.addOutput({address: dest, value: BigInt(nameValue)});
     const ch = extraTotal-txFee;
-    p.addOutput({address:changeAddr, value:BigInt(ch)});
+    p.addOutput({address: changeAddr, value: BigInt(ch)});
   } else
-    p.addOutput({address:dest, value:BigInt(nameValue-txFee)});
+    p.addOutput({address: dest, value: BigInt(nameValue-txFee)});
   for(let i=0; i<signers.length; i++)
     p.signInput(i, signers[i].keyPair);
   p.finalizeAllInputs();
