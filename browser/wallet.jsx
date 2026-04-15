@@ -985,7 +985,7 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
     try {
       const u = utxos[0];
       const dummyAddr = changeAddrInfo?.address || u.addrInfo.address;
-      const tx = tx_build_send(network, [u], dummyAddr, 546, dummyAddr,
+      const tx = tx_build_send(network, [u], dummyAddr, 1, dummyAddr,
         u.value, 0, true);
       return calcFee(conf.fee_def||1000, tx);
     } catch(e){ return 0; }
@@ -1001,7 +1001,7 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
       return;
     const dummyAddr = changeAddrInfo?.address || utxos[0].addrInfo.address;
     const amt = Math.round(parseFloat(amountSat)*1e8);
-    const target = !isNaN(amt) && amt>0 ? amt : 546;
+    const target = !isNaN(amt) && amt>0 ? amt : 1;
     const sorted = [...utxos].sort((a, b)=>b.value-a.value);
     let selected = [], total = 0;
     for (const u of sorted){
