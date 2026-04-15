@@ -231,7 +231,7 @@ async function loadWalletCache(wallet){
     const changeAddrInfo = cached.changeAddrInfo
       ? {...cached.changeAddrInfo, ...deriveAddrAt(root, ap, conf.network,
         cached.changeAddrInfo.chain, cached.changeAddrInfo.index)}
-      :null;
+      : null;
     const utxos = (cached.utxos||[]).map(u=>({
       ...u, addrInfo: addrs.find(a=>a.address==u.address)||deriveAddrAt(root,
         ap, conf.network, u.chain, u.index)
@@ -250,7 +250,7 @@ function serializeWallet(wallet){
     changeAddrInfo: wallet.changeAddrInfo
       ?{address: wallet.changeAddrInfo.address,
         chain: wallet.changeAddrInfo.chain, index: wallet.changeAddrInfo.index}
-      :null,
+      : null,
     utxos: (wallet.utxos||[]).map(
       ({tx_hash, tx_pos, value, address, chain, index})=>
         ({tx_hash, tx_pos, value, address, chain, index})),
