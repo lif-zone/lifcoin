@@ -322,6 +322,62 @@ export async function estimateFee(conf){
   return fallback;
 }
 
+export async function transferTx(conf, addrs, keyData, toAddress, changeAddrInfo, fee, feeRate){
+  const network=conf.network;
+  const nameVout=keyData._tx._vtx.vout[keyData.vout];
+  const nameValue=Math.round(nameVout.value*1e8);
+  const nameAddr=nameVout.scriptPubKey?.address||nameVout.scriptPubKey?.addresses?.[0];
+  const nameAddrInfo=addrs.find(a=>a.address==nameAddr);
+  if (!nameAddrInfo) throw new Error('Name UTXO address not found in wallet');
+  const signers=[nameAddrInfo];
+  const inputs=[{txid:keyData.tx,vout:keyData.vout,value:nameValue,addr:nameAddr}];
+  let extraTotal=0;
+  if (nameValue<fee){
+    const lists=await Promise.all(addrs.map(async(addrInfo)=>{
+      return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo}));
+    }));
+    const allUTXOs=lists.flat().filter(u=>!(u.tx_hash==keyData.tx&&u.tx_pos==keyData.vout));
+    allUTXOs.sort((a,b)=>b.value-a.value);
+    for (const u of allUTXOs){
+      signers.push(u.addrInfo);
+      inputs.push({txid:u.tx_hash,vout:u.tx_pos,value:u.value,addr:u.addrInfo.address});
+      extraTotal+=u.value;
+      if (extraTotal>=fee) break;
+    }
+    if (extraTotal<fee) throw new Error('Insufficient balance to cover fees');
+  }
+  let tx=buildTransferTx(network,inputs,signers,toAddress,nameValue,extraTotal,changeAddrInfo.address,fee);
+  const exactFee=calcFee(feeRate,tx);
+  if (exactFee!==fee)
+    tx=buildTransferTx(network,inputs,signers,toAddress,nameValue,extraTotal,changeAddrInfo.address,exactFee);
+  const txid=await broadcastTx(conf,tx.toHex());
+  return {txid,exactFee};
+}
+
+export async function sendTx(conf, addrs, utxos, toAddress, amountValue, changeAddrInfo, fee, feeRate){
+  const network=conf.network;
+  const allUTXOs=utxos.length ? utxos : await (async()=>{
+    const lists=await Promise.all(addrs.map(async(addrInfo)=>{
+      return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo}));
+    }));
+    return lists.flat();
+  })();
+  if (!allUTXOs.length) throw new Error('No funds available');
+  allUTXOs.sort((a,b)=>b.value-a.value);
+  const selected=[];
+  let total=0;
+  for (const u of allUTXOs){ selected.push(u); total+=u.value; if(total>=amountValue+fee) break; }
+  if (total<amountValue+fee) throw new Error('Insufficient balance');
+  let tx=buildSendTx(network,selected,toAddress,amountValue,changeAddrInfo.address,total,fee);
+  const exactFee=calcFee(feeRate,tx);
+  if (exactFee!==fee){
+    if (total<amountValue+exactFee) throw new Error('Insufficient balance');
+    tx=buildSendTx(network,selected,toAddress,amountValue,changeAddrInfo.address,total,exactFee);
+  }
+  const txid=await broadcastTx(conf,tx.toHex());
+  return {txid, exactFee};
+}
+
 export async function broadcastTx(conf, txHex){
   const cl=await getClient(conf);
   return cl.blockchain_transaction_broadcast(txHex);

@@ -9,7 +9,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   estimateFee, calcFee, findAddrInWallet, buildSendTx, buildInscribeTx,
   buildTransferTx, buildEditTx,
   getWalletData, fetchWalletData,
-  broadcastTx, listUnspentForAddr, checkKvName,
+  broadcastTx, listUnspentForAddr, checkKvName, sendTx, transferTx,
 } from './wallet_db.js';
 
 function json(o){
@@ -770,52 +770,16 @@ function NameTransferScreen({wallet, networks, keyData, onSent}){
   }, [feeRate]);
 
   const handleTransfer = async()=>{
-    if (!toAddress.trim())
-      return alert('Enter recipient address');
-    const nameVout = keyData._tx._vtx.vout[keyData.vout];
-    const nameValue = Math.round(nameVout.value*1e8);
-    const nameAddr = nameVout.scriptPubKey?.address || nameVout.scriptPubKey?.addresses?.[0];
-    const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
-    if (!nameAddrInfo)
-      return alert('Name UTXO address not found in wallet');
-    const signers = [nameAddrInfo];
-    const inputs = [{txid:keyData.tx, vout:keyData.vout, value:nameValue, addr:nameAddr}];
-    let extraTotal = 0;
-    if (nameValue < fee){
-      let allUTXOs = [];
-      try {
-        const lists = await Promise.all(
-          addrs.map(async(addrInfo)=>{
-            return (await listUnspentForAddr(conf, addrInfo.address)).map(u=>({...u, addrInfo}));
-          })
-        );
-        allUTXOs = lists.flat().filter(u=>!(u.tx_hash==keyData.tx && u.tx_pos==keyData.vout));
-      } catch(err){
-        return alert('Failed to fetch UTXOs');
-      }
-      allUTXOs.sort((a, b)=>b.value-a.value);
-      for (const utxo of allUTXOs){
-        signers.push(utxo.addrInfo);
-        inputs.push({txid:utxo.tx_hash, vout:utxo.tx_pos, value:utxo.value, addr:utxo.addrInfo.address});
-        extraTotal += utxo.value;
-        if (extraTotal >= fee) break;
-      }
-      if (extraTotal < fee)
-        return alert('Insufficient balance to cover fees');
-    }
-    let tx=buildTransferTx(network,inputs,signers,toAddress.trim(),nameValue,extraTotal,changeAddrInfo.address,fee);
-    const exactFee=calcFee(feeRate,tx);
-    if(exactFee!==fee) tx=buildTransferTx(network,inputs,signers,toAddress.trim(),nameValue,extraTotal,changeAddrInfo.address,exactFee);
-    setFee(exactFee);
-    const txHex = tx.toHex();
+    if (!toAddress.trim()) return alert('Enter recipient address');
     setSending(true);
     try {
-      const txid = await broadcastTx(conf, txHex);
-      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
+      const {txid,exactFee}=await transferTx(conf,addrs,keyData,toAddress.trim(),changeAddrInfo,fee,feeRate);
+      setFee(exactFee);
+      const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
     } catch(err){
-      alert('Broadcast failed: '+err.message);
+      alert(err.message);
     } finally {
       setSending(false);
     }
@@ -1116,47 +1080,20 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
       setFee(calcFee(feeRate,tx));
     } catch(e){}
   }, [amountSat, feeRate, utxos]);
-  const handleSend = async ()=>{
-    if (!addrs.length)
-      return;
-    const amountValue = Math.round(parseFloat(amountSat)*1e8);
-    if (isNaN(amountValue) || amountValue<=0)
-      return alert('Invalid amount');
-    const allUTXOs = utxos.length ? utxos : await (async()=>{
-      try {
-        const lists = await Promise.all(addrs.map(async(addrInfo)=>{ return (await listUnspentForAddr(conf,addrInfo.address)).map(u=>({...u,addrInfo})); }));
-        return lists.flat();
-      } catch { return []; }
-    })();
-    if (!allUTXOs.length)
-      return alert('No funds available');
-    // Select UTXOs largest-first until amount+fee covered
-    allUTXOs.sort((a, b)=>b.value-a.value);
-    const selected = [];
-    let total = 0;
-    for (const utxo of allUTXOs){
-      selected.push(utxo);
-      total += utxo.value;
-      if (total >= amountValue+fee)
-        break;
-    }
-    if (total < amountValue+fee)
-      return alert('Insufficient balance');
-    let tx=buildSendTx(network,selected,toAddress,amountValue,changeAddrInfo.address,total,fee);
-    const exactFee=calcFee(feeRate,tx);
-    if(exactFee!==fee){ if(total<amountValue+exactFee) return alert('Insufficient balance'); tx=buildSendTx(network,selected,toAddress,amountValue,changeAddrInfo.address,total,exactFee); }
-    setFee(exactFee);
-    const txHex=tx.toHex();
+  const handleSend = async()=>{
+    if (!addrs.length) return;
+    const amountValue=Math.round(parseFloat(amountSat)*1e8);
+    if (isNaN(amountValue)||amountValue<=0) return alert('Invalid amount');
     setSending(true);
     try {
-      const txid = await broadcastTx(conf, txHex);
-      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
+      const {txid,exactFee}=await sendTx(conf,addrs,utxos,toAddress,amountValue,changeAddrInfo,fee,feeRate);
+      setFee(exactFee);
+      const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
-      setToAddress('');
-      setAmountSat('');
+      setToAddress(''); setAmountSat('');
       onSent?.();
     } catch(err){
-      alert('Broadcast failed: '+err.message);
+      alert(err.message);
     } finally {
       setSending(false);
     }

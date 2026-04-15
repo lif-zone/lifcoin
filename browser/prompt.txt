@@ -564,3 +564,13 @@ USER: Move Electrum connection management into wallet_db.js so wallet.jsx never 
 
 CLAUDE: Added getClient(conf) connection pool to wallet_db.js (keyed by electrum URL, lazy Promise-based, auto-retries on failure). Changed scanAddresses(cl,...) → scanAddresses(conf,...), estimateFee(client,conf) → estimateFee(conf), fetchWalletData(wallet,conf,client) → fetchWalletData(wallet,conf) — all use getClient internally. Added broadcastTx(conf,txHex), listUnspentForAddr(conf,addr), checkKvName(conf,key) exports. In wallet.jsx: removed Electrum_connect from imports (now unexported); removed client state from WalletDetailScreen (replaced with connected bool); removed client/connection management from WalletCard, SendScreen, InscribeScreen, NameTransferScreen, NameEditScreen; replaced all client.blockchain_* calls with broadcastTx/listUnspentForAddr/checkKvName; NameTransfer/NameEdit now init addrs/changeAddrInfo from getWalletData() synchronously, fall back to fetchWalletData if no cache. Removed unused getScriptHash, scanAddresses from wallet.jsx imports.
 ---
+
+USER: handleSend() is mostly non-UI code. move it into wallet_db.js, and leave in wallet.jsx:handleSend() only the call, and what is needed for the connection to the UI
+
+CLAUDE: Added sendTx(conf, addrs, utxos, toAddress, amountValue, changeAddrInfo, fee, feeRate) to wallet_db.js — handles UTXO fallback fetch, largest-first selection, tx build, exact fee recalc, broadcast; returns {txid, exactFee} or throws. wallet.jsx:handleSend now only parses/validates amountSat, calls sendTx, updates UI state (setFee, setToAddress, setAmountSat, setSending), alerts, calls onSent.
+---
+
+USER: Pass wallet.jsx:handleTransfer() in the same way to wallet_db.js:transferTX()
+
+CLAUDE: Added transferTx(conf, addrs, keyData, toAddress, changeAddrInfo, fee, feeRate) to wallet_db.js — extracts nameVout/nameAddr/nameAddrInfo, fetches extra UTXOs if nameValue < fee, builds tx, recalculates exact fee, broadcasts; returns {txid, exactFee} or throws. wallet.jsx:handleTransfer now only validates toAddress, calls transferTx, updates UI state, alerts, calls onSent.
+---
