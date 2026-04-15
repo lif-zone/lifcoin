@@ -1001,7 +1001,7 @@ function SendScreen({addrs, changeAddrInfo, network, conf, onSent, utxos}){
       return;
     const dummyAddr = changeAddrInfo?.address || utxos[0].addrInfo.address;
     const amt = Math.round(parseFloat(amountSat)*1e8);
-    const target = (!isNaN(amt)&&amt>0)?amt:546;
+    const target = !isNaN(amt) && amt>0 ? amt : 546;
     const sorted = [...utxos].sort((a, b)=>b.value-a.value);
     let selected = [], total = 0;
     for (const u of sorted){
