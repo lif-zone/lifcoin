@@ -562,8 +562,8 @@ export function hd_addr_find(root, accountPath, network, saddr_find){
 }
 
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
-export function tx_send_build(network, inputs, saddr_to, value, saddr_chg, total,
-  fee)
+export function tx_send_build(network, inputs, saddr_to, value, saddr_chg,
+  total, fee)
 {
   const p = tx_psbt(network);
   for (const u of inputs){
