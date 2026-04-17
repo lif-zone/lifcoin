@@ -2,13 +2,13 @@
 import React, {useState, useEffect, useMemo} from 'react';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
-import {DEFAULT_NETWORKS, saveServers, loadServers,
-  saveWallets, loadWallets,
-  getRoot, getNetworks,
-  deriveWallet, deriveAddrAt, defaultDerivPath,
-  fetchWalletData,
+import {nets_list, servers_save, servers_load, wallet_db_init,
+  wallets_save, wallets_load, nets_get, wallet_fetch,
+  getRoot, deriveWallet, deriveAddrAt, defaultDerivPath,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
 } from './wallet_db.js';
+
+await wallet_db_init();
 
 function json(o){
   return JSON.stringify(o);
@@ -39,10 +39,10 @@ const newCardStyle = {
 
 // Main App
 function BrightWallet(){
-  const [servers, setServers] = useState(loadServers);
-  const networks = useMemo(()=>getNetworks(servers), [servers]);
+  const [servers, setServers] = useState(servers_load);
+  const networks = useMemo(()=>nets_get(servers), [servers]);
   const [wallets, setWallets] = useState(
-    ()=>loadWallets(getNetworks(loadServers())));
+    ()=>wallets_load(nets_get(servers_load())));
   const [screen, setScreen] = useState('home');
   const [activeWalletId, setActiveWalletId] = useState(null);
   const [selectedTxData, setSelectedTxData] = useState(null);
@@ -55,17 +55,17 @@ function BrightWallet(){
     const updated = [...wallets,
       {...wallet, conf: networks[wallet.network]||Object.values(networks)[0]}];
     setWallets(updated);
-    saveWallets(updated);
+    wallets_save(updated);
   };
   const updateWallet = (id, changes)=>{
     const updated = wallets.map(w=>w.id===id ? {...w, ...changes} : w);
     setWallets(updated);
-    saveWallets(updated);
+    wallets_save(updated);
   };
   const deleteWallet = (id)=>{
     const updated = wallets.filter(w=>w.id!==id);
     setWallets(updated);
-    saveWallets(updated);
+    wallets_save(updated);
     setScreen('home');
     setActiveWalletId(null);
   };
@@ -155,7 +155,7 @@ function BrightWallet(){
         <SettingsScreen
           servers={servers}
           networks={networks}
-          onSave={(s)=>{ setServers(s); saveServers(s); }}
+          onSave={(s)=>{ setServers(s); servers_save(s); }}
           onBack={goHome}
         />
       )}
@@ -205,7 +205,7 @@ function WalletCard({wallet, onClick}){
       return;
     (async()=>{
       try {
-        const data = await fetchWalletData(wallet);
+        const data = await wallet_fetch(wallet);
         setBalance(data.balance);
         setTxCount(data.transactions.length);
         setKeysOwned(data.ownedKeys.length);
@@ -405,7 +405,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
     (async()=>{
       try {
         setLoading(true);
-        applyData(await fetchWalletData(wallet));
+        applyData(await wallet_fetch(wallet));
         setConnected(true);
       } catch(e){
         console.error('Connect error:', e);
@@ -511,7 +511,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
           )}
           <button style={{marginTop: 10}} onClick={async()=>{
             setLoading(true);
-            try { applyData(await fetchWalletData(wallet)); }
+            try { applyData(await wallet_fetch(wallet)); }
             catch(e){ console.error('Refresh error:', e); }
             finally { setLoading(false); }
           }}>
@@ -528,13 +528,13 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
       {subscreen=='send' && allAddrs.length>0 && (
         <SendScreen
           wallet={wallet}
-          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet)); } catch(e){} finally { setLoading(false); } }}
+          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
       {subscreen=='inscribe' && allAddrs.length>0 && (
         <InscribeScreen
           wallet={wallet}
-          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await fetchWalletData(wallet)); } catch(e){} finally { setLoading(false); } }}
+          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
       {subscreen=='wallet-settings' && (
@@ -1102,7 +1102,7 @@ function SettingsScreen({servers, networks, onSave, onBack}){
     alert('Settings saved');
   };
   const handleReset = (key)=>{
-    setValues(v=>({...v, [key]: DEFAULT_NETWORKS[key]?.electrum || ''}));
+    setValues(v=>({...v, [key]: nets_list[key]?.electrum || ''}));
   };
   return (
     <div style={{maxWidth: 520}}>
@@ -1118,7 +1118,7 @@ function SettingsScreen({servers, networks, onSave, onBack}){
             <input
               value={values[key] || ''}
               onChange={e=>setValues(v=>({...v, [key]: e.target.value}))}
-              placeholder={DEFAULT_NETWORKS[key]?.electrum}
+              placeholder={nets_list[key]?.electrum}
               style={{flex: 1, fontFamily: 'monospace', fontSize: 12, boxSizing: 'border-box'}}
             />
             <button onClick={()=>handleReset(key)} title="Reset to default">↺</button>

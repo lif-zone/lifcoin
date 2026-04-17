@@ -22,7 +22,7 @@ let networks_lif = {
   messagePrefix: '\x18Bitcoin Signed Message:\n',
 };
 
-export const DEFAULT_NETWORKS = {
+export const nets_list = {
   mainnet: {
     name: 'Bitcoin Mainnet',
     symbol: 'BTC',
@@ -55,7 +55,7 @@ export const DEFAULT_NETWORKS = {
   },
 };
 function networks_init(){
-  for (let [name, net] of Object.entries(DEFAULT_NETWORKS))
+  for (let [name, net] of Object.entries(nets_list))
     net.network.conf = net;
 }
 networks_init();
@@ -84,10 +84,10 @@ function getClient(conf){
   })();
 }
 
-export function getNetworks(servers){
+export function nets_get(servers){
   const result = {};
-  for (const net in DEFAULT_NETWORKS){
-    result[net] = {...DEFAULT_NETWORKS[net]};
+  for (const net in nets_list){
+    result[net] = {...nets_list[net]};
     if (servers[net])
       result[net].electrum = servers[net];
   }
@@ -164,7 +164,7 @@ const WALLET_STORED_FIELDS = ['id', 'name', 'network', 'mnemonic',
 // id → single wallet object instance (mutated in place)
 const wallet_store = {};
 
-export function loadWallets(networks){
+export function wallets_load(networks){
   try {
     const raw = JSON.parse(localStorage.getItem('wallets')||'[]');
     return raw.map(w=>{
@@ -180,7 +180,7 @@ export function loadWallets(networks){
   } catch { return []; }
 }
 
-export function saveWallets(wallets){
+export function wallets_save(wallets){
   const raw = wallets.map(w=>{
     const o = {};
     for (const f of WALLET_STORED_FIELDS){
@@ -192,13 +192,13 @@ export function saveWallets(wallets){
   localStorage.setItem('wallets', JSON.stringify(raw));
 }
 
-export function loadServers(){
+export function servers_load(){
   try {
     return JSON.parse(localStorage.getItem('electrum_servers') || '{}');
   } catch { return {}; }
 }
 
-export function saveServers(servers){
+export function servers_save(servers){
   localStorage.setItem('electrum_servers', JSON.stringify(servers));
 }
 
@@ -266,14 +266,13 @@ function serializeWallet(wallet){
 }
 
 // Preload all wallets from IndexedDB into memory at module startup
-async function cache_preload(){
-  const _networks = getNetworks(loadServers());
-  for (const w of loadWallets(_networks))
+export async function wallet_db_init(){
+  const _networks = nets_get(servers_load());
+  for (const w of wallets_load(_networks))
     await wallet_load_cache(w);
 }
-await cache_preload();
 
-export async function fetchWalletData(wallet){
+export async function wallet_fetch(wallet){
   const conf = wallet.conf;
   const network = conf.network;
   const cl = await getClient(conf);
