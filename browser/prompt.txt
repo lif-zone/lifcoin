@@ -711,3 +711,11 @@ USER: remove forEst parameter — it's no longer needed
 CLAUDE: Removed forEst from kv_tx_add, kv_tx_edit, kv_tx_send signatures and their final build calls. The fee is now always computed from wallet.feeRate so it's always within fee_max — no need to bypass extractTransaction validation. Internal estimation passes still use forEst=true (fee=1) but that's hardcoded. Updated all call sites in wallet.jsx.
 
 ---
+
+---
+
+USER: forEst still appears in wallet_db.js — remove it everywhere
+
+CLAUDE: Removed forEst from all four build functions (tx_send_build, kv_tx_new_build, kv_tx_send_build, kv_tx_edit_build) and all call sites. All extractTransaction() calls now have no argument. Fee=1 for internal size estimation is below maximumFeeRate so no bypass needed. Also removed the two true args from SendScreen's inline tx_send_build estimation calls in wallet.jsx.
+
+---

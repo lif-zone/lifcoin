@@ -938,7 +938,7 @@ function SendScreen({wallet, onSent}){
       const u = utxos[0];
       const dummyAddr = changeAddrInfo?.address || u.addrInfo.address;
       const tx = tx_send_build(network, [u], dummyAddr, 1, dummyAddr,
-        u.value, 0, true);
+        u.value, 0);
       return calcFee(wallet.feeRate, tx);
     } catch(e){ return 0; }
   });
@@ -957,7 +957,7 @@ function SendScreen({wallet, onSent}){
     }
     try {
       const tx = tx_send_build(network, selected, dummyAddr,
-        Math.min(target, total), dummyAddr, total, 0, true);
+        Math.min(target, total), dummyAddr, total, 0);
       setFee(calcFee(wallet.feeRate, tx));
     } catch(e){}
   }, [amountSat, utxos]);
