@@ -404,14 +404,14 @@ export async function el_estimatefee(conf){
 export function kv_tx_add(wallet, key, val, fee){
   const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
-  const allUTXOs = [...(utxos||[])].sort((a,b)=>b.value-a.value);
-  if (!allUTXOs.length)
+  const _utxos = [...(utxos||[])].sort((a,b)=>b.value-a.value);
+  if (!_utxos.length)
     throw new Error('No funds available');
   if (!fee)
     fee = fee_calc(wallet.feeRate, kv_tx_add(wallet, key, val, 1).tx);
   const selected = [];
   let total = 0;
-  for (const u of allUTXOs){
+  for (const u of _utxos){
     selected.push(u);
     total += u.value;
     if (total>=fee)
@@ -451,10 +451,10 @@ export function kv_tx_edit(wallet, kv_d, fee){
   const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, addr}];
   let extraTotal = 0;
   if (value<fee){
-    const allUTXOs = (utxos||[]).filter(
+    const _utxos = (utxos||[]).filter(
       u=>!(u.tx_hash==kv_d.tx && u.tx_pos==kv_d.vout))
       .sort((a,b)=>b.value-a.value);
-    for (const u of allUTXOs){
+    for (const u of _utxos){
       signers.push(u.addrInfo);
       inputs.push({txid: u.tx_hash, vout: u.tx_pos, value: u.value,
         addr: u.addrInfo.address});
@@ -486,10 +486,10 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee){
   const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, addr}];
   let extraTotal = 0;
   if (value<fee){
-    const allUTXOs = (utxos||[]).filter(
+    const _utxos = (utxos||[]).filter(
       u=>!(u.tx_hash==kv_d.tx && u.tx_pos==kv_d.vout))
       .sort((a,b)=>b.value-a.value);
-    for (const u of allUTXOs){
+    for (const u of _utxos){
       signers.push(u.addrInfo);
       inputs.push({txid: u.tx_hash, vout: u.tx_pos, value: u.value,
         addr: u.addrInfo.address});
@@ -508,14 +508,14 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee){
 export function tx_send(wallet, toAddress, amountValue, fee){
   const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
-  const allUTXOs = [...(utxos||[])].sort((a,b)=>b.value-a.value);
-  if (!allUTXOs.length)
+  const _utxos = [...(utxos||[])].sort((a,b)=>b.value-a.value);
+  if (!_utxos.length)
     throw new Error('No funds available');
   if (!fee)
     fee = fee_calc(wallet.feeRate, tx_send(wallet, toAddress, amountValue, 1).tx);
   const selected = [];
   let total = 0;
-  for (const u of allUTXOs){
+  for (const u of _utxos){
     selected.push(u);
     total += u.value;
     if (total>=amountValue+fee)
