@@ -620,3 +620,15 @@ USER: I want the listUnspentForAddr() information to be fetched as part of the w
 
 CLAUDE: Changed kv_tx_add, kv_tx_edit, kv_tx_send, tx_send from async to sync functions. New signatures: (wallet, ...) — read wallet.utxos/addrs/changeAddrInfo/conf directly. No more async UTXO fetching inside these functions. In wallet.jsx: SendScreen and InscribeScreen now take {wallet, onSent} instead of individual props; WalletDetailScreen drops changeAddrInfo and allUTXOs local state (wallet object holds the data); NameTransferScreen/NameEditScreen drop local addrs state; all four tx calls are now plain sync (no await).
 ---
+
+---
+USER: can kv_tx_add() be used instead of calling estimateInscriptionFee() (in wallet.jsx)? yes
+
+CLAUDE: Replaced estimateInscribeFee() with kv_tx_add() for fee estimation in InscribeScreen. useState initializer now uses conf.fee_def. The fee useEffect calls kv_tx_add(wallet, key, val, fee, feeRate) in a try/catch and sets exactFee. Removed estimateInscribeFee from wallet.jsx imports and deleted it from wallet_db.js.
+---
+
+---
+USER: fee stays static at initial 0.05 when modifying key/val in InscribeScreen
+
+CLAUDE: Root cause: kv_tx_add called with fee=conf.fee_def=5000000 as the initial mining fee; bitcoinjs extractTransaction(false) rejects it because 5000000/180vbytes ≈ 27778 sat/vbyte exceeds fee_max/1000=10000. Added forEst=false parameter to kv_tx_add (passed through to kv_tx_new_build/extractTransaction). Changed InscribeScreen useState initializer and fee estimation useEffect to call kv_tx_add(..., true) so fee validation is skipped during estimation. Real send path still uses forEst=false.
+---

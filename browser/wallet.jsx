@@ -9,7 +9,7 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   estimateFee, calcFee, tx_send_build,
   fetchWalletData,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
-  estimateNameFee, estimateInscribeFee,
+  estimateNameFee,
 } from './wallet_db.js';
 
 function json(o){
@@ -1056,8 +1056,10 @@ function InscribeScreen({wallet, onSent}){
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
   const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
-  const [fee, setFee] = useState(()=>estimateInscribeFee(conf, utxos, '', '',
-    changeAddrInfo, conf.fee_def||1000));
+  const [fee, setFee] = useState(()=>{
+    try { return kv_tx_add(wallet, '', '', conf.fee_def||1000, conf.fee_def||1000, true).exactFee; }
+    catch(e){ return conf.fee_def||1000; }
+  });
   useEffect(()=>{
     (async()=>{
       const rate = await estimateFee(conf);
@@ -1065,9 +1067,11 @@ function InscribeScreen({wallet, onSent}){
     })();
   }, [conf.electrum]);
   useEffect(()=>{
-    setFee(estimateInscribeFee(conf, utxos, inscKey.trim(), inscVal.trim(),
-      changeAddrInfo, feeRate));
-  }, [inscKey, inscVal, feeRate, utxos, changeAddrInfo]);
+    try {
+      const {exactFee} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), fee, feeRate, true);
+      setFee(exactFee);
+    } catch(e){}
+  }, [inscKey, inscVal, feeRate]);
 
   useEffect(()=>{
     const key = inscKey.trim();

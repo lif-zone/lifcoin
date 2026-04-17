@@ -397,19 +397,6 @@ export async function estimateFee(conf){
   return fallback;
 }
 
-export function estimateInscribeFee(conf, utxos, key, val, changeAddrInfo,
-  feeRate)
-{
-  if (!utxos.length)
-    return 0;
-  try {
-    const u = utxos[0];
-    const dummyAddr = changeAddrInfo?.address||u.addrInfo.address;
-    const tx = kv_tx_new_build(conf.network, [u], {key, val}, dummyAddr, 0, 0,
-      true);
-    return calcFee(feeRate, tx);
-  } catch(e){ return 0; }
-}
 
 export function estimateNameFee(wallet, keyData, changeAddrInfo, feeRate){
   try {
@@ -442,7 +429,7 @@ export function estimateNameFee(wallet, keyData, changeAddrInfo, feeRate){
   } catch(e){ return 0; }
 }
 
-export function kv_tx_add(wallet, key, val, fee, feeRate){
+export function kv_tx_add(wallet, key, val, fee, feeRate, forEst=false){
   const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const allUTXOs = [...(utxos||[])].sort((a,b)=>b.value-a.value);
@@ -459,7 +446,7 @@ export function kv_tx_add(wallet, key, val, fee, feeRate){
   if (total<fee)
     throw new Error('Insufficient balance to cover fee');
   const tx = kv_tx_new_build(network, selected, {key, val},
-    changeAddrInfo.address, total, fee);
+    changeAddrInfo.address, total, fee, forEst);
   const exactFee = calcFee(feeRate, tx);
   return {exactFee, tx};
 }
