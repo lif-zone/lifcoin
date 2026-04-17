@@ -562,7 +562,7 @@ export function hd_addr_find(root, accountPath, network, saddr_find){
 }
 
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
-export function tx_send_build(network, inputs, saddr_to, amt, changeAddr, total,
+export function tx_send_build(network, inputs, saddr_to, amt, saddr_chg, total,
   fee)
 {
   const p = tx_psbt(network);
@@ -573,7 +573,7 @@ export function tx_send_build(network, inputs, saddr_to, amt, changeAddr, total,
   }
   p.addOutput({address: saddr_to, value: BigInt(amt)});
   const ch = total-amt-fee;
-  p.addOutput({address: changeAddr, value: BigInt(ch)});
+  p.addOutput({address: saddr_chg, value: BigInt(ch)});
   for(let i=0; i<inputs.length; i++)
     p.signInput(i, inputs[i].addrInfo.keyPair);
   p.finalizeAllInputs();
@@ -587,7 +587,7 @@ function tx_psbt(network){
   return p;
 }
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
-export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
+export function kv_tx_new_build(network, inputs, {key, val}, saddr_chg, total,
   fee)
 {
   const p = tx_psbt(network);
@@ -597,7 +597,7 @@ export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
       script: bitcoin.address.toOutputScript(u.addrInfo.address, network)}});
   }
   p.addOutput({script: kv_script(key, val), value: 0n});
-  p.addOutput({address: changeAddr, value: BigInt(total-fee)});
+  p.addOutput({address: saddr_chg, value: BigInt(total-fee)});
   for(let i=0; i<inputs.length; i++)
     p.signInput(i, inputs[i].addrInfo.keyPair);
   p.finalizeAllInputs();
@@ -606,7 +606,7 @@ export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
 
 // inputs: [{txid, vout, value, saddr_to}], signers: [{keyPair}]
 export function kv_tx_send_build(network, inputs, signers, saddr_to, nameValue,
-  extraTotal, changeAddr, fee)
+  extraTotal, saddr_chg, fee)
 {
   const p = tx_psbt(network);
   for (const inp of inputs){
@@ -617,7 +617,7 @@ export function kv_tx_send_build(network, inputs, signers, saddr_to, nameValue,
   if (nameValue<fee){
     p.addOutput({address: saddr_to, value: BigInt(nameValue)});
     const ch = extraTotal-fee;
-    p.addOutput({address: changeAddr, value: BigInt(ch)});
+    p.addOutput({address: saddr_chg, value: BigInt(ch)});
   } else
     p.addOutput({address: saddr_to, value: BigInt(nameValue-fee)});
   for(let i=0; i<signers.length; i++)
@@ -628,7 +628,7 @@ export function kv_tx_send_build(network, inputs, signers, saddr_to, nameValue,
 
 // inputs: [{txid, vout, value, saddr}], signers: [{keyPair}]
 export function kv_tx_edit_build(network, inputs, signers, {key, val}, dest,
-  nameValue, extraTotal, changeAddr, fee)
+  nameValue, extraTotal, saddr_chg, fee)
 {
   const p = tx_psbt(network);
   for (const inp of inputs){
@@ -640,7 +640,7 @@ export function kv_tx_edit_build(network, inputs, signers, {key, val}, dest,
   if (nameValue<fee){
     p.addOutput({address: dest, value: BigInt(nameValue)});
     const ch = extraTotal-fee;
-    p.addOutput({address: changeAddr, value: BigInt(ch)});
+    p.addOutput({address: saddr_chg, value: BigInt(ch)});
   } else
     p.addOutput({address: dest, value: BigInt(nameValue-fee)});
   for(let i=0; i<signers.length; i++)
