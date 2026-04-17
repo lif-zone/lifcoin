@@ -153,8 +153,8 @@ export async function hd_scan(conf, root, accountPath, chain){
 }
 
 // convert address to scripthash (electrum usess scripthash for addresses)
-export function addr_sh(addr, network){
-  const script = bitcoin.address.toOutputScript(addr, network);
+export function addr_sh(saddr, network){
+  const script = bitcoin.address.toOutputScript(saddr, network);
   const hash = bitcoin.crypto.sha256(script);
   return Buffer.from(hash.reverse()).toString('hex');
 }
@@ -365,9 +365,9 @@ export async function wallet_fetch(wallet){
         const vout = vouts[i];
         if (!vout.lif_kv)
           continue;
-        const addr = vout.scriptPubKey?.address ||
+        const saddr = vout.scriptPubKey?.address ||
           vout.scriptPubKey?.addresses?.[0];
-        if (!addr_set.has(addr))
+        if (!addr_set.has(saddr))
           continue;
         for (const kv of vout.lif_kv){
           const isUnconfirmed = etx.height<=0;
@@ -439,16 +439,16 @@ export function kv_tx_edit(wallet, kv_d, fee){
   const network = conf.network;
   const vout = kv_d._tx._vtx.vout[kv_d.vout];
   const value = Math.round(vout.value*1e8);
-  const addr = vout.scriptPubKey?.address ||
+  const saddr = vout.scriptPubKey?.address ||
     vout.scriptPubKey?.addresses?.[0];
-  const oaddr = addrs.find(a=>a.address==addr);
+  const oaddr = addrs.find(a=>a.address==saddr);
   if (!oaddr)
     throw new Error('Name UTXO address not found in wallet');
   const dest = changeAddrInfo.address;
   if (!fee)
     fee = fee_calc(wallet.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
   const signers = [oaddr];
-  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, addr}];
+  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, saddr}];
   let extraTotal = 0;
   if (value<fee){
     const _utxos = (utxos||[]).filter(
@@ -457,7 +457,7 @@ export function kv_tx_edit(wallet, kv_d, fee){
     for (const u of _utxos){
       signers.push(u.addrInfo);
       inputs.push({txid: u.tx_hash, vout: u.tx_pos, value: u.value,
-        addr: u.addrInfo.address});
+        saddr: u.addrInfo.address});
       extraTotal += u.value;
       if (extraTotal>=fee)
         break;
@@ -470,20 +470,20 @@ export function kv_tx_edit(wallet, kv_d, fee){
   return {fee, tx};
 }
 
-export function kv_tx_send(wallet, kv_d, toAddress, fee){
+export function kv_tx_send(wallet, kv_d, saddr_to, fee){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const vout = kv_d._tx._vtx.vout[kv_d.vout];
   const value = Math.round(vout.value*1e8);
-  const addr = vout.scriptPubKey?.address ||
+  const saddr = vout.scriptPubKey?.address ||
     vout.scriptPubKey?.addresses?.[0];
-  const oaddr = addrs.find(a=>a.address==addr);
+  const oaddr = addrs.find(a=>a.address==saddr);
   if (!oaddr)
     throw new Error('Name UTXO address not found in wallet');
   if (!fee)
-    fee = fee_calc(wallet.feeRate, kv_tx_send(wallet, kv_d, toAddress, 1).tx);
+    fee = fee_calc(wallet.feeRate, kv_tx_send(wallet, kv_d, saddr_to, 1).tx);
   const signers = [oaddr];
-  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, addr}];
+  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, saddr}];
   let extraTotal = 0;
   if (value<fee){
     const _utxos = (utxos||[]).filter(
@@ -492,7 +492,7 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee){
     for (const u of _utxos){
       signers.push(u.addrInfo);
       inputs.push({txid: u.tx_hash, vout: u.tx_pos, value: u.value,
-        addr: u.addrInfo.address});
+        saddr: u.addrInfo.address});
       extraTotal += u.value;
       if (extraTotal>=fee)
         break;
@@ -500,19 +500,19 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee){
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  const tx = kv_tx_send_build(network, inputs, signers, toAddress, value,
+  const tx = kv_tx_send_build(network, inputs, signers, saddr_to, value,
     extraTotal, changeAddrInfo.address, fee);
   return {fee, tx};
 }
 
-export function tx_send(wallet, toAddress, amountValue, fee){
+export function tx_send(wallet, saddr_to, amountValue, fee){
   const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const _utxos = [...(utxos||[])].sort((a,b)=>b.value-a.value);
   if (!_utxos.length)
     throw new Error('No funds available');
   if (!fee)
-    fee = fee_calc(wallet.feeRate, tx_send(wallet, toAddress, amountValue, 1).tx);
+    fee = fee_calc(wallet.feeRate, tx_send(wallet, saddr_to, amountValue, 1).tx);
   const selected = [];
   let total = 0;
   for (const u of _utxos){
@@ -523,7 +523,7 @@ export function tx_send(wallet, toAddress, amountValue, fee){
   }
   if (total<amountValue+fee)
     throw new Error('Insufficient balance');
-  const tx = tx_send_build(network, selected, toAddress, amountValue,
+  const tx = tx_send_build(network, selected, saddr_to, amountValue,
     changeAddrInfo.address, total, fee);
   return {fee, tx};
 }
@@ -535,10 +535,10 @@ export async function tx_broadcast(conf, tx){
     console.error(`mistmatch txid ${txid} ${tx.getId()}`);
 }
 
-export async function el_list_unspent(conf, addr){
+export async function el_list_unspent(conf, saddr){
   const el = await el_connect(conf);
   return el.blockchain_scripthash_listunspent(
-    addr_sh(addr, conf.network));
+    addr_sh(saddr, conf.network));
 }
 
 export async function kv_get(conf, key){
@@ -562,7 +562,7 @@ export function hd_addr_find(root, accountPath, network, targetAddr){
 }
 
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
-export function tx_send_build(network, inputs, toAddr, amt, changeAddr, total,
+export function tx_send_build(network, inputs, saddr_to, amt, changeAddr, total,
   fee)
 {
   const p = tx_psbt(network);
@@ -571,7 +571,7 @@ export function tx_send_build(network, inputs, toAddr, amt, changeAddr, total,
       witnessUtxo: {value: BigInt(u.value),
       script: bitcoin.address.toOutputScript(u.addrInfo.address, network)}});
   }
-  p.addOutput({address: toAddr, value: BigInt(amt)});
+  p.addOutput({address: saddr_to, value: BigInt(amt)});
   const ch = total-amt-fee;
   p.addOutput({address: changeAddr, value: BigInt(ch)});
   for(let i=0; i<inputs.length; i++)
@@ -604,29 +604,29 @@ export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
   return p.extractTransaction();
 }
 
-// inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
-export function kv_tx_send_build(network, inputs, signers, toAddr, nameValue,
+// inputs: [{txid, vout, value, saddr_to}], signers: [{keyPair}]
+export function kv_tx_send_build(network, inputs, signers, saddr_to, nameValue,
   extraTotal, changeAddr, fee)
 {
   const p = tx_psbt(network);
   for (const inp of inputs){
     p.addInput({hash: inp.txid, index: inp.vout,
       witnessUtxo: {value: BigInt(inp.value),
-        script: bitcoin.address.toOutputScript(inp.addr, network)}});
+        script: bitcoin.address.toOutputScript(inp.saddr, network)}});
   }
   if (nameValue<fee){
-    p.addOutput({address: toAddr, value: BigInt(nameValue)});
+    p.addOutput({address: saddr_to, value: BigInt(nameValue)});
     const ch = extraTotal-fee;
     p.addOutput({address: changeAddr, value: BigInt(ch)});
   } else
-    p.addOutput({address: toAddr, value: BigInt(nameValue-fee)});
+    p.addOutput({address: saddr_to, value: BigInt(nameValue-fee)});
   for(let i=0; i<signers.length; i++)
     p.signInput(i, signers[i].keyPair);
   p.finalizeAllInputs();
   return p.extractTransaction();
 }
 
-// inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
+// inputs: [{txid, vout, value, saddr}], signers: [{keyPair}]
 export function kv_tx_edit_build(network, inputs, signers, {key, val}, dest,
   nameValue, extraTotal, changeAddr, fee)
 {
@@ -634,7 +634,7 @@ export function kv_tx_edit_build(network, inputs, signers, {key, val}, dest,
   for (const inp of inputs){
     p.addInput({hash: inp.txid, index: inp.vout,
       witnessUtxo: {value: BigInt(inp.value),
-        script: bitcoin.address.toOutputScript(inp.addr, network)}});
+        script: bitcoin.address.toOutputScript(inp.saddr, network)}});
   }
   p.addOutput({script: kv_script(key, val), value: 0n});
   if (nameValue<fee){
