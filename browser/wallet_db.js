@@ -162,19 +162,19 @@ const WALLET_STORED_FIELDS = ['id', 'name', 'network', 'mnemonic',
   'passphrase', 'derivPath'];
 
 // id → single wallet object instance (mutated in place)
-const walletStore = {};
+const wallet_store = {};
 
 export function loadWallets(networks){
   try {
     const raw = JSON.parse(localStorage.getItem('wallets')||'[]');
     return raw.map(w=>{
       const conf = networks[w.network]||Object.values(networks)[0];
-      if (walletStore[w.id]){
-        walletStore[w.id].conf = conf;
-        return walletStore[w.id];
+      if (wallet_store[w.id]){
+        wallet_store[w.id].conf = conf;
+        return wallet_store[w.id];
       }
       const wallet = {...w, conf, name: w.name||''};
-      walletStore[w.id] = wallet;
+      wallet_store[w.id] = wallet;
       return wallet;
     });
   } catch { return []; }
