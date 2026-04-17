@@ -1016,7 +1016,7 @@ function InscribeScreen({wallet, onSent}){
       (async()=>{
         try {
           let kv = await kv_get(conf, key);
-          if (kv===undefined) // this electrumx client returns undefined for error responses
+          if (!kv) // this electrumx client returns undefined for error responses
             setNameStatus('available');
           else
             setNameStatus('taken');
