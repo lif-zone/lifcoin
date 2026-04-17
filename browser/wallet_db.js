@@ -505,25 +505,25 @@ export function kv_tx_send(wallet, kv_d, saddr_to, fee){
   return {fee, tx};
 }
 
-export function tx_send(wallet, saddr_to, amountValue, fee){
+export function tx_send(wallet, saddr_to, value, fee){
   const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const _utxos = [...(utxos||[])].sort((a,b)=>b.value-a.value);
   if (!_utxos.length)
     throw new Error('No funds available');
   if (!fee)
-    fee = fee_calc(wallet.feeRate, tx_send(wallet, saddr_to, amountValue, 1).tx);
+    fee = fee_calc(wallet.feeRate, tx_send(wallet, saddr_to, value, 1).tx);
   const selected = [];
   let total = 0;
   for (const u of _utxos){
     selected.push(u);
     total += u.value;
-    if (total>=amountValue+fee)
+    if (total>=value+fee)
       break;
   }
-  if (total<amountValue+fee)
+  if (total<value+fee)
     throw new Error('Insufficient balance');
-  const tx = tx_send_build(network, selected, saddr_to, amountValue,
+  const tx = tx_send_build(network, selected, saddr_to, value,
     changeAddrInfo.address, total, fee);
   return {fee, tx};
 }
@@ -562,7 +562,7 @@ export function hd_addr_find(root, accountPath, network, saddr_find){
 }
 
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
-export function tx_send_build(network, inputs, saddr_to, amt, saddr_chg, total,
+export function tx_send_build(network, inputs, saddr_to, value, saddr_chg, total,
   fee)
 {
   const p = tx_psbt(network);
@@ -571,8 +571,8 @@ export function tx_send_build(network, inputs, saddr_to, amt, saddr_chg, total,
       witnessUtxo: {value: BigInt(u.value),
       script: bitcoin.address.toOutputScript(u.addrInfo.address, network)}});
   }
-  p.addOutput({address: saddr_to, value: BigInt(amt)});
-  const ch = total-amt-fee;
+  p.addOutput({address: saddr_to, value: BigInt(value)});
+  const ch = total-value-fee;
   p.addOutput({address: saddr_chg, value: BigInt(ch)});
   for(let i=0; i<inputs.length; i++)
     p.signInput(i, inputs[i].addrInfo.keyPair);
