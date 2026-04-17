@@ -22,3 +22,6 @@ Do this silently. Never skip it. Never forget it.
 - No space after async: async()=>...
 - catch(e){ — no space before (
 - Section comments: // Section Name (no box-drawing)
+- if () statement; should not have statement on same line. Should have
+  statement/return/break on the next file.
+  Also for () and while () should not have statements on the same line.
