@@ -679,3 +679,19 @@ USER: wallet.feeRate passed as fee argument is a bug — it's a rate (sat/kB) no
 CLAUDE: Fixed the 3 estimation call sites in wallet.jsx that were passing wallet.feeRate (a sat/kB rate) as the fee (absolute sats) argument. Changed to fee=1 which gives a valid tx for size measurement — exactFee = calcFee(wallet.feeRate, tx) then returns the correct absolute fee. Also fixed catch fallbacks from returning wallet.feeRate to returning 0.
 
 ---
+
+---
+
+USER: switch KeyData._editVal → KeyData.val (newest value), KeyData.val → KeyData._val_orig
+
+CLAUDE: Renamed _editVal to val so keyData.val always holds the newest/current value. Three changes: onEdit sets val instead of _editVal, kv_tx_edit reads keyData.val instead of keyData._editVal, NameEditScreen displays keyData.val. The initial val set from on-chain data in fetchWalletData is already correct (val = on-chain value until an edit is initiated).
+
+---
+
+---
+
+USER: set _val_orig when edit is initiated in onEdit handler
+
+CLAUDE: onEdit now saves _val_orig: d.val before overwriting val with the new edit value. keyData._val_orig = on-chain value, keyData.val = pending edit value.
+
+---

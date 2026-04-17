@@ -461,7 +461,7 @@ export function kv_tx_edit(wallet, keyData, fee, forEst=false){
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  const kv = {key: keyData.key, val: keyData._editVal};
+  const kv = {key: keyData.key, val: keyData.val};
   let tx = kv_tx_edit_build(network, inputs, signers, kv,
     dest, nameValue, extraTotal, changeAddrInfo.address, fee, forEst);
   const exactFee = calcFee(wallet.feeRate, tx);

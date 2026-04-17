@@ -135,7 +135,7 @@ function BrightWallet(){
           conf={activeWallet.conf}
           onViewTx={(tx)=>{ setSelectedTxData({tx, conf: activeWallet.conf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx-detail'); }}
           onTransfer={()=>setScreen('name-transfer')}
-          onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _editVal: newVal})); setScreen('name-edit'); }}
+          onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _val_orig: d.val, val: newVal})); setScreen('name-edit'); }}
         />
       )}
       {screen=='name-transfer' && selectedKeyData && activeWallet && (
@@ -797,7 +797,7 @@ function NameEditScreen({wallet, keyData, onSent}){
         Name: <span style={{fontFamily: 'monospace'}}>{keyData.key}</span>
       </div>
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
-        New value: <span style={{fontFamily: 'monospace'}}>{keyData._editVal}</span>
+        New value: <span style={{fontFamily: 'monospace'}}>{keyData.val}</span>
       </div>
       <FeeField value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleSave} disabled={sending} style={{marginTop: 12}}>
