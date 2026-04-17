@@ -733,7 +733,7 @@ function NameTransferScreen({wallet, kv_d, onSent}){
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(fee);
-      const explorerLink = conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
+      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
       alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
     } catch(err){
@@ -779,7 +779,7 @@ function NameEditScreen({wallet, kv_d, onSent}){
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(fee);
-      const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
+      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
       alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
     } catch(err){
@@ -876,8 +876,8 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
 }
 
 function Amt({sat, symbol, signed}){
-  const sign = signed ? (sat>0 ? '+' : sat<0 ? '-' : '') : '';
-  const color = signed ? (sat>0 ? 'green' : sat<0 ? '#c00' : null) : null;
+  const sign = !signed ? null : sat>0 ? '+' : sat<0 ? '-' : '';
+  const color = !signed ? null : sat>0 ? 'green' : sat<0 ? '#c00' : null;
   const [int, dec] = (Math.abs(sat)/1e8).toFixed(8).split('.');
   const sig = dec.replace(/0+$/, '');
   const zeros = dec.slice(sig.length);
@@ -887,7 +887,7 @@ function Amt({sat, symbol, signed}){
       {sig.length===0
         ? <span style={{color: '#aaa'}}>.{zeros}</span>
         : <>.{sig}{zeros && <span style={{color: '#aaa'}}>{zeros}</span>}</>
-      }{symbol?' '+symbol:''}
+      }{symbol ? ' '+symbol : ''}
     </span>
   );
 }
@@ -949,7 +949,7 @@ function SendScreen({wallet, onSent}){
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(fee);
-      const explorerLink = conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
+      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
       alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
       setToAddress('');
       setAmountSat('');
