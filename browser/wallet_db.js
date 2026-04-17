@@ -399,7 +399,7 @@ export async function estimateFee(conf){
 
 
 
-export function kv_tx_add(wallet, key, val, fee=0, forEst=false){
+export function kv_tx_add(wallet, key, val, fee=0){
   const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const allUTXOs = [...(utxos||[])].sort((a,b)=>b.value-a.value);
@@ -420,7 +420,7 @@ export function kv_tx_add(wallet, key, val, fee=0, forEst=false){
   if (total<fee)
     throw new Error('Insufficient balance to cover fee');
   const tx = kv_tx_new_build(network, selected, {key, val},
-    changeAddrInfo.address, total, fee, forEst);
+    changeAddrInfo.address, total, fee);
   return {fee, tx};
 }
 
@@ -434,7 +434,7 @@ function inscriptionScript(key, val){
   ]);
 }
 
-export function kv_tx_edit(wallet, kv_d, fee=0, forEst=false){
+export function kv_tx_edit(wallet, kv_d, fee=0){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const nameVout = kv_d._tx._vtx.vout[kv_d.vout];
@@ -468,11 +468,11 @@ export function kv_tx_edit(wallet, kv_d, fee=0, forEst=false){
       throw new Error('Insufficient balance to cover fees');
   }
   const tx = kv_tx_edit_build(network, inputs, signers, kv_d,
-    dest, nameValue, extraTotal, changeAddrInfo.address, fee, forEst);
+    dest, nameValue, extraTotal, changeAddrInfo.address, fee);
   return {fee, tx};
 }
 
-export function kv_tx_send(wallet, kv_d, toAddress, fee=0, forEst=false){
+export function kv_tx_send(wallet, kv_d, toAddress, fee=0){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const nameVout = kv_d._tx._vtx.vout[kv_d.vout];
@@ -505,7 +505,7 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee=0, forEst=false){
       throw new Error('Insufficient balance to cover fees');
   }
   const tx = kv_tx_send_build(network, inputs, signers, toAddress, nameValue,
-    extraTotal, changeAddrInfo.address, fee, forEst);
+    extraTotal, changeAddrInfo.address, fee);
   return {fee, tx};
 }
 

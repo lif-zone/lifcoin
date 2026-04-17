@@ -720,7 +720,7 @@ function NameTransferScreen({wallet, kv_d, onSent}){
   const [fee, setFee] = useState(()=>{
     try {
       const addr = wallet.changeAddrInfo?.address||'';
-      return kv_tx_send(wallet, kv_d, addr, 0, true).fee;
+      return kv_tx_send(wallet, kv_d, addr).fee;
     } catch(e){ return 0; }
   });
 
@@ -769,7 +769,7 @@ function NameEditScreen({wallet, kv_d, onSent}){
   const conf = wallet.conf;
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
-    try { return kv_tx_edit(wallet, kv_d, 0, true).fee; }
+    try { return kv_tx_edit(wallet, kv_d).fee; }
     catch(e){ return 0; }
   });
 
@@ -1016,12 +1016,12 @@ function InscribeScreen({wallet, onSent}){
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
   const [fee, setFee] = useState(()=>{
-    try { return kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), 0, true).fee; }
+    try { return kv_tx_add(wallet, inscKey.trim(), inscVal.trim()).fee; }
     catch(e){ return 0; }
   });
   useEffect(()=>{
     try {
-      const {fee} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), 0, true);
+      const {fee} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim());
       setFee(fee);
     } catch(e){}
   }, [inscKey, inscVal]);
