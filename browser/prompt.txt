@@ -663,3 +663,11 @@ USER: why does wallet.feeRate||conf.fee_def have the fallback? wallet.feeRate sh
 CLAUDE: Removed all ||conf.fee_def fallbacks. wallet.feeRate is always set before these screens are shown (gated on allAddrs.length>0 which requires fetchWalletData to have run).
 
 ---
+
+---
+
+USER: why is feeRate passed around so much? it's internal to the wallet object
+
+CLAUDE: Removed feeRate as a parameter from kv_tx_add, kv_tx_edit, kv_tx_send, tx_send in wallet_db.js — all now read wallet.feeRate directly. Removed feeRate local state from all 4 screens in wallet.jsx. Removed the feeRate-only useEffects from NameTransferScreen and NameEditScreen (redundant with useState initializer). Updated useEffect deps and all call sites accordingly.
+
+---

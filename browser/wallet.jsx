@@ -717,22 +717,12 @@ function NameTransferScreen({wallet, keyData, onSent}){
   const conf = wallet.conf;
   const [toAddress, setToAddress] = useState('');
   const [sending, setSending] = useState(false);
-  const [feeRate, setFeeRate] = useState(wallet.feeRate);
   const [fee, setFee] = useState(()=>{
     try {
-      const fr = wallet.feeRate;
       const addr = wallet.changeAddrInfo?.address||'';
-      return kv_tx_send(wallet, keyData, addr, fr, fr, true).exactFee;
+      return kv_tx_send(wallet, keyData, addr, wallet.feeRate, true).exactFee;
     } catch(e){ return wallet.feeRate; }
   });
-
-  useEffect(()=>{
-    try {
-      const addr = wallet.changeAddrInfo?.address||'';
-      const {exactFee} = kv_tx_send(wallet, keyData, addr, fee, feeRate, true);
-      setFee(exactFee);
-    } catch(e){}
-  }, [feeRate]);
 
   const handleTransfer = async()=>{
     if (!toAddress.trim())
@@ -740,7 +730,7 @@ function NameTransferScreen({wallet, keyData, onSent}){
     setSending(true);
     try {
       const {exactFee, tx} = kv_tx_send(wallet, keyData,
-        toAddress.trim(), fee, feeRate);
+        toAddress.trim(), fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(exactFee);
@@ -778,25 +768,15 @@ function NameTransferScreen({wallet, keyData, onSent}){
 function NameEditScreen({wallet, keyData, onSent}){
   const conf = wallet.conf;
   const [sending, setSending] = useState(false);
-  const [feeRate, setFeeRate] = useState(wallet.feeRate);
   const [fee, setFee] = useState(()=>{
-    try {
-      const fr = wallet.feeRate;
-      return kv_tx_edit(wallet, keyData, fr, fr, true).exactFee;
-    } catch(e){ return wallet.feeRate; }
+    try { return kv_tx_edit(wallet, keyData, wallet.feeRate, true).exactFee; }
+    catch(e){ return wallet.feeRate; }
   });
-
-  useEffect(()=>{
-    try {
-      const {exactFee} = kv_tx_edit(wallet, keyData, fee, feeRate, true);
-      setFee(exactFee);
-    } catch(e){}
-  }, [feeRate]);
 
   const handleSave = async()=>{
     setSending(true);
     try {
-      const {exactFee, tx} = kv_tx_edit(wallet, keyData, fee, feeRate);
+      const {exactFee, tx} = kv_tx_edit(wallet, keyData, fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(exactFee);
@@ -951,7 +931,6 @@ function SendScreen({wallet, onSent}){
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
-  const [feeRate, setFeeRate] = useState(wallet.feeRate);
   const [fee, setFee] = useState(()=>{
     if (!utxos.length)
       return 0;
@@ -979,16 +958,16 @@ function SendScreen({wallet, onSent}){
     try {
       const tx = tx_send_build(network, selected, dummyAddr,
         Math.min(target, total), dummyAddr, total, 0, true);
-      setFee(calcFee(feeRate, tx));
+      setFee(calcFee(wallet.feeRate, tx));
     } catch(e){}
-  }, [amountSat, feeRate, utxos]);
+  }, [amountSat, utxos]);
   const handleSend = async()=>{
     const amountValue = Math.round(parseFloat(amountSat)*1e8);
     if (isNaN(amountValue)||amountValue<=0)
       return alert('Invalid amount');
     setSending(true);
     try {
-      const {exactFee, tx} = tx_send(wallet, toAddress, amountValue, fee, feeRate);
+      const {exactFee, tx} = tx_send(wallet, toAddress, amountValue, fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(exactFee);
@@ -1036,19 +1015,16 @@ function InscribeScreen({wallet, onSent}){
   const [sending, setSending] = useState(false);
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
-  const [feeRate, setFeeRate] = useState(wallet.feeRate);
   const [fee, setFee] = useState(()=>{
-    try {
-      const fr = wallet.feeRate;
-      return kv_tx_add(wallet, '', '', fr, fr, true).exactFee;
-    } catch(e){ return wallet.feeRate; }
+    try { return kv_tx_add(wallet, '', '', wallet.feeRate, true).exactFee; }
+    catch(e){ return wallet.feeRate; }
   });
   useEffect(()=>{
     try {
-      const {exactFee} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), fee, feeRate, true);
+      const {exactFee} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), fee, true);
       setFee(exactFee);
     } catch(e){}
-  }, [inscKey, inscVal, feeRate]);
+  }, [inscKey, inscVal]);
 
   useEffect(()=>{
     const key = inscKey.trim();
@@ -1080,7 +1056,7 @@ function InscribeScreen({wallet, onSent}){
     setSending(true);
     try {
       const {exactFee, tx} = kv_tx_add(wallet,
-        inscKey.trim(), inscVal.trim(), fee, feeRate);
+        inscKey.trim(), inscVal.trim(), fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(exactFee);
