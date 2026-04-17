@@ -550,11 +550,11 @@ export function fee_calc(rateSatPerKb, tx){
   return Math.ceil(rateSatPerKb/1000*tx.virtualSize());
 }
 
-export function hd_addr_find(root, accountPath, network, targetAddr){
+export function hd_addr_find(root, accountPath, network, saddr_find){
   for (let ch=0; ch<2; ch++){
     for (let idx=0; idx<30; idx++){
       const info = hd_addr(root, accountPath, network, ch, idx);
-      if (info.address==targetAddr)
+      if (info.address==saddr_find)
         return info;
     }
   }
