@@ -281,18 +281,15 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
   const handleAdd = ()=>{
     setError('');
     const cleaned = mnemonicInput.trim().toLowerCase();
-    if (!bip39.validateMnemonic(cleaned)){
-      setError('Invalid mnemonic phrase');
-      return;
-    }
+    if (!bip39.validateMnemonic(cleaned))
+      return void setError('Invalid mnemonic phrase');
     const mnemonic = cleaned;
     const pp = usePassphrase ? passphrase : '';
     const dp = showAdvanced ? derivPath.trim() : null;
     try {
       deriveWallet(mnemonic, networkKey, networks, pp, dp);
     } catch(e){
-      setError('Failed to derive wallet: '+e.message);
-      return;
+      return void setError('Failed to derive wallet: '+e.message);
     }
     onAdd({id: Date.now().toString(), name: name.trim(), network: networkKey,
       mnemonic, passphrase: pp, derivPath: dp});
@@ -729,8 +726,7 @@ function NameTransferScreen({wallet, kv_d, onSent}){
       return alert('Enter recipient address');
     setSending(true);
     try {
-      const {fee, tx} = kv_tx_send(wallet, kv_d,
-        toAddress.trim(), fee);
+      const {fee, tx} = kv_tx_send(wallet, kv_d, toAddress.trim(), fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(fee);
@@ -1034,8 +1030,7 @@ function InscribeScreen({wallet, onSent}){
       return alert('Value is required');
     setSending(true);
     try {
-      const {fee, tx} = kv_tx_add(wallet,
-        inscKey.trim(), inscVal.trim(), fee);
+      const {fee, tx} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(fee);
