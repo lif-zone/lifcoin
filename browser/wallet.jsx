@@ -552,7 +552,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
 function WalletSettingsSubscreen({wallet, onUpdate, onDelete}){
   const conf = wallet.conf;
   const [revealed, setRevealed] = useState(false);
-  const [name, setName] = useState(wallet.name||'');
+  const [name, setName] = useState(wallet.name);
   const hasPassphrase = !!wallet.passphrase;
   const derivPath = wallet.derivPath || defaultDerivPath(conf);
   return (

@@ -173,7 +173,7 @@ export function loadWallets(networks){
         walletStore[w.id].conf = conf;
         return walletStore[w.id];
       }
-      const wallet = {...w, conf};
+      const wallet = {...w, conf, name: w.name||''};
       walletStore[w.id] = wallet;
       return wallet;
     });

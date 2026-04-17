@@ -727,3 +727,8 @@ USER: why is tx_send_build called in wallet.jsx? tx_send() is enough
 CLAUDE: Replaced SendScreen's manual tx_send_build+calcFee fee estimation with tx_send(wallet, changeAddrInfo.address, amount).fee. Removed tx_send_build, calcFee from imports and the now-unused network const in SendScreen.
 
 ---
+USER: In many places there is wallet.name||''. what is the location of wallet initialization? that is the place to set name to a string (whether new wallet, or wallet ready from localStorage), and from there on no need for the ||''
+
+CLAUDE: In loadWallets() in wallet_db.js, added name: w.name||'' when constructing the wallet object so name is always a string. Removed the ||'' fallback from wallet.jsx line 555.
+
+---
