@@ -441,13 +441,13 @@ export function kv_tx_edit(wallet, kv_d, fee){
   const value = Math.round(vout.value*1e8);
   const saddr = vout.scriptPubKey?.address ||
     vout.scriptPubKey?.addresses?.[0];
-  const oaddr = addrs.find(a=>a.address==saddr);
-  if (!oaddr)
+  const addr = addrs.find(a=>a.address==saddr);
+  if (!addr)
     throw new Error('Name UTXO address not found in wallet');
   const dest = changeAddrInfo.address;
   if (!fee)
     fee = fee_calc(wallet.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
-  const signers = [oaddr];
+  const signers = [addr];
   const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, saddr}];
   let extraTotal = 0;
   if (value<fee){
@@ -477,12 +477,12 @@ export function kv_tx_send(wallet, kv_d, saddr_to, fee){
   const value = Math.round(vout.value*1e8);
   const saddr = vout.scriptPubKey?.address ||
     vout.scriptPubKey?.addresses?.[0];
-  const oaddr = addrs.find(a=>a.address==saddr);
-  if (!oaddr)
+  const addr = addrs.find(a=>a.address==saddr);
+  if (!addr)
     throw new Error('Name UTXO address not found in wallet');
   if (!fee)
     fee = fee_calc(wallet.feeRate, kv_tx_send(wallet, kv_d, saddr_to, 1).tx);
-  const signers = [oaddr];
+  const signers = [addr];
   const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, saddr}];
   let extraTotal = 0;
   if (value<fee){
