@@ -935,7 +935,7 @@ function SendScreen({wallet, onSent}){
   });
   useEffect(()=>{
     const amt = Math.round(parseFloat(amountSat)*1e8);
-    const target = !isNaN(amt) && amt>0 ? amt : 1;
+    const target = amt>0 ? amt : 1;
     try { setFee(tx_send(wallet, changeAddrInfo.address, target).fee); }
     catch(e){}
   }, [amountSat, utxos]);
