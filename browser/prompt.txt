@@ -655,3 +655,11 @@ USER: estimateFee() already fetches fee rate as part of fetchWalletData(), so no
 CLAUDE: Removed all estimateFee() calls from wallet.jsx. All 4 screens (SendScreen, InscribeScreen, NameTransferScreen, NameEditScreen) now initialize feeRate from wallet.feeRate||conf.fee_def instead. Removed estimateFee from import.
 
 ---
+
+---
+
+USER: why does wallet.feeRate||conf.fee_def have the fallback? wallet.feeRate should always be set
+
+CLAUDE: Removed all ||conf.fee_def fallbacks. wallet.feeRate is always set before these screens are shown (gated on allAddrs.length>0 which requires fetchWalletData to have run).
+
+---
