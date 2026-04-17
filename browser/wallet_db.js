@@ -424,7 +424,7 @@ export function kv_tx_add(wallet, key, val, fee){
   return {fee, tx};
 }
 
-function inscriptionScript(key, val){
+function kv_script(key, val){
   return bitcoin.script.compile([
     bitcoin.opcodes.OP_RETURN, Buffer.from('lif'),
     Buffer.from('key'),
@@ -596,7 +596,7 @@ export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
       witnessUtxo: {value: BigInt(u.value),
       script: bitcoin.address.toOutputScript(u.addrInfo.address, network)}});
   }
-  p.addOutput({script: inscriptionScript(key, val), value: 0n});
+  p.addOutput({script: kv_script(key, val), value: 0n});
   p.addOutput({address: changeAddr, value: BigInt(total-fee)});
   for(let i=0; i<inputs.length; i++)
     p.signInput(i, inputs[i].addrInfo.keyPair);
@@ -636,7 +636,7 @@ export function kv_tx_edit_build(network, inputs, signers, {key, val}, dest,
       witnessUtxo: {value: BigInt(inp.value),
         script: bitcoin.address.toOutputScript(inp.addr, network)}});
   }
-  p.addOutput({script: inscriptionScript(key, val), value: 0n});
+  p.addOutput({script: kv_script(key, val), value: 0n});
   if (nameValue<fee){
     p.addOutput({address: dest, value: BigInt(nameValue)});
     const ch = extraTotal-fee;
