@@ -726,10 +726,10 @@ function NameTransferScreen({wallet, kv_d, onSent}){
       return alert('Enter recipient address');
     setSending(true);
     try {
-      const {fee, tx} = kv_tx_send(wallet, kv_d, toAddress.trim(), fee);
+      const {fee: _fee, tx} = kv_tx_send(wallet, kv_d, toAddress.trim(), fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
-      setFee(fee);
+      setFee(_fee);
       const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
       alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
@@ -772,10 +772,10 @@ function NameEditScreen({wallet, kv_d, onSent}){
   const handleSave = async()=>{
     setSending(true);
     try {
-      const {fee, tx} = kv_tx_edit(wallet, kv_d, fee);
+      const {fee: _fee, tx} = kv_tx_edit(wallet, kv_d, fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
-      setFee(fee);
+      setFee(_fee);
       const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
       alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
@@ -942,10 +942,10 @@ function SendScreen({wallet, onSent}){
       return alert('Invalid amount');
     setSending(true);
     try {
-      const {fee, tx} = tx_send(wallet, toAddress, amountValue, fee);
+      const {fee: _fee, tx} = tx_send(wallet, toAddress, amountValue, fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
-      setFee(fee);
+      setFee(_fee);
       const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
       alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
       setToAddress('');
@@ -1030,10 +1030,10 @@ function InscribeScreen({wallet, onSent}){
       return alert('Value is required');
     setSending(true);
     try {
-      const {fee, tx} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), fee);
+      const {fee: _fee, tx} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
-      setFee(fee);
+      setFee(_fee);
       alert(`Inscription sent!\nTXID: ${txid}`);
       setInscKey('');
       setInscVal('');
