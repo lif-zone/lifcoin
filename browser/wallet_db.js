@@ -222,7 +222,7 @@ export async function dbPut(id, data){
 // Populate wallet with cached data from IndexedDB (re-derives keyPairs from
 // mnemonic). Idempotent: does nothing if wallet already has
 // data (wallet.addrs defined).
-async function loadWalletCache(wallet){
+async function wallet_load_cache(wallet){
   if (wallet.addrs)
     return;
   const cached = await dbGet('walletData:'+wallet.id);
@@ -269,7 +269,7 @@ function serializeWallet(wallet){
 async function cache_preload(){
   const _networks = getNetworks(loadServers());
   for (const w of loadWallets(_networks))
-    await loadWalletCache(w);
+    await wallet_load_cache(w);
 }
 await cache_preload();
 
