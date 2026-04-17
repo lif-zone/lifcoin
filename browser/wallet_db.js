@@ -573,7 +573,7 @@ export function findAddrInWallet(root, accountPath, network, targetAddr){
 
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
 export function tx_send_build(network, inputs, toAddr, amt, changeAddr, total,
-  txFee)
+  fee)
 {
   const p = bitcoin_psbt(network);
   for (const u of inputs){
@@ -582,7 +582,7 @@ export function tx_send_build(network, inputs, toAddr, amt, changeAddr, total,
       script: bitcoin.address.toOutputScript(u.addrInfo.address, network)}});
   }
   p.addOutput({address: toAddr, value: BigInt(amt)});
-  const ch = total-amt-txFee;
+  const ch = total-amt-fee;
   p.addOutput({address: changeAddr, value: BigInt(ch)});
   for(let i=0; i<inputs.length; i++)
     p.signInput(i, inputs[i].addrInfo.keyPair);
@@ -598,7 +598,7 @@ function bitcoin_psbt(network){
 }
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
 export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
-  txFee)
+  fee)
 {
   const p = bitcoin_psbt(network);
   for (const u of inputs){
@@ -607,7 +607,7 @@ export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
       script: bitcoin.address.toOutputScript(u.addrInfo.address, network)}});
   }
   p.addOutput({script: inscriptionScript(key, val), value: 0n});
-  p.addOutput({address: changeAddr, value: BigInt(total-txFee)});
+  p.addOutput({address: changeAddr, value: BigInt(total-fee)});
   for(let i=0; i<inputs.length; i++)
     p.signInput(i, inputs[i].addrInfo.keyPair);
   p.finalizeAllInputs();
@@ -616,7 +616,7 @@ export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
 
 // inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
 export function kv_tx_send_build(network, inputs, signers, toAddr, nameValue,
-  extraTotal, changeAddr, txFee)
+  extraTotal, changeAddr, fee)
 {
   const p = bitcoin_psbt(network);
   for (const inp of inputs){
@@ -624,12 +624,12 @@ export function kv_tx_send_build(network, inputs, signers, toAddr, nameValue,
       witnessUtxo: {value: BigInt(inp.value),
         script: bitcoin.address.toOutputScript(inp.addr, network)}});
   }
-  if (nameValue<txFee){
+  if (nameValue<fee){
     p.addOutput({address: toAddr, value: BigInt(nameValue)});
-    const ch = extraTotal-txFee;
+    const ch = extraTotal-fee;
     p.addOutput({address: changeAddr, value: BigInt(ch)});
   } else
-    p.addOutput({address: toAddr, value: BigInt(nameValue-txFee)});
+    p.addOutput({address: toAddr, value: BigInt(nameValue-fee)});
   for(let i=0; i<signers.length; i++)
     p.signInput(i, signers[i].keyPair);
   p.finalizeAllInputs();
@@ -638,7 +638,7 @@ export function kv_tx_send_build(network, inputs, signers, toAddr, nameValue,
 
 // inputs: [{txid, vout, value, addr}], signers: [{keyPair}]
 export function kv_tx_edit_build(network, inputs, signers, {key, val}, dest,
-  nameValue, extraTotal, changeAddr, txFee)
+  nameValue, extraTotal, changeAddr, fee)
 {
   const p = bitcoin_psbt(network);
   for (const inp of inputs){
@@ -647,12 +647,12 @@ export function kv_tx_edit_build(network, inputs, signers, {key, val}, dest,
         script: bitcoin.address.toOutputScript(inp.addr, network)}});
   }
   p.addOutput({script: inscriptionScript(key, val), value: 0n});
-  if (nameValue<txFee){
+  if (nameValue<fee){
     p.addOutput({address: dest, value: BigInt(nameValue)});
-    const ch = extraTotal-txFee;
+    const ch = extraTotal-fee;
     p.addOutput({address: changeAddr, value: BigInt(ch)});
   } else
-    p.addOutput({address: dest, value: BigInt(nameValue-txFee)});
+    p.addOutput({address: dest, value: BigInt(nameValue-fee)});
   for(let i=0; i<signers.length; i++)
     p.signInput(i, signers[i].keyPair);
   p.finalizeAllInputs();
