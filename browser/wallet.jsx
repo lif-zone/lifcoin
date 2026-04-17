@@ -131,7 +131,7 @@ function BrightWallet(){
       )}
       {screen=='key-detail' && selectedKeyData && activeWallet && (
         <KeyDetailScreen
-          keyData={selectedKeyData}
+          kv_d={selectedKeyData}
           conf={activeWallet.conf}
           onViewTx={(tx)=>{ setSelectedTxData({tx, conf: activeWallet.conf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx-detail'); }}
           onTransfer={()=>setScreen('name-transfer')}
@@ -141,14 +141,14 @@ function BrightWallet(){
       {screen=='name-transfer' && selectedKeyData && activeWallet && (
         <NameTransferScreen
           wallet={activeWallet}
-          keyData={selectedKeyData}
+          kv_d={selectedKeyData}
           onSent={()=>setScreen('wallet-detail')}
         />
       )}
       {screen=='name-edit' && selectedKeyData && activeWallet && (
         <NameEditScreen
           wallet={activeWallet}
-          keyData={selectedKeyData}
+          kv_d={selectedKeyData}
           onSent={()=>setScreen('wallet-detail')}
         />
       )}
@@ -403,7 +403,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
 
   useEffect(()=>{
     try {
-      getRoot(wallet.mnemonic, network, wallet.passphrase||'');
+      getRoot(wallet.mnemonic, wallet.network, wallet.passphrase||'');
     } catch(e){ return; }
     (async()=>{
       try {
@@ -661,21 +661,21 @@ function ReceiveScreen({address, symbol}){
 }
 
 // Key Detail Screen
-function KeyDetailScreen({keyData, conf, onViewTx, onTransfer, onEdit}){
-  const tx = keyData._tx;
+function KeyDetailScreen({kv_d, conf, onViewTx, onTransfer, onEdit}){
+  const tx = kv_d._tx;
   const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
-  const statusColor = keyData._kstatus=='confirmed' ? 'green' :
-    keyData._kstatus=='receiving' ? '#f90' : '#c00';
-  const statusLabel = keyData._kstatus=='confirmed' ? 'Confirmed' :
-    keyData._kstatus=='receiving' ? 'Unconfirmed' : 'Spent';
+  const statusColor = kv_d._kstatus=='confirmed' ? 'green' :
+    kv_d._kstatus=='receiving' ? '#f90' : '#c00';
+  const statusLabel = kv_d._kstatus=='confirmed' ? 'Confirmed' :
+    kv_d._kstatus=='receiving' ? 'Unconfirmed' : 'Spent';
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState('');
-  const startEdit = ()=>{ setEditVal(json(keyData.val)); setEditing(true); };
-  const isSpent = keyData._kstatus=='spent';
+  const startEdit = ()=>{ setEditVal(json(kv_d.val)); setEditing(true); };
+  const isSpent = kv_d._kstatus=='spent';
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
-      <h3>Name <span style={{color: statusColor, fontFamily: 'monospace'}}>{keyData.key}</span></h3>
+      <h3>Name <span style={{color: statusColor, fontFamily: 'monospace'}}>{kv_d.key}</span></h3>
       <div style={{marginTop: 12}}>
         <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
           <strong>Value:</strong>
@@ -694,7 +694,7 @@ function KeyDetailScreen({keyData, conf, onViewTx, onTransfer, onEdit}){
             <button onClick={()=>setEditing(false)}>Cancel</button>
           </div>
         </>) : (
-          <div style={{fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 2}}>{json(keyData.val)}</div>
+          <div style={{fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 2}}>{json(kv_d.val)}</div>
         )}
       </div>
       {tx && (<>
@@ -713,14 +713,14 @@ function KeyDetailScreen({keyData, conf, onViewTx, onTransfer, onEdit}){
 }
 
 // Name Transfer Screen
-function NameTransferScreen({wallet, keyData, onSent}){
+function NameTransferScreen({wallet, kv_d, onSent}){
   const conf = wallet.conf;
   const [toAddress, setToAddress] = useState('');
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
     try {
       const addr = wallet.changeAddrInfo?.address||'';
-      return kv_tx_send(wallet, keyData, addr, 1, true).exactFee;
+      return kv_tx_send(wallet, kv_d, addr, 1, true).exactFee;
     } catch(e){ return 0; }
   });
 
@@ -729,7 +729,7 @@ function NameTransferScreen({wallet, keyData, onSent}){
       return alert('Enter recipient address');
     setSending(true);
     try {
-      const {exactFee, tx} = kv_tx_send(wallet, keyData,
+      const {exactFee, tx} = kv_tx_send(wallet, kv_d,
         toAddress.trim(), fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
@@ -748,7 +748,7 @@ function NameTransferScreen({wallet, keyData, onSent}){
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Transfer Name</h3>
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
-        Transferring: <span style={{fontFamily: 'monospace'}}>{keyData.key}</span>
+        Transferring: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
       </div>
       <input
         placeholder="Recipient address"
@@ -765,18 +765,18 @@ function NameTransferScreen({wallet, keyData, onSent}){
 }
 
 // Name Edit Screen
-function NameEditScreen({wallet, keyData, onSent}){
+function NameEditScreen({wallet, kv_d, onSent}){
   const conf = wallet.conf;
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
-    try { return kv_tx_edit(wallet, keyData, 1, true).exactFee; }
+    try { return kv_tx_edit(wallet, kv_d, 1, true).exactFee; }
     catch(e){ return 0; }
   });
 
   const handleSave = async()=>{
     setSending(true);
     try {
-      const {exactFee, tx} = kv_tx_edit(wallet, keyData, fee);
+      const {exactFee, tx} = kv_tx_edit(wallet, kv_d, fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(exactFee);
@@ -794,10 +794,10 @@ function NameEditScreen({wallet, keyData, onSent}){
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Edit Name</h3>
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
-        Name: <span style={{fontFamily: 'monospace'}}>{keyData.key}</span>
+        Name: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
       </div>
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
-        New value: <span style={{fontFamily: 'monospace'}}>{keyData.val}</span>
+        New value: <span style={{fontFamily: 'monospace'}}>{kv_d.val}</span>
       </div>
       <FeeField value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleSave} disabled={sending} style={{marginTop: 12}}>
