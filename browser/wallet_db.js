@@ -292,7 +292,7 @@ export async function wallet_fetch(wallet){
     .address;
   const changeAddrInfo = hd_addr(root, ap, network, 1, chgRes.nextIndex);
   const walletAddrSet = new Set(addrs.map(a=>a.address));
-  const [utxoLists, bals] = await Promise.all([
+  const [utxo_list, bals] = await Promise.all([
     Promise.all(addrs.map(async(a)=>{
       const sh = addr_sh(a.address, network);
       return (await el.blockchain_scripthash_listunspent(sh)).map(
@@ -301,7 +301,7 @@ export async function wallet_fetch(wallet){
     Promise.all(addrs.map(a=>el.blockchain_scripthash_getBalance(
       addr_sh(a.address, network)))),
   ]);
-  const utxos = utxoLists.flat().map(u=>({...u, addrInfo: addrs.find(
+  const utxos = utxo_list.flat().map(u=>({...u, addrInfo: addrs.find(
     a=>a.address==u.address)}));
   const balance = bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0);
   const feeRate = await el_estimatefee(conf);
