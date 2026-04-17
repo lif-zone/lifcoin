@@ -68,15 +68,15 @@ function Electrum_connect(url){
 }
 
 const clients = {};
-function getClient(conf){
+function el_connect(conf){
   const url = conf.electrum;
   if (clients[url])
     return clients[url];
   return clients[url] = (async()=>{
     try {
-      const cl = Electrum_connect(url);
-      await cl.connect('lif-coin-wallet', '1.4');
-      return cl;
+      const el = Electrum_connect(url);
+      await el.connect('lif-coin-wallet', '1.4');
+      return el;
     } catch(e){
       delete clients[url];
       throw e;
@@ -125,7 +125,7 @@ export function hd_wallet(mnemonic, networkKey, networks, passphrase='',
 // Returns {used: [{address, keyPair, chain, index, hist}], nextIndex}
 export async function hd_scan(conf, root, accountPath, chain){
   const network = conf.network;
-  const cl = await getClient(conf);
+  const el = await el_connect(conf);
   const GAP = 20;
   const used = [];
   let lastUsed = -1;
@@ -134,7 +134,7 @@ export async function hd_scan(conf, root, accountPath, chain){
     const entries = Array.from({length: GAP}, (_, i)=>hd_addr(root,
       accountPath, network, chain, start+i));
     const hists = await Promise.all(
-      entries.map(e=>cl.blockchain_scripthash_getHistory(
+      entries.map(e=>el.blockchain_scripthash_getHistory(
         addr_sh(e.address, network)))
     );
     let anyUsed = false;
@@ -250,7 +250,7 @@ async function wallet_load_cache(wallet){
   } catch(e){}
 }
 
-function serializeWallet(wallet){
+function wallet_json(wallet){
   return {
     balance: wallet.balance,
     receiveAddress: wallet.receiveAddress,
@@ -280,7 +280,7 @@ export async function wallet_db_init(){
 export async function wallet_fetch(wallet){
   const conf = wallet.conf;
   const network = conf.network;
-  const cl = await getClient(conf);
+  const el = await el_connect(conf);
   const root = hd_root(wallet.mnemonic, network, wallet.passphrase||'');
   const ap = wallet.derivPath||hd_path_def(conf);
   const [extRes, chgRes] = await Promise.all([
@@ -295,16 +295,16 @@ export async function wallet_fetch(wallet){
   const [utxoLists, bals] = await Promise.all([
     Promise.all(addrs.map(async(a)=>{
       const sh = addr_sh(a.address, network);
-      return (await cl.blockchain_scripthash_listunspent(sh)).map(
+      return (await el.blockchain_scripthash_listunspent(sh)).map(
         u=>({...u, address: a.address, chain: a.chain, index: a.index}));
     })),
-    Promise.all(addrs.map(a=>cl.blockchain_scripthash_getBalance(
+    Promise.all(addrs.map(a=>el.blockchain_scripthash_getBalance(
       addr_sh(a.address, network)))),
   ]);
   const utxos = utxoLists.flat().map(u=>({...u, addrInfo: addrs.find(
     a=>a.address==u.address)}));
   const balance = bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0);
-  const feeRate = await estimateFee(conf);
+  const feeRate = await el_estimatefee(conf);
   // Transactions
   const txByHash = new Map();
   for (const a of addrs){
@@ -317,8 +317,8 @@ export async function wallet_fetch(wallet){
   if (hist.length){
     const heights = [...new Set(hist.filter(t=>t.height>0).map(t=>t.height))];
     const [verboseTxs, ...headers] = await Promise.all([
-      Promise.all(hist.map(t=>cl.blockchain_transaction_get(t.tx_hash, true))),
-      ...heights.map(h=>cl.blockchain_block_header(h)),
+      Promise.all(hist.map(t=>el.blockchain_transaction_get(t.tx_hash, true))),
+      ...heights.map(h=>el.blockchain_block_header(h)),
     ]);
     const tsMap = {};
     heights.forEach((h, i)=>{
@@ -328,7 +328,7 @@ export async function wallet_fetch(wallet){
     const prevIds = [...new Set(verboseTxs.flatMap(vtx=>(vtx.vin||[]).map(
       vin=>vin.txid).filter(id=>id&&!histTxIds.has(id))))];
     const prevList = await Promise.all(prevIds.map(
-      id=>cl.blockchain_transaction_get(id, true)));
+      id=>el.blockchain_transaction_get(id, true)));
     const prevMap = {};
     prevIds.forEach((id, i)=>{ prevMap[id]=prevList[i]; });
     verboseTxs.forEach(vtx=>{ prevMap[vtx.txid]=vtx; });
@@ -386,22 +386,20 @@ export async function wallet_fetch(wallet){
   }
   Object.assign(wallet, {balance, receiveAddress, feeRate, addrs,
     changeAddrInfo, utxos, transactions, ownedKeys});
-  await db_put('walletData:'+wallet.id, serializeWallet(wallet));
+  await db_put('walletData:'+wallet.id, wallet_json(wallet));
   return wallet;
 }
 
-export async function estimateFee(conf){
+export async function el_estimatefee(conf){
   const fallback = conf.fee_def;
   try {
-    const cl = await getClient(conf);
-    const rate = await cl.request('blockchain.estimatefee', [6]);
+    const el = await el_connect(conf);
+    const rate = await el.request('blockchain.estimatefee', [6]);
     if (rate>0)
       return Math.round(rate*1e8);
   } catch(e){}
   return fallback;
 }
-
-
 
 export function kv_tx_add(wallet, key, val, fee){
   const {conf, utxos, changeAddrInfo} = wallet;
@@ -411,7 +409,7 @@ export function kv_tx_add(wallet, key, val, fee){
     throw new Error('No funds available');
   if (!fee){
     const u0 = allUTXOs[0];
-    fee = calcFee(wallet.feeRate, kv_tx_new_build(network, [u0], {key, val},
+    fee = fee_calc(wallet.feeRate, kv_tx_new_build(network, [u0], {key, val},
       changeAddrInfo.address, u0.value, 1));
   }
   const selected = [];
@@ -452,7 +450,7 @@ export function kv_tx_edit(wallet, kv_d, fee){
   const dest = changeAddrInfo.address;
   if (!fee){
     const estInputs = [{txid: kv_d.tx, vout: kv_d.vout, value: nameValue, addr: nameAddr}];
-    fee = calcFee(wallet.feeRate, kv_tx_edit_build(network, estInputs, [nameAddrInfo],
+    fee = fee_calc(wallet.feeRate, kv_tx_edit_build(network, estInputs, [nameAddrInfo],
       kv_d, dest, nameValue, 0, dest, 1));
   }
   const signers = [nameAddrInfo];
@@ -490,7 +488,7 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee){
     throw new Error('Name UTXO address not found in wallet');
   if (!fee){
     const estInputs = [{txid: kv_d.tx, vout: kv_d.vout, value: nameValue, addr: nameAddr}];
-    fee = calcFee(wallet.feeRate, kv_tx_send_build(network, estInputs, [nameAddrInfo],
+    fee = fee_calc(wallet.feeRate, kv_tx_send_build(network, estInputs, [nameAddrInfo],
       changeAddrInfo.address, nameValue, 0, changeAddrInfo.address, 1));
   }
   const signers = [nameAddrInfo];
@@ -524,7 +522,7 @@ export function tx_send(wallet, toAddress, amountValue, fee){
     throw new Error('No funds available');
   if (!fee){
     const u0 = allUTXOs[0];
-    fee = calcFee(wallet.feeRate, tx_send_build(network, [u0],
+    fee = fee_calc(wallet.feeRate, tx_send_build(network, [u0],
       changeAddrInfo.address, 1, changeAddrInfo.address, u0.value, 1));
   }
   const selected = [];
@@ -543,28 +541,28 @@ export function tx_send(wallet, toAddress, amountValue, fee){
 }
 
 export async function tx_broadcast(conf, tx){
-  const cl = await getClient(conf);
-  let txid = await cl.blockchain_transaction_broadcast(tx.toHex());
+  const el = await el_connect(conf);
+  let txid = await el.blockchain_transaction_broadcast(tx.toHex());
   if (txid!=tx.getId())
     console.error(`mistmatch txid ${txid} ${tx.getId()}`);
 }
 
-export async function listUnspentForAddr(conf, addr){
-  const cl = await getClient(conf);
-  return cl.blockchain_scripthash_listunspent(
+export async function el_list_unspent(conf, addr){
+  const el = await el_connect(conf);
+  return el.blockchain_scripthash_listunspent(
     addr_sh(addr, conf.network));
 }
 
 export async function kv_get(conf, key){
-  const cl = await getClient(conf);
-  return cl.request('blockchain.lif_kv.get', [key]);
+  const el = await el_connect(conf);
+  return el.request('blockchain.lif_kv.get', [key]);
 }
 
-export function calcFee(rateSatPerKb, tx){
+export function fee_calc(rateSatPerKb, tx){
   return Math.ceil(rateSatPerKb/1000*tx.virtualSize());
 }
 
-export function findAddrInWallet(root, accountPath, network, targetAddr){
+export function hd_addr_find(root, accountPath, network, targetAddr){
   for (let ch=0; ch<2; ch++){
     for (let idx=0; idx<30; idx++){
       const info = hd_addr(root, accountPath, network, ch, idx);
