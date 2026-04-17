@@ -399,7 +399,7 @@ export async function estimateFee(conf){
 
 
 
-export function kv_tx_add(wallet, key, val, fee=0){
+export function kv_tx_add(wallet, key, val, fee){
   const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const allUTXOs = [...(utxos||[])].sort((a,b)=>b.value-a.value);
@@ -435,7 +435,7 @@ function inscriptionScript(key, val){
   ]);
 }
 
-export function kv_tx_edit(wallet, kv_d, fee=0){
+export function kv_tx_edit(wallet, kv_d, fee){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const nameVout = kv_d._tx._vtx.vout[kv_d.vout];
@@ -474,7 +474,7 @@ export function kv_tx_edit(wallet, kv_d, fee=0){
   return {fee, tx};
 }
 
-export function kv_tx_send(wallet, kv_d, toAddress, fee=0){
+export function kv_tx_send(wallet, kv_d, toAddress, fee){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const nameVout = kv_d._tx._vtx.vout[kv_d.vout];
@@ -512,7 +512,7 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee=0){
   return {fee, tx};
 }
 
-export function tx_send(wallet, toAddress, amountValue, fee=0){
+export function tx_send(wallet, toAddress, amountValue, fee){
   const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const allUTXOs = [...(utxos||[])].sort((a,b)=>b.value-a.value);
