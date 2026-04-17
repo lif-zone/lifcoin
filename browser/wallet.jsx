@@ -4,7 +4,7 @@ import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import {nets_list, servers_save, servers_load, wallet_db_init,
   wallets_save, wallets_load, nets_get, wallet_fetch,
-  getRoot, deriveWallet, deriveAddrAt, defaultDerivPath,
+  hd_root, hd_wallet, hd_addr, hd_path_def,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
 } from './wallet_db.js';
 
@@ -195,7 +195,7 @@ function WalletCard({wallet, onClick}){
   const [connErr, setConnErr] = useState(false);
   const derived = useMemo(()=>{
     try {
-      getRoot(wallet.mnemonic, conf.network, wallet.passphrase||'');
+      hd_root(wallet.mnemonic, conf.network, wallet.passphrase||'');
       return true;
     } catch { return false; }
   }, [wallet.id, wallet.network]);
@@ -260,7 +260,7 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('mainnet');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [derivPath, setDerivPath] = useState(
-    ()=>defaultDerivPath(networks['mainnet']));
+    ()=>hd_path_def(networks['mainnet']));
   const [mnemonicInput, setMnemonicInput] = useState('');
   const defaultName = (()=>{
     let max = 0;
@@ -287,7 +287,7 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
     const pp = usePassphrase ? passphrase : '';
     const dp = showAdvanced ? derivPath.trim() : null;
     try {
-      deriveWallet(mnemonic, networkKey, networks, pp, dp);
+      hd_wallet(mnemonic, networkKey, networks, pp, dp);
     } catch(e){
       return void setError('Failed to derive wallet: '+e.message);
     }
@@ -315,7 +315,7 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
         <label>Network:</label>
         <select
           value={networkKey}
-          onChange={e=>{ setNetworkKey(e.target.value); setDerivPath(defaultDerivPath(networks[e.target.value])); }}
+          onChange={e=>{ setNetworkKey(e.target.value); setDerivPath(hd_path_def(networks[e.target.value])); }}
           style={{display: 'block', width: '100%', marginTop: 4}}
         >
           {Object.entries(networks).map(([key, conf])=>(
@@ -400,7 +400,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
 
   useEffect(()=>{
     try {
-      getRoot(wallet.mnemonic, wallet.network, wallet.passphrase||'');
+      hd_root(wallet.mnemonic, wallet.network, wallet.passphrase||'');
     } catch(e){ return; }
     (async()=>{
       try {
@@ -554,7 +554,7 @@ function WalletSettingsSubscreen({wallet, onUpdate, onDelete}){
   const [revealed, setRevealed] = useState(false);
   const [name, setName] = useState(wallet.name);
   const hasPassphrase = !!wallet.passphrase;
-  const derivPath = wallet.derivPath || defaultDerivPath(conf);
+  const derivPath = wallet.derivPath || hd_path_def(conf);
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Wallet Settings</h3>

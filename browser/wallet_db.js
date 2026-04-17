@@ -94,15 +94,15 @@ export function nets_get(servers){
   return result;
 }
 
-export function getRoot(mnemonic, network, passphrase=''){
+export function hd_root(mnemonic, network, passphrase=''){
   return bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic, passphrase), network);
 }
 
-export function defaultDerivPath(conf){
+export function hd_path_def(conf){
   return `m/84'/${conf.coin_type}'/0'`;
 }
 
-export function deriveAddrAt(root, accountPath, network, chain, index){
+export function hd_addr(root, accountPath, network, chain, index){
   const child = root.derivePath(`${accountPath}/${chain}/${index}`);
   const pubkey = child.publicKey;
   const {address} = bitcoin.payments.p2wpkh({pubkey, network});
@@ -110,20 +110,20 @@ export function deriveAddrAt(root, accountPath, network, chain, index){
   return {address, keyPair, chain, index};
 }
 
-export function deriveWallet(mnemonic, networkKey, networks, passphrase='',
+export function hd_wallet(mnemonic, networkKey, networks, passphrase='',
   derivPath=null)
 {
   const conf = networks[networkKey];
   const network = conf.network;
-  const root = getRoot(mnemonic, network, passphrase);
-  const accountPath = derivPath || defaultDerivPath(conf);
-  const {address, keyPair} = deriveAddrAt(root, accountPath, network, 0, 0);
+  const root = hd_root(mnemonic, network, passphrase);
+  const accountPath = derivPath || hd_path_def(conf);
+  const {address, keyPair} = hd_addr(root, accountPath, network, 0, 0);
   return {address, keyPair, network, conf, root};
 }
 
 // Scan used addresses on chain (0=external, 1=change) with gap limit of 20.
 // Returns {used: [{address, keyPair, chain, index, hist}], nextIndex}
-export async function scanAddresses(conf, root, accountPath, chain){
+export async function hd_scan(conf, root, accountPath, chain){
   const network = conf.network;
   const cl = await getClient(conf);
   const GAP = 20;
@@ -131,11 +131,11 @@ export async function scanAddresses(conf, root, accountPath, chain){
   let lastUsed = -1;
   let start = 0;
   while (true){
-    const entries = Array.from({length: GAP}, (_, i)=>deriveAddrAt(root,
+    const entries = Array.from({length: GAP}, (_, i)=>hd_addr(root,
       accountPath, network, chain, start+i));
     const hists = await Promise.all(
       entries.map(e=>cl.blockchain_scripthash_getHistory(
-        getScriptHash(e.address, network)))
+        addr_sh(e.address, network)))
     );
     let anyUsed = false;
     for (let i=0; i<GAP; i++){
@@ -152,13 +152,14 @@ export async function scanAddresses(conf, root, accountPath, chain){
   return {used, nextIndex: lastUsed+1};
 }
 
-export function getScriptHash(addr, network){
+// convert address to scripthash (electrum usess scripthash for addresses)
+export function addr_sh(addr, network){
   const script = bitcoin.address.toOutputScript(addr, network);
   const hash = bitcoin.crypto.sha256(script);
   return Buffer.from(hash.reverse()).toString('hex');
 }
 
-const WALLET_STORED_FIELDS = ['id', 'name', 'network', 'mnemonic',
+const wallet_store_fields = ['id', 'name', 'network', 'mnemonic',
   'passphrase', 'derivPath'];
 
 // id → single wallet object instance (mutated in place)
@@ -183,7 +184,7 @@ export function wallets_load(networks){
 export function wallets_save(wallets){
   const raw = wallets.map(w=>{
     const o = {};
-    for (const f of WALLET_STORED_FIELDS){
+    for (const f of wallet_store_fields){
       if (w[f]!==undefined)
         o[f] = w[f];
     }
@@ -203,17 +204,20 @@ export function servers_save(servers){
 }
 
 // IndexedDB Cache
-const db = await openDB('bright-wallet', 1, {
-  upgrade(db){
-    db.createObjectStore('cache');
-  }
-});
-export async function dbGet(id){
+let db;
+async function db_init(){
+  db = await openDB('bright-wallet', 1, {
+    upgrade(db){
+      db.createObjectStore('cache');
+    }
+  });
+}
+export async function db_get(id){
   try {
     return await db.get('cache', id) ?? null;
   } catch{ return null; }
 }
-export async function dbPut(id, data){
+export async function db_put(id, data){
   try {
     await db.put('cache', data, id);
   } catch{}
@@ -225,21 +229,21 @@ export async function dbPut(id, data){
 async function wallet_load_cache(wallet){
   if (wallet.addrs)
     return;
-  const cached = await dbGet('walletData:'+wallet.id);
+  const cached = await db_get('walletData:'+wallet.id);
   if (!cached)
     return;
   try {
     const {conf} = wallet;
-    const root = getRoot(wallet.mnemonic, conf.network, wallet.passphrase||'');
-    const ap = wallet.derivPath||defaultDerivPath(conf);
-    const addrs = (cached.addrs||[]).map(a=>({...a, ...deriveAddrAt(root, ap,
+    const root = hd_root(wallet.mnemonic, conf.network, wallet.passphrase||'');
+    const ap = wallet.derivPath||hd_path_def(conf);
+    const addrs = (cached.addrs||[]).map(a=>({...a, ...hd_addr(root, ap,
       conf.network, a.chain, a.index)}));
     const changeAddrInfo = cached.changeAddrInfo
-      ? {...cached.changeAddrInfo, ...deriveAddrAt(root, ap, conf.network,
+      ? {...cached.changeAddrInfo, ...hd_addr(root, ap, conf.network,
         cached.changeAddrInfo.chain, cached.changeAddrInfo.index)}
       : null;
     const utxos = (cached.utxos||[]).map(u=>({
-      ...u, addrInfo: addrs.find(a=>a.address==u.address)||deriveAddrAt(root,
+      ...u, addrInfo: addrs.find(a=>a.address==u.address)||hd_addr(root,
         ap, conf.network, u.chain, u.index)
     }));
     Object.assign(wallet, {...cached, addrs, changeAddrInfo, utxos});
@@ -267,6 +271,7 @@ function serializeWallet(wallet){
 
 // Preload all wallets from IndexedDB into memory at module startup
 export async function wallet_db_init(){
+  await db_init();
   const _networks = nets_get(servers_load());
   for (const w of wallets_load(_networks))
     await wallet_load_cache(w);
@@ -276,25 +281,25 @@ export async function wallet_fetch(wallet){
   const conf = wallet.conf;
   const network = conf.network;
   const cl = await getClient(conf);
-  const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
-  const ap = wallet.derivPath||defaultDerivPath(conf);
+  const root = hd_root(wallet.mnemonic, network, wallet.passphrase||'');
+  const ap = wallet.derivPath||hd_path_def(conf);
   const [extRes, chgRes] = await Promise.all([
-    scanAddresses(conf, root, ap, 0),
-    scanAddresses(conf, root, ap, 1),
+    hd_scan(conf, root, ap, 0),
+    hd_scan(conf, root, ap, 1),
   ]);
   const addrs = [...extRes.used, ...chgRes.used];
-  const receiveAddress = deriveAddrAt(root, ap, network, 0, extRes.nextIndex)
+  const receiveAddress = hd_addr(root, ap, network, 0, extRes.nextIndex)
     .address;
-  const changeAddrInfo = deriveAddrAt(root, ap, network, 1, chgRes.nextIndex);
+  const changeAddrInfo = hd_addr(root, ap, network, 1, chgRes.nextIndex);
   const walletAddrSet = new Set(addrs.map(a=>a.address));
   const [utxoLists, bals] = await Promise.all([
     Promise.all(addrs.map(async(a)=>{
-      const sh = getScriptHash(a.address, network);
+      const sh = addr_sh(a.address, network);
       return (await cl.blockchain_scripthash_listunspent(sh)).map(
         u=>({...u, address: a.address, chain: a.chain, index: a.index}));
     })),
     Promise.all(addrs.map(a=>cl.blockchain_scripthash_getBalance(
-      getScriptHash(a.address, network)))),
+      addr_sh(a.address, network)))),
   ]);
   const utxos = utxoLists.flat().map(u=>({...u, addrInfo: addrs.find(
     a=>a.address==u.address)}));
@@ -381,7 +386,7 @@ export async function wallet_fetch(wallet){
   }
   Object.assign(wallet, {balance, receiveAddress, feeRate, addrs,
     changeAddrInfo, utxos, transactions, ownedKeys});
-  await dbPut('walletData:'+wallet.id, serializeWallet(wallet));
+  await db_put('walletData:'+wallet.id, serializeWallet(wallet));
   return wallet;
 }
 
@@ -547,7 +552,7 @@ export async function tx_broadcast(conf, tx){
 export async function listUnspentForAddr(conf, addr){
   const cl = await getClient(conf);
   return cl.blockchain_scripthash_listunspent(
-    getScriptHash(addr, conf.network));
+    addr_sh(addr, conf.network));
 }
 
 export async function kv_get(conf, key){
@@ -562,7 +567,7 @@ export function calcFee(rateSatPerKb, tx){
 export function findAddrInWallet(root, accountPath, network, targetAddr){
   for (let ch=0; ch<2; ch++){
     for (let idx=0; idx<30; idx++){
-      const info = deriveAddrAt(root, accountPath, network, ch, idx);
+      const info = hd_addr(root, accountPath, network, ch, idx);
       if (info.address==targetAddr)
         return info;
     }
