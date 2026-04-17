@@ -421,8 +421,7 @@ export function kv_tx_add(wallet, key, val, fee=0, forEst=false){
     throw new Error('Insufficient balance to cover fee');
   const tx = kv_tx_new_build(network, selected, {key, val},
     changeAddrInfo.address, total, fee, forEst);
-  debugger;
-  return {exactFee: fee, tx};
+  return {fee, tx};
 }
 
 function inscriptionScript(key, val){
@@ -470,7 +469,7 @@ export function kv_tx_edit(wallet, kv_d, fee=0, forEst=false){
   }
   const tx = kv_tx_edit_build(network, inputs, signers, kv_d,
     dest, nameValue, extraTotal, changeAddrInfo.address, fee, forEst);
-  return {exactFee: fee, tx};
+  return {fee, tx};
 }
 
 export function kv_tx_send(wallet, kv_d, toAddress, fee=0, forEst=false){
@@ -507,7 +506,7 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee=0, forEst=false){
   }
   const tx = kv_tx_send_build(network, inputs, signers, toAddress, nameValue,
     extraTotal, changeAddrInfo.address, fee, forEst);
-  return {exactFee: fee, tx};
+  return {fee, tx};
 }
 
 export function tx_send(wallet, toAddress, amountValue, fee=0){
@@ -532,7 +531,7 @@ export function tx_send(wallet, toAddress, amountValue, fee=0){
     throw new Error('Insufficient balance');
   const tx = tx_send_build(network, selected, toAddress, amountValue,
     changeAddrInfo.address, total, fee);
-  return {exactFee: fee, tx};
+  return {fee, tx};
 }
 
 export async function tx_broadcast(conf, tx){
