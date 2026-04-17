@@ -225,7 +225,7 @@ function WalletCard({wallet, onClick}){
     );
   }
 
-  const symbol = conf.symbol||'BTC';
+  const symbol = conf.symbol;
   const label = wallet.name || '';
   return (
     <div style={cardStyle} onClick={onClick}>
@@ -420,7 +420,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
     })();
   }, [wallet.id, wallet.network]);
 
-  const symbol = conf.symbol||'BTC';
+  const symbol = conf.symbol;
   const label = wallet.name || '';
   const handleDelete = ()=>{
     if (window.confirm(`Delete wallet "${label}"?\n\nMake sure you have backed up the mnemonic!`))
@@ -720,9 +720,9 @@ function NameTransferScreen({wallet, keyData, onSent}){
   const [sending, setSending] = useState(false);
   const [changeAddrInfo, setChangeAddrInfo] =
     useState(wallet.changeAddrInfo ?? null);
-  const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
+  const [feeRate, setFeeRate] = useState(conf.fee_def);
   const [fee, setFee] = useState(
-    ()=>estimateNameFee(wallet, keyData, null, conf.fee_def||1000));
+    ()=>estimateNameFee(wallet, keyData, null, conf.fee_def));
 
   useEffect(()=>{
     (async()=>{
@@ -786,9 +786,9 @@ function NameEditScreen({wallet, keyData, onSent}){
   const [sending, setSending] = useState(false);
   const [changeAddrInfo, setChangeAddrInfo] =
     useState(wallet.changeAddrInfo ?? null);
-  const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
+  const [feeRate, setFeeRate] = useState(conf.fee_def);
   const [fee, setFee] = useState(
-    ()=>estimateNameFee(wallet, keyData, null, conf.fee_def||1000));
+    ()=>estimateNameFee(wallet, keyData, null, conf.fee_def));
 
   useEffect(()=>{
     (async()=>{
@@ -845,7 +845,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
   const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
   const positive = tx.amount>=0;
-  const symbol = conf.symbol||'BTC';
+  const symbol = conf.symbol';
   const voutAddr = (vout)=>vout.scriptPubKey?.address
     || vout.scriptPubKey?.addresses?.[0] || '?';
   return (
@@ -927,7 +927,7 @@ function Amt({sat, symbol, signed}){
 }
 
 function FeeField({value, onChange, conf}){
-  const symbol = conf?.symbol||'BTC';
+  const symbol = conf?.symbol;
   const [editing, setEditing] = useState(false);
   const [str, setStr] = useState((value/1e8).toFixed(8));
   useEffect(()=>{
@@ -964,7 +964,7 @@ function SendScreen({wallet, onSent}){
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
-  const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
+  const [feeRate, setFeeRate] = useState(conf.fee_def);
   const [fee, setFee] = useState(()=>{
     if (!utxos.length)
       return 0;
@@ -973,7 +973,7 @@ function SendScreen({wallet, onSent}){
       const dummyAddr = changeAddrInfo?.address || u.addrInfo.address;
       const tx = tx_send_build(network, [u], dummyAddr, 1, dummyAddr,
         u.value, 0, true);
-      return calcFee(conf.fee_def||1000, tx);
+      return calcFee(conf.fee_def, tx);
     } catch(e){ return 0; }
   });
   useEffect(()=>{
@@ -1022,7 +1022,7 @@ function SendScreen({wallet, onSent}){
       setSending(false);
     }
   };
-  const symbol = conf.symbol||'BTC';
+  const symbol = conf.symbol;
   return (
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Send {symbol}</h3>
@@ -1055,10 +1055,10 @@ function InscribeScreen({wallet, onSent}){
   const [sending, setSending] = useState(false);
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
-  const [feeRate, setFeeRate] = useState(conf.fee_def||1000);
+  const [feeRate, setFeeRate] = useState(conf.fee_def);
   const [fee, setFee] = useState(()=>{
-    try { return kv_tx_add(wallet, '', '', conf.fee_def||1000, conf.fee_def||1000, true).exactFee; }
-    catch(e){ return conf.fee_def||1000; }
+    try { return kv_tx_add(wallet, '', '', conf.fee_def, conf.fee_def, true).exactFee; }
+    catch(e){ return conf.fee_def; }
   });
   useEffect(()=>{
     (async()=>{
