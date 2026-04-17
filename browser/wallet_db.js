@@ -291,7 +291,7 @@ export async function wallet_fetch(wallet){
   const receiveAddress = hd_addr(root, ap, network, 0, extRes.nextIndex)
     .address;
   const changeAddrInfo = hd_addr(root, ap, network, 1, chgRes.nextIndex);
-  const walletAddrSet = new Set(addrs.map(a=>a.address));
+  const addr_set = new Set(addrs.map(a=>a.address));
   const [utxo_list, bals] = await Promise.all([
     Promise.all(addrs.map(async(a)=>{
       const sh = addr_sh(a.address, network);
@@ -335,7 +335,7 @@ export async function wallet_fetch(wallet){
     const voutToOurAmt=(vouts)=>(vouts||[]).reduce((sum, vout)=>{
       const as = vout.scriptPubKey?.addresses||(vout.scriptPubKey?.address ?
         [vout.scriptPubKey.address]:[]);
-      return as.some(a=>walletAddrSet.has(a)) ? sum+Math.round(vout.value*1e8)
+      return as.some(a=>addr_set.has(a)) ? sum+Math.round(vout.value*1e8)
         : sum;
     }, 0);
     transactions = hist.map((tx, i)=>{
@@ -352,7 +352,7 @@ export async function wallet_fetch(wallet){
         const as = vin._prevVout.scriptPubKey?.addresses ||
           (vin._prevVout.scriptPubKey?.address ?
           [vin._prevVout.scriptPubKey.address] : []);
-        return as.some(a=>walletAddrSet.has(a)) ?
+        return as.some(a=>addr_set.has(a)) ?
           sum+Math.round(vin._prevVout.value*1e8) : sum;
       }, 0);
       return {...tx, timestamp: tx.height>0 ? tsMap[tx.height] : null,
@@ -367,7 +367,7 @@ export async function wallet_fetch(wallet){
           continue;
         const addr = vout.scriptPubKey?.address ||
           vout.scriptPubKey?.addresses?.[0];
-        if (!walletAddrSet.has(addr))
+        if (!addr_set.has(addr))
           continue;
         for (const kv of vout.lif_kv){
           const isUnconfirmed = etx.height<=0;
@@ -441,13 +441,13 @@ export function kv_tx_edit(wallet, kv_d, fee){
   const value = Math.round(vout.value*1e8);
   const addr = vout.scriptPubKey?.address ||
     vout.scriptPubKey?.addresses?.[0];
-  const addr_info = addrs.find(a=>a.address==addr);
-  if (!addr_info)
+  const oaddr = addrs.find(a=>a.address==addr);
+  if (!oaddr)
     throw new Error('Name UTXO address not found in wallet');
   const dest = changeAddrInfo.address;
   if (!fee)
     fee = fee_calc(wallet.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
-  const signers = [addr_info];
+  const signers = [oaddr];
   const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, addr}];
   let extraTotal = 0;
   if (value<fee){
@@ -477,12 +477,12 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee){
   const value = Math.round(vout.value*1e8);
   const addr = vout.scriptPubKey?.address ||
     vout.scriptPubKey?.addresses?.[0];
-  const addr_info = addrs.find(a=>a.address==addr);
-  if (!addr_info)
+  const oaddr = addrs.find(a=>a.address==addr);
+  if (!oaddr)
     throw new Error('Name UTXO address not found in wallet');
   if (!fee)
     fee = fee_calc(wallet.feeRate, kv_tx_send(wallet, kv_d, toAddress, 1).tx);
-  const signers = [addr_info];
+  const signers = [oaddr];
   const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, addr}];
   let extraTotal = 0;
   if (value<fee){
