@@ -719,3 +719,11 @@ USER: forEst still appears in wallet_db.js — remove it everywhere
 CLAUDE: Removed forEst from all four build functions (tx_send_build, kv_tx_new_build, kv_tx_send_build, kv_tx_edit_build) and all call sites. All extractTransaction() calls now have no argument. Fee=1 for internal size estimation is below maximumFeeRate so no bypass needed. Also removed the two true args from SendScreen's inline tx_send_build estimation calls in wallet.jsx.
 
 ---
+
+---
+
+USER: why is tx_send_build called in wallet.jsx? tx_send() is enough
+
+CLAUDE: Replaced SendScreen's manual tx_send_build+calcFee fee estimation with tx_send(wallet, changeAddrInfo.address, amount).fee. Removed tx_send_build, calcFee from imports and the now-unused network const in SendScreen.
+
+---

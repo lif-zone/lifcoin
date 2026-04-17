@@ -6,7 +6,6 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   saveWallets, loadWallets,
   getRoot, getNetworks,
   deriveWallet, deriveAddrAt, defaultDerivPath,
-  calcFee, tx_send_build,
   fetchWalletData,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
 } from './wallet_db.js';
@@ -927,39 +926,18 @@ function FeeField({value, onChange, conf}){
 // Send Screen
 function SendScreen({wallet, onSent}){
   const {conf, utxos=[], changeAddrInfo} = wallet;
-  const network = conf.network;
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
-    if (!utxos.length)
-      return 0;
-    try {
-      const u = utxos[0];
-      const dummyAddr = changeAddrInfo?.address || u.addrInfo.address;
-      const tx = tx_send_build(network, [u], dummyAddr, 1, dummyAddr,
-        u.value);
-      return calcFee(wallet.feeRate, tx);
-    } catch(e){ return 0; }
+    try { return tx_send(wallet, changeAddrInfo.address, 1).fee; }
+    catch(e){ return 0; }
   });
   useEffect(()=>{
-    if (!utxos.length)
-      return;
-    const dummyAddr = changeAddrInfo?.address || utxos[0].addrInfo.address;
     const amt = Math.round(parseFloat(amountSat)*1e8);
     const target = !isNaN(amt) && amt>0 ? amt : 1;
-    const sorted = [...utxos].sort((a,b)=>b.value-a.value);
-    let selected = [], total = 0;
-    for (const u of sorted){
-      selected.push(u); total+=u.value;
-      if (total>=target)
-        break;
-    }
-    try {
-      const tx = tx_send_build(network, selected, dummyAddr,
-        Math.min(target, total), dummyAddr, total);
-      setFee(calcFee(wallet.feeRate, tx));
-    } catch(e){}
+    try { setFee(tx_send(wallet, changeAddrInfo.address, target).fee); }
+    catch(e){}
   }, [amountSat, utxos]);
   const handleSend = async()=>{
     const amountValue = Math.round(parseFloat(amountSat)*1e8);
