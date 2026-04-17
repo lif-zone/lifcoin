@@ -632,3 +632,18 @@ USER: fee stays static at initial 0.05 when modifying key/val in InscribeScreen
 
 CLAUDE: Root cause: kv_tx_add called with fee=conf.fee_def=5000000 as the initial mining fee; bitcoinjs extractTransaction(false) rejects it because 5000000/180vbytes ≈ 27778 sat/vbyte exceeds fee_max/1000=10000. Added forEst=false parameter to kv_tx_add (passed through to kv_tx_new_build/extractTransaction). Changed InscribeScreen useState initializer and fee estimation useEffect to call kv_tx_add(..., true) so fee validation is skipped during estimation. Real send path still uses forEst=false.
 ---
+
+---
+
+USER: can estimateNameFee() be eliminated in the same way by calling kv_tx_edit()?
+
+CLAUDE: Eliminated estimateNameFee() by:
+1. Added forEst parameter to kv_tx_edit() and threaded it through both kv_tx_edit_build() calls
+2. Added forEst parameter to kv_tx_send() and threaded it through both kv_tx_send_build() calls
+3. Updated NameEditScreen to use kv_tx_edit(..., true) for fee estimation (useState + useEffect)
+4. Updated NameTransferScreen to use kv_tx_send(..., true) with wallet.changeAddrInfo?.address as dummy address for fee estimation
+5. Deleted estimateNameFee() from wallet_db.js
+6. Removed estimateNameFee from wallet.jsx imports
+7. Removed changeAddrInfo state from both screens (no longer needed)
+
+---

@@ -398,36 +398,6 @@ export async function estimateFee(conf){
 }
 
 
-export function estimateNameFee(wallet, keyData, changeAddrInfo, feeRate){
-  try {
-    const conf = wallet.conf;
-    const network = conf.network;
-    const root = getRoot(wallet.mnemonic, network, wallet.passphrase||'');
-    const ap = wallet.derivPath||defaultDerivPath(conf);
-    const nameVout = keyData._tx._vtx.vout[keyData.vout];
-    const nameValue = Math.round(nameVout.value*1e8);
-    const nameAddr = nameVout.scriptPubKey?.address ||
-      nameVout.scriptPubKey?.addresses?.[0];
-    const nameAddrInfo = findAddrInWallet(root, ap, network, nameAddr);
-    if (!nameAddrInfo)
-      return 0;
-    const dummyAddr = changeAddrInfo?.address ||
-      deriveAddrAt(root, ap, network, 1, 0).address;
-    const inputs = [{txid: keyData.tx, vout: keyData.vout, value: nameValue,
-      addr: nameAddr}];
-    const signers = [nameAddrInfo];
-    let tx;
-    if (keyData._editVal!==undefined){
-      tx = kv_tx_edit_build(network, inputs, signers,
-        {key: keyData.key, val: keyData._editVal},
-        dummyAddr, nameValue, 0, dummyAddr, 0, true);
-    } else {
-      tx = kv_tx_send_build(network, inputs, signers, dummyAddr, nameValue,
-        0, dummyAddr, 0, true);
-    }
-    return calcFee(feeRate, tx);
-  } catch(e){ return 0; }
-}
 
 export function kv_tx_add(wallet, key, val, fee, feeRate, forEst=false){
   const {conf, utxos, changeAddrInfo} = wallet;
@@ -461,7 +431,7 @@ function inscriptionScript(key, val){
   ]);
 }
 
-export function kv_tx_edit(wallet, keyData, fee, feeRate){
+export function kv_tx_edit(wallet, keyData, fee, feeRate, forEst=false){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const nameVout = keyData._tx._vtx.vout[keyData.vout];
@@ -493,16 +463,16 @@ export function kv_tx_edit(wallet, keyData, fee, feeRate){
   }
   const kv = {key: keyData.key, val: keyData._editVal};
   let tx = kv_tx_edit_build(network, inputs, signers, kv,
-    dest, nameValue, extraTotal, changeAddrInfo.address, fee);
+    dest, nameValue, extraTotal, changeAddrInfo.address, fee, forEst);
   const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee){
     tx = kv_tx_edit_build(network, inputs, signers, kv, dest,
-      nameValue, extraTotal, changeAddrInfo.address, exactFee);
+      nameValue, extraTotal, changeAddrInfo.address, exactFee, forEst);
   }
   return {exactFee, tx};
 }
 
-export function kv_tx_send(wallet, keyData, toAddress, fee, feeRate){
+export function kv_tx_send(wallet, keyData, toAddress, fee, feeRate, forEst=false){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const nameVout = keyData._tx._vtx.vout[keyData.vout];
@@ -532,11 +502,11 @@ export function kv_tx_send(wallet, keyData, toAddress, fee, feeRate){
       throw new Error('Insufficient balance to cover fees');
   }
   let tx = kv_tx_send_build(network, inputs, signers, toAddress, nameValue,
-    extraTotal, changeAddrInfo.address, fee);
+    extraTotal, changeAddrInfo.address, fee, forEst);
   const exactFee = calcFee(feeRate, tx);
   if (exactFee!==fee){
     tx = kv_tx_send_build(network, inputs, signers, toAddress, nameValue,
-      extraTotal, changeAddrInfo.address, exactFee);
+      extraTotal, changeAddrInfo.address, exactFee, forEst);
   }
   return {exactFee, tx};
 }

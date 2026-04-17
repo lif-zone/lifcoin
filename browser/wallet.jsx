@@ -9,7 +9,6 @@ import {DEFAULT_NETWORKS, saveServers, loadServers,
   estimateFee, calcFee, tx_send_build,
   fetchWalletData,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
-  estimateNameFee,
 } from './wallet_db.js';
 
 function json(o){
@@ -718,26 +717,28 @@ function NameTransferScreen({wallet, keyData, onSent}){
   const conf = wallet.conf;
   const [toAddress, setToAddress] = useState('');
   const [sending, setSending] = useState(false);
-  const [changeAddrInfo, setChangeAddrInfo] =
-    useState(wallet.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def);
-  const [fee, setFee] = useState(
-    ()=>estimateNameFee(wallet, keyData, null, conf.fee_def));
+  const [fee, setFee] = useState(()=>{
+    try {
+      const addr = wallet.changeAddrInfo?.address||'';
+      return kv_tx_send(wallet, keyData, addr, conf.fee_def, conf.fee_def, true).exactFee;
+    } catch(e){ return conf.fee_def; }
+  });
 
   useEffect(()=>{
     (async()=>{
       try {
         const rate = await estimateFee(conf);
         setFeeRate(rate);
-        if (!wallet.addrs){
-          await fetchWalletData(wallet);
-          setChangeAddrInfo(wallet.changeAddrInfo);
-        }
       } catch(e){ console.error('NameTransfer init error:', e); }
     })();
   }, []);
   useEffect(()=>{
-    setFee(estimateNameFee(wallet, keyData, changeAddrInfo, feeRate));
+    try {
+      const addr = wallet.changeAddrInfo?.address||'';
+      const {exactFee} = kv_tx_send(wallet, keyData, addr, fee, feeRate, true);
+      setFee(exactFee);
+    } catch(e){}
   }, [feeRate]);
 
   const handleTransfer = async()=>{
@@ -784,26 +785,25 @@ function NameTransferScreen({wallet, keyData, onSent}){
 function NameEditScreen({wallet, keyData, onSent}){
   const conf = wallet.conf;
   const [sending, setSending] = useState(false);
-  const [changeAddrInfo, setChangeAddrInfo] =
-    useState(wallet.changeAddrInfo ?? null);
   const [feeRate, setFeeRate] = useState(conf.fee_def);
-  const [fee, setFee] = useState(
-    ()=>estimateNameFee(wallet, keyData, null, conf.fee_def));
+  const [fee, setFee] = useState(()=>{
+    try { return kv_tx_edit(wallet, keyData, conf.fee_def, conf.fee_def, true).exactFee; }
+    catch(e){ return conf.fee_def; }
+  });
 
   useEffect(()=>{
     (async()=>{
       try {
         const rate = await estimateFee(conf);
         setFeeRate(rate);
-        if (!wallet.addrs){
-          await fetchWalletData(wallet);
-          setChangeAddrInfo(wallet.changeAddrInfo);
-        }
       } catch(e){ console.error('NameEdit init error:', e); }
     })();
   }, []);
   useEffect(()=>{
-    setFee(estimateNameFee(wallet, keyData, changeAddrInfo, feeRate));
+    try {
+      const {exactFee} = kv_tx_edit(wallet, keyData, fee, feeRate, true);
+      setFee(exactFee);
+    } catch(e){}
   }, [feeRate]);
 
   const handleSave = async()=>{
@@ -845,7 +845,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
   const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
   const positive = tx.amount>=0;
-  const symbol = conf.symbol';
+  const symbol = conf.symbol;
   const voutAddr = (vout)=>vout.scriptPubKey?.address
     || vout.scriptPubKey?.addresses?.[0] || '?';
   return (
