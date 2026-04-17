@@ -387,7 +387,7 @@ export async function fetchWalletData(wallet){
 }
 
 export async function estimateFee(conf){
-  const fallback = conf.fee_def||1000;
+  const fallback = conf.fee_def;
   try {
     const cl = await getClient(conf);
     const rate = await cl.request('blockchain.estimatefee', [6]);

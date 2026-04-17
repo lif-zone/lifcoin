@@ -647,3 +647,11 @@ CLAUDE: Eliminated estimateNameFee() by:
 7. Removed changeAddrInfo state from both screens (no longer needed)
 
 ---
+
+---
+
+USER: estimateFee() already fetches fee rate as part of fetchWalletData(), so no need to call it again in wallet.jsx screens
+
+CLAUDE: Removed all estimateFee() calls from wallet.jsx. All 4 screens (SendScreen, InscribeScreen, NameTransferScreen, NameEditScreen) now initialize feeRate from wallet.feeRate||conf.fee_def instead. Removed estimateFee from import.
+
+---
