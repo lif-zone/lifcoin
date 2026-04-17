@@ -565,7 +565,7 @@ export function hd_addr_find(root, accountPath, network, targetAddr){
 export function tx_send_build(network, inputs, toAddr, amt, changeAddr, total,
   fee)
 {
-  const p = bitcoin_psbt(network);
+  const p = tx_psbt(network);
   for (const u of inputs){
     p.addInput({hash: u.tx_hash, index: u.tx_pos,
       witnessUtxo: {value: BigInt(u.value),
@@ -580,7 +580,7 @@ export function tx_send_build(network, inputs, toAddr, amt, changeAddr, total,
   return p.extractTransaction();
 }
 
-function bitcoin_psbt(network){
+function tx_psbt(network){
   const p = new bitcoin.Psbt({network});
   if (network.conf.fee_max)
     p.setMaximumFeeRate(network.conf.fee_max/1000);
@@ -590,7 +590,7 @@ function bitcoin_psbt(network){
 export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
   fee)
 {
-  const p = bitcoin_psbt(network);
+  const p = tx_psbt(network);
   for (const u of inputs){
     p.addInput({hash: u.tx_hash, index: u.tx_pos,
       witnessUtxo: {value: BigInt(u.value),
@@ -608,7 +608,7 @@ export function kv_tx_new_build(network, inputs, {key, val}, changeAddr, total,
 export function kv_tx_send_build(network, inputs, signers, toAddr, nameValue,
   extraTotal, changeAddr, fee)
 {
-  const p = bitcoin_psbt(network);
+  const p = tx_psbt(network);
   for (const inp of inputs){
     p.addInput({hash: inp.txid, index: inp.vout,
       witnessUtxo: {value: BigInt(inp.value),
@@ -630,7 +630,7 @@ export function kv_tx_send_build(network, inputs, signers, toAddr, nameValue,
 export function kv_tx_edit_build(network, inputs, signers, {key, val}, dest,
   nameValue, extraTotal, changeAddr, fee)
 {
-  const p = bitcoin_psbt(network);
+  const p = tx_psbt(network);
   for (const inp of inputs){
     p.addInput({hash: inp.txid, index: inp.vout,
       witnessUtxo: {value: BigInt(inp.value),
