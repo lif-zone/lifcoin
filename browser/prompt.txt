@@ -738,3 +738,15 @@ USER: in kv_tx_add() why not call kv_tx_add(fee=1) for estimation instead of kv_
 CLAUDE: Replaced all manual _build estimation calls with self-calls at fee=1: kv_tx_add uses kv_tx_add(...,1), kv_tx_edit uses kv_tx_edit(...,1), kv_tx_send uses kv_tx_send(...,1), tx_send uses tx_send(...,1). All four _build functions are now only called internally.
 
 ---
+
+USER: add in Settings screen a button "Debug tools", in the debug tools put a button "Clear cache". This will remove all the wallet cache from idb and from memory, and will force a new wallet reload data from electrum.
+
+CLAUDE: Added cache_clear() to wallet_db.js (clears IndexedDB 'cache' store and strips cached fields from all wallet_store entries). Added Debug Tools section with Clear Cache button to SettingsScreen. Added cacheVer state in BrightWallet, passed through HomeScreen to WalletCard as prop, added to useEffect dependency array so clearing cache triggers re-fetch from electrum.
+
+---
+
+USER: Why is cacheVer needed in so many places? Just clear cache and re-fetch.
+
+CLAUDE: Moved cacheVer to key={cacheVer} on HomeScreen only (in BrightWallet). This remounts HomeScreen and all WalletCards on clear, triggering fresh fetches. Removed cacheVer from HomeScreen and WalletCard props/deps entirely.
+
+---

@@ -6,6 +6,7 @@ import {nets_list, servers_save, servers_load, wallet_db_init,
   wallets_save, wallets_load, nets_get, wallet_fetch,
   hd_root, hd_wallet, hd_addr, hd_path_def,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
+  cache_clear,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -47,6 +48,7 @@ function BrightWallet(){
   const [activeWalletId, setActiveWalletId] = useState(null);
   const [selectedTxData, setSelectedTxData] = useState(null);
   const [selectedKeyData, setSelectedKeyData] = useState(null);
+  const [cacheVer, setCacheVer] = useState(0);
   useEffect(()=>{
     setWallets(ws=>ws.map(w=>({...w,
       conf: networks[w.network]||Object.values(networks)[0]})));
@@ -97,6 +99,7 @@ function BrightWallet(){
       </div>
       {screen=='home' && (
         <HomeScreen
+          key={cacheVer}
           wallets={wallets}
           onSelect={(id)=>{ setActiveWalletId(id); setScreen('wallet-detail'); }}
           onAddNew={()=>setScreen('add-wallet')}
@@ -156,6 +159,7 @@ function BrightWallet(){
           servers={servers}
           networks={networks}
           onSave={(s)=>{ setServers(s); servers_save(s); }}
+          onCacheClear={async()=>{ await cache_clear(); setCacheVer(v=>v+1); }}
           onBack={goHome}
         />
       )}
@@ -1084,7 +1088,7 @@ function InscribeScreen({wallet, onSent}){
 }
 
 // Settings Screen
-function SettingsScreen({servers, networks, onSave, onBack}){
+function SettingsScreen({servers, networks, onSave, onCacheClear, onBack}){
   const [values, setValues] = useState(()=>{
     const v = {};
     for (const key in networks)
@@ -1126,6 +1130,8 @@ function SettingsScreen({servers, networks, onSave, onBack}){
         </div>
       ))}
       <button onClick={handleSave} style={{marginTop: 20}}>Save Settings</button>
+      <h3 style={{marginTop: 28}}>Debug Tools</h3>
+      <button onClick={onCacheClear} style={{marginTop: 8}}>Clear Cache</button>
     </div>
   );
 }

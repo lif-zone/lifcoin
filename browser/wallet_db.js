@@ -222,6 +222,20 @@ export async function db_put(id, data){
     await db.put('cache', data, id);
   } catch{}
 }
+export async function cache_clear(){
+  try { await db.clear('cache'); } catch{}
+  for (const id in wallet_store){
+    const w = wallet_store[id];
+    delete w.balance;
+    delete w.receiveAddress;
+    delete w.feeRate;
+    delete w.addrs;
+    delete w.changeAddrInfo;
+    delete w.utxos;
+    delete w.transactions;
+    delete w.ownedKeys;
+  }
+}
 
 // Populate wallet with cached data from IndexedDB (re-derives keyPairs from
 // mnemonic). Idempotent: does nothing if wallet already has
