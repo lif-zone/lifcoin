@@ -399,26 +399,29 @@ export async function estimateFee(conf){
 
 
 
-export function kv_tx_add(wallet, key, val, fee, forEst=false){
+export function kv_tx_add(wallet, key, val, fee=0, forEst=false){
   const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const allUTXOs = [...(utxos||[])].sort((a,b)=>b.value-a.value);
   if (!allUTXOs.length)
     throw new Error('No funds available');
+  if (!fee){
+    const u0 = allUTXOs[0];
+    fee = calcFee(wallet.feeRate, kv_tx_new_build(network, [u0], {key, val},
+      changeAddrInfo.address, u0.value, 1, true));
+  }
   const selected = [];
   let total = 0;
   for (const u of allUTXOs){
     selected.push(u);
     total += u.value;
-    if (total>=fee)
-      break;
+    if (total>=fee) break;
   }
   if (total<fee)
     throw new Error('Insufficient balance to cover fee');
   const tx = kv_tx_new_build(network, selected, {key, val},
     changeAddrInfo.address, total, fee, forEst);
-  const exactFee = calcFee(wallet.feeRate, tx);
-  return {exactFee, tx};
+  return {exactFee: fee, tx};
 }
 
 function inscriptionScript(key, val){
@@ -431,7 +434,7 @@ function inscriptionScript(key, val){
   ]);
 }
 
-export function kv_tx_edit(wallet, kv_d, fee, forEst=false){
+export function kv_tx_edit(wallet, kv_d, fee=0, forEst=false){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const nameVout = kv_d._tx._vtx.vout[kv_d.vout];
@@ -442,9 +445,13 @@ export function kv_tx_edit(wallet, kv_d, fee, forEst=false){
   if (!nameAddrInfo)
     throw new Error('Name UTXO address not found in wallet');
   const dest = changeAddrInfo.address;
+  if (!fee){
+    const estInputs = [{txid: kv_d.tx, vout: kv_d.vout, value: nameValue, addr: nameAddr}];
+    fee = calcFee(wallet.feeRate, kv_tx_edit_build(network, estInputs, [nameAddrInfo],
+      kv_d, dest, nameValue, 0, dest, 1, true));
+  }
   const signers = [nameAddrInfo];
-  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value: nameValue,
-    addr: nameAddr}];
+  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value: nameValue, addr: nameAddr}];
   let extraTotal = 0;
   if (nameValue<fee){
     const allUTXOs = (utxos||[]).filter(
@@ -455,23 +462,17 @@ export function kv_tx_edit(wallet, kv_d, fee, forEst=false){
       inputs.push({txid: u.tx_hash, vout: u.tx_pos, value: u.value,
         addr: u.addrInfo.address});
       extraTotal += u.value;
-      if (extraTotal>=fee)
-        break;
+      if (extraTotal>=fee) break;
     }
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  let tx = kv_tx_edit_build(network, inputs, signers, kv_d,
+  const tx = kv_tx_edit_build(network, inputs, signers, kv_d,
     dest, nameValue, extraTotal, changeAddrInfo.address, fee, forEst);
-  const exactFee = calcFee(wallet.feeRate, tx);
-  if (exactFee!==fee){
-    tx = kv_tx_edit_build(network, inputs, signers, kv_d, dest,
-      nameValue, extraTotal, changeAddrInfo.address, exactFee, forEst);
-  }
-  return {exactFee, tx};
+  return {exactFee: fee, tx};
 }
 
-export function kv_tx_send(wallet, kv_d, toAddress, fee, forEst=false){
+export function kv_tx_send(wallet, kv_d, toAddress, fee=0, forEst=false){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const nameVout = kv_d._tx._vtx.vout[kv_d.vout];
@@ -481,9 +482,13 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee, forEst=false){
   const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
   if (!nameAddrInfo)
     throw new Error('Name UTXO address not found in wallet');
+  if (!fee){
+    const estInputs = [{txid: kv_d.tx, vout: kv_d.vout, value: nameValue, addr: nameAddr}];
+    fee = calcFee(wallet.feeRate, kv_tx_send_build(network, estInputs, [nameAddrInfo],
+      changeAddrInfo.address, nameValue, 0, changeAddrInfo.address, 1, true));
+  }
   const signers = [nameAddrInfo];
-  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value: nameValue,
-    addr: nameAddr}];
+  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value: nameValue, addr: nameAddr}];
   let extraTotal = 0;
   if (nameValue<fee){
     const allUTXOs = (utxos||[]).filter(
@@ -494,48 +499,39 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee, forEst=false){
       inputs.push({txid: u.tx_hash, vout: u.tx_pos, value: u.value,
         addr: u.addrInfo.address});
       extraTotal += u.value;
-      if (extraTotal>=fee)
-        break;
+      if (extraTotal>=fee) break;
     }
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  let tx = kv_tx_send_build(network, inputs, signers, toAddress, nameValue,
+  const tx = kv_tx_send_build(network, inputs, signers, toAddress, nameValue,
     extraTotal, changeAddrInfo.address, fee, forEst);
-  const exactFee = calcFee(wallet.feeRate, tx);
-  if (exactFee!==fee){
-    tx = kv_tx_send_build(network, inputs, signers, toAddress, nameValue,
-      extraTotal, changeAddrInfo.address, exactFee, forEst);
-  }
-  return {exactFee, tx};
+  return {exactFee: fee, tx};
 }
 
-export function tx_send(wallet, toAddress, amountValue, fee){
+export function tx_send(wallet, toAddress, amountValue, fee=0){
   const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const allUTXOs = [...(utxos||[])].sort((a,b)=>b.value-a.value);
   if (!allUTXOs.length)
     throw new Error('No funds available');
+  if (!fee){
+    const u0 = allUTXOs[0];
+    fee = calcFee(wallet.feeRate, tx_send_build(network, [u0],
+      changeAddrInfo.address, 1, changeAddrInfo.address, u0.value, 1, true));
+  }
   const selected = [];
   let total = 0;
   for (const u of allUTXOs){
     selected.push(u);
     total += u.value;
-    if (total>=amountValue+fee)
-      break;
+    if (total>=amountValue+fee) break;
   }
   if (total<amountValue+fee)
     throw new Error('Insufficient balance');
-  let tx = tx_send_build(network, selected, toAddress, amountValue,
+  const tx = tx_send_build(network, selected, toAddress, amountValue,
     changeAddrInfo.address, total, fee);
-  const exactFee = calcFee(wallet.feeRate, tx);
-  if (exactFee!==fee){
-    if (total<amountValue+exactFee)
-      throw new Error('Insufficient balance');
-    tx = tx_send_build(network, selected, toAddress, amountValue,
-      changeAddrInfo.address, total, exactFee);
-  }
-  return {exactFee, tx};
+  return {exactFee: fee, tx};
 }
 
 export async function tx_broadcast(conf, tx){

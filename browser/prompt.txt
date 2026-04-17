@@ -695,3 +695,11 @@ USER: set _val_orig when edit is initiated in onEdit handler
 CLAUDE: onEdit now saves _val_orig: d.val before overwriting val with the new edit value. keyData._val_orig = on-chain value, keyData.val = pending edit value.
 
 ---
+
+---
+
+USER: if fee=0 compute fee from feeRate internally; if fee>0 use that fee directly as final fee
+
+CLAUDE: Simplified all four tx functions (kv_tx_add, kv_tx_edit, kv_tx_send, tx_send): fee=0 (default) triggers a one-pass size estimation (builds with fee=1 to get vsize, computes fee=calcFee(wallet.feeRate,tx)), fee>0 uses provided fee directly — no two-pass recalculation. Removed exactFee recalculation, return {exactFee:fee, tx}. Updated all estimation call sites in wallet.jsx from fee=1 to fee=0, including InscribeScreen useEffect.
+
+---
