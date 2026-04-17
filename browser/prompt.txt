@@ -671,3 +671,11 @@ USER: why is feeRate passed around so much? it's internal to the wallet object
 CLAUDE: Removed feeRate as a parameter from kv_tx_add, kv_tx_edit, kv_tx_send, tx_send in wallet_db.js — all now read wallet.feeRate directly. Removed feeRate local state from all 4 screens in wallet.jsx. Removed the feeRate-only useEffects from NameTransferScreen and NameEditScreen (redundant with useState initializer). Updated useEffect deps and all call sites accordingly.
 
 ---
+
+---
+
+USER: wallet.feeRate passed as fee argument is a bug — it's a rate (sat/kB) not an absolute sat amount. fix it
+
+CLAUDE: Fixed the 3 estimation call sites in wallet.jsx that were passing wallet.feeRate (a sat/kB rate) as the fee (absolute sats) argument. Changed to fee=1 which gives a valid tx for size measurement — exactFee = calcFee(wallet.feeRate, tx) then returns the correct absolute fee. Also fixed catch fallbacks from returning wallet.feeRate to returning 0.
+
+---
