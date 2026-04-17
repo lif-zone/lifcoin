@@ -201,7 +201,8 @@ function WalletCard({wallet, onClick}){
   }, [wallet.id, wallet.network]);
 
   useEffect(()=>{
-    if (!derived) return;
+    if (!derived)
+      return;
     (async()=>{
       try {
         const data = await fetchWalletData(wallet);
