@@ -720,7 +720,7 @@ function NameTransferScreen({wallet, kv_d, onSent}){
   const [fee, setFee] = useState(()=>{
     try {
       const addr = wallet.changeAddrInfo?.address||'';
-      return kv_tx_send(wallet, kv_d, addr, 0, true).exactFee;
+      return kv_tx_send(wallet, kv_d, addr, 0, true).fee;
     } catch(e){ return 0; }
   });
 
@@ -729,11 +729,11 @@ function NameTransferScreen({wallet, kv_d, onSent}){
       return alert('Enter recipient address');
     setSending(true);
     try {
-      const {exactFee, tx} = kv_tx_send(wallet, kv_d,
+      const {fee, tx} = kv_tx_send(wallet, kv_d,
         toAddress.trim(), fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
-      setFee(exactFee);
+      setFee(fee);
       const explorerLink = conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
@@ -769,17 +769,17 @@ function NameEditScreen({wallet, kv_d, onSent}){
   const conf = wallet.conf;
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
-    try { return kv_tx_edit(wallet, kv_d, 0, true).exactFee; }
+    try { return kv_tx_edit(wallet, kv_d, 0, true).fee; }
     catch(e){ return 0; }
   });
 
   const handleSave = async()=>{
     setSending(true);
     try {
-      const {exactFee, tx} = kv_tx_edit(wallet, kv_d, fee);
+      const {fee, tx} = kv_tx_edit(wallet, kv_d, fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
-      setFee(exactFee);
+      setFee(fee);
       const explorerLink=conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
@@ -967,10 +967,10 @@ function SendScreen({wallet, onSent}){
       return alert('Invalid amount');
     setSending(true);
     try {
-      const {exactFee, tx} = tx_send(wallet, toAddress, amountValue, fee);
+      const {fee, tx} = tx_send(wallet, toAddress, amountValue, fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
-      setFee(exactFee);
+      setFee(fee);
       const explorerLink = conf.explorer_tx?`\n${conf.explorer_tx}${txid}`:'';
       alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
       setToAddress('');
@@ -1016,13 +1016,13 @@ function InscribeScreen({wallet, onSent}){
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
   const [fee, setFee] = useState(()=>{
-    try { return kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), 0, true).exactFee; }
+    try { return kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), 0, true).fee; }
     catch(e){ return 0; }
   });
   useEffect(()=>{
     try {
-      const {exactFee} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), 0, true);
-      setFee(exactFee);
+      const {fee} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), 0, true);
+      setFee(fee);
     } catch(e){}
   }, [inscKey, inscVal]);
 
@@ -1055,11 +1055,11 @@ function InscribeScreen({wallet, onSent}){
       return alert('Value is required');
     setSending(true);
     try {
-      const {exactFee, tx} = kv_tx_add(wallet,
+      const {fee, tx} = kv_tx_add(wallet,
         inscKey.trim(), inscVal.trim(), fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
-      setFee(exactFee);
+      setFee(fee);
       alert(`Inscription sent!\nTXID: ${txid}`);
       setInscKey('');
       setInscVal('');

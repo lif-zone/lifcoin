@@ -421,6 +421,7 @@ export function kv_tx_add(wallet, key, val, fee=0, forEst=false){
     throw new Error('Insufficient balance to cover fee');
   const tx = kv_tx_new_build(network, selected, {key, val},
     changeAddrInfo.address, total, fee, forEst);
+  debugger;
   return {exactFee: fee, tx};
 }
 
