@@ -437,20 +437,20 @@ function kv_script(key, val){
 export function kv_tx_edit(wallet, kv_d, fee){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
-  const nameVout = kv_d._tx._vtx.vout[kv_d.vout];
-  const nameValue = Math.round(nameVout.value*1e8);
-  const nameAddr = nameVout.scriptPubKey?.address ||
-    nameVout.scriptPubKey?.addresses?.[0];
-  const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
-  if (!nameAddrInfo)
+  const vout = kv_d._tx._vtx.vout[kv_d.vout];
+  const value = Math.round(vout.value*1e8);
+  const addr = vout.scriptPubKey?.address ||
+    vout.scriptPubKey?.addresses?.[0];
+  const addr_info = addrs.find(a=>a.address==addr);
+  if (!addr_info)
     throw new Error('Name UTXO address not found in wallet');
   const dest = changeAddrInfo.address;
   if (!fee)
     fee = fee_calc(wallet.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
-  const signers = [nameAddrInfo];
-  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value: nameValue, addr: nameAddr}];
+  const signers = [addr_info];
+  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, addr}];
   let extraTotal = 0;
-  if (nameValue<fee){
+  if (value<fee){
     const allUTXOs = (utxos||[]).filter(
       u=>!(u.tx_hash==kv_d.tx && u.tx_pos==kv_d.vout))
       .sort((a,b)=>b.value-a.value);
@@ -466,26 +466,26 @@ export function kv_tx_edit(wallet, kv_d, fee){
       throw new Error('Insufficient balance to cover fees');
   }
   const tx = kv_tx_edit_build(network, inputs, signers, kv_d,
-    dest, nameValue, extraTotal, changeAddrInfo.address, fee);
+    dest, value, extraTotal, changeAddrInfo.address, fee);
   return {fee, tx};
 }
 
 export function kv_tx_send(wallet, kv_d, toAddress, fee){
   const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
-  const nameVout = kv_d._tx._vtx.vout[kv_d.vout];
-  const nameValue = Math.round(nameVout.value*1e8);
-  const nameAddr = nameVout.scriptPubKey?.address ||
-    nameVout.scriptPubKey?.addresses?.[0];
-  const nameAddrInfo = addrs.find(a=>a.address==nameAddr);
-  if (!nameAddrInfo)
+  const vout = kv_d._tx._vtx.vout[kv_d.vout];
+  const value = Math.round(vout.value*1e8);
+  const addr = vout.scriptPubKey?.address ||
+    vout.scriptPubKey?.addresses?.[0];
+  const addr_info = addrs.find(a=>a.address==addr);
+  if (!addr_info)
     throw new Error('Name UTXO address not found in wallet');
   if (!fee)
     fee = fee_calc(wallet.feeRate, kv_tx_send(wallet, kv_d, toAddress, 1).tx);
-  const signers = [nameAddrInfo];
-  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value: nameValue, addr: nameAddr}];
+  const signers = [addr_info];
+  const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, addr}];
   let extraTotal = 0;
-  if (nameValue<fee){
+  if (value<fee){
     const allUTXOs = (utxos||[]).filter(
       u=>!(u.tx_hash==kv_d.tx && u.tx_pos==kv_d.vout))
       .sort((a,b)=>b.value-a.value);
@@ -500,7 +500,7 @@ export function kv_tx_send(wallet, kv_d, toAddress, fee){
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  const tx = kv_tx_send_build(network, inputs, signers, toAddress, nameValue,
+  const tx = kv_tx_send_build(network, inputs, signers, toAddress, value,
     extraTotal, changeAddrInfo.address, fee);
   return {fee, tx};
 }
