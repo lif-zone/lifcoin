@@ -614,3 +614,9 @@ USER: what is "hydrated wallet"? all data for wallets should just be inside the 
 
 CLAUDE: Removed store.data and hydrateWalletData. Added walletStore (id→single wallet instance) and loadWalletCache(wallet) — reads IndexedDB, re-derives keyPairs, Object.assigns fields directly into wallet; idempotent (skips if wallet.addrs defined). loadWallets returns the same object instance per wallet (conf updated in-place if networks change). fetchWalletData Object.assigns fetched data into wallet and returns it. Renamed serializeWalletData→serializeWallet (takes wallet directly). Removed getWalletData export. wallet.jsx: all _init/getWalletData(wallet.id) and _cached/getWalletData(wallet.id) replaced with wallet.* directly.
 ---
+
+---
+USER: I want the listUnspentForAddr() information to be fetched as part of the wallet object data fetching (from cache, and then updated from electrum). So that inside send_tx() kv_tx_add() kv_tx_edit() kv_tx_send() it will call a sync (not async) function, which will get the info from the wallet object.
+
+CLAUDE: Changed kv_tx_add, kv_tx_edit, kv_tx_send, tx_send from async to sync functions. New signatures: (wallet, ...) — read wallet.utxos/addrs/changeAddrInfo/conf directly. No more async UTXO fetching inside these functions. In wallet.jsx: SendScreen and InscribeScreen now take {wallet, onSent} instead of individual props; WalletDetailScreen drops changeAddrInfo and allUTXOs local state (wallet object holds the data); NameTransferScreen/NameEditScreen drop local addrs state; all four tx calls are now plain sync (no await).
+---

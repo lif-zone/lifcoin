@@ -442,20 +442,12 @@ export function estimateNameFee(wallet, keyData, changeAddrInfo, feeRate){
   } catch(e){ return 0; }
 }
 
-export async function kv_tx_add(conf, addrs, utxos, key, val, changeAddrInfo,
-  fee, feeRate)
-{
+export function kv_tx_add(wallet, key, val, fee, feeRate){
+  const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
-  const allUTXOs = utxos.length ? utxos : await (async()=>{
-    const lists = await Promise.all(addrs.map(async(addrInfo)=>{
-      return (await listUnspentForAddr(conf, addrInfo.address)).map(
-        u=>({...u, addrInfo}));
-    }));
-    return lists.flat();
-  })();
+  const allUTXOs = [...(utxos||[])].sort((a,b)=>b.value-a.value);
   if (!allUTXOs.length)
     throw new Error('No funds available');
-  allUTXOs.sort((a, b)=>b.value-a.value);
   const selected = [];
   let total = 0;
   for (const u of allUTXOs){
@@ -482,9 +474,8 @@ function inscriptionScript(key, val){
   ]);
 }
 
-export async function kv_tx_edit(conf, addrs, keyData, changeAddrInfo, fee,
-  feeRate)
-{
+export function kv_tx_edit(wallet, keyData, fee, feeRate){
+  const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const nameVout = keyData._tx._vtx.vout[keyData.vout];
   const nameValue = Math.round(nameVout.value*1e8);
@@ -494,19 +485,14 @@ export async function kv_tx_edit(conf, addrs, keyData, changeAddrInfo, fee,
   if (!nameAddrInfo)
     throw new Error('Name UTXO address not found in wallet');
   const dest = changeAddrInfo.address;
-  const script = inscriptionScript(keyData.key, keyData._editVal);
   const signers = [nameAddrInfo];
   const inputs = [{txid: keyData.tx, vout: keyData.vout, value: nameValue,
     addr: nameAddr}];
   let extraTotal = 0;
   if (nameValue<fee){
-    const lists = await Promise.all(addrs.map(async(addrInfo)=>{
-      return (await listUnspentForAddr(conf, addrInfo.address)).map(
-        u=>({...u, addrInfo}));
-    }));
-    const allUTXOs = lists.flat().filter(
-      u=>!(u.tx_hash==keyData.tx && u.tx_pos==keyData.vout));
-    allUTXOs.sort((a, b)=>b.value-a.value);
+    const allUTXOs = (utxos||[]).filter(
+      u=>!(u.tx_hash==keyData.tx && u.tx_pos==keyData.vout))
+      .sort((a,b)=>b.value-a.value);
     for (const u of allUTXOs){
       signers.push(u.addrInfo);
       inputs.push({txid: u.tx_hash, vout: u.tx_pos, value: u.value,
@@ -518,7 +504,7 @@ export async function kv_tx_edit(conf, addrs, keyData, changeAddrInfo, fee,
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
   }
-  let kv = {key: keyData.key, val: keyData._editVal};
+  const kv = {key: keyData.key, val: keyData._editVal};
   let tx = kv_tx_edit_build(network, inputs, signers, kv,
     dest, nameValue, extraTotal, changeAddrInfo.address, fee);
   const exactFee = calcFee(feeRate, tx);
@@ -529,9 +515,8 @@ export async function kv_tx_edit(conf, addrs, keyData, changeAddrInfo, fee,
   return {exactFee, tx};
 }
 
-export async function kv_tx_send(conf, addrs, keyData, toAddress,
-  changeAddrInfo, fee, feeRate)
-{
+export function kv_tx_send(wallet, keyData, toAddress, fee, feeRate){
+  const {conf, addrs, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
   const nameVout = keyData._tx._vtx.vout[keyData.vout];
   const nameValue = Math.round(nameVout.value*1e8);
@@ -545,13 +530,9 @@ export async function kv_tx_send(conf, addrs, keyData, toAddress,
     addr: nameAddr}];
   let extraTotal = 0;
   if (nameValue<fee){
-    const lists = await Promise.all(addrs.map(async(addrInfo)=>{
-      return (await listUnspentForAddr(conf, addrInfo.address)).map(
-        u=>({...u, addrInfo}));
-    }));
-    const allUTXOs = lists.flat().filter(
-      u=>!(u.tx_hash==keyData.tx && u.tx_pos==keyData.vout));
-    allUTXOs.sort((a, b)=>b.value-a.value);
+    const allUTXOs = (utxos||[]).filter(
+      u=>!(u.tx_hash==keyData.tx && u.tx_pos==keyData.vout))
+      .sort((a,b)=>b.value-a.value);
     for (const u of allUTXOs){
       signers.push(u.addrInfo);
       inputs.push({txid: u.tx_hash, vout: u.tx_pos, value: u.value,
@@ -573,20 +554,12 @@ export async function kv_tx_send(conf, addrs, keyData, toAddress,
   return {exactFee, tx};
 }
 
-export async function tx_send(conf, addrs, utxos, toAddress, amountValue,
-  changeAddrInfo, fee, feeRate)
-{
+export function tx_send(wallet, toAddress, amountValue, fee, feeRate){
+  const {conf, utxos, changeAddrInfo} = wallet;
   const network = conf.network;
-  const allUTXOs = utxos.length ? utxos : await (async()=>{
-    const lists = await Promise.all(addrs.map(async(addrInfo)=>{
-      return (await listUnspentForAddr(conf, addrInfo.address)).map(
-        u=>({...u, addrInfo}));
-    }));
-    return lists.flat();
-  })();
+  const allUTXOs = [...(utxos||[])].sort((a,b)=>b.value-a.value);
   if (!allUTXOs.length)
     throw new Error('No funds available');
-  allUTXOs.sort((a, b)=>b.value-a.value);
   const selected = [];
   let total = 0;
   for (const u of allUTXOs){
