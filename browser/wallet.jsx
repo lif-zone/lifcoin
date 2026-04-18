@@ -453,10 +453,10 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
           style={{fontWeight: subscreen=='send' ? 'bold' : 'normal'}}
         >Send</button>
         <button
-          onClick={()=>setSubscreen('inscribe')}
+          onClick={()=>setSubscreen('kv_add')}
           disabled={!allAddrs.length}
-          style={{fontWeight: subscreen=='inscribe' ? 'bold' : 'normal'}}
-        >Inscribe</button>
+          style={{fontWeight: subscreen=='kv_add' ? 'bold' : 'normal'}}
+        >Get Domain</button>
         <button
           onClick={()=>setSubscreen('wallet-settings')}
           style={{marginLeft: 'auto', fontWeight: subscreen=='wallet-settings' ? 'bold' : 'normal'}}
@@ -531,8 +531,8 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
           onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { wallet_apply(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
-      {subscreen=='inscribe' && allAddrs.length>0 && (
-        <InscribeScreen
+      {subscreen=='kv_add' && allAddrs.length>0 && (
+        <Kv_add_screen
           wallet={wallet}
           onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { wallet_apply(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
         />
@@ -843,27 +843,27 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
           if (!vin.txid)
             return <div key={i} style={{fontSize: 12, color: '#888'}}>Coinbase</div>;
           const addr = vin._prevVout ? voutAddr(vin._prevVout) : '?';
-          const val = vin._prevVout ? Math.round(vin._prevVout.value*1e8)
+          const value = vin._prevVout ? Math.round(vin._prevVout.value*1e8)
             : null;
           const ours = walletAddrs.has(addr);
           return (
             <div key={i} style={{fontFamily: 'monospace', fontSize: 12, marginTop: 3,
               color: ours ? '#c00' : 'inherit'}}
             >
-              {addr}{val!==null && <> <Amt sat={-val} symbol={symbol} signed /></>}{ours && ' ← yours'}
+              {addr}{value!==null && <> <Amt sat={-value} symbol={symbol} signed /></>}{ours && ' ← yours'}
             </div>
           );
         })}
         <h4 style={{marginTop: 12}}>Outputs</h4>
         {(tx._vtx.vout||[]).map((vout, i)=>{
           const addr = voutAddr(vout);
-          const val = Math.round(vout.value*1e8);
+          const value = Math.round(vout.value*1e8);
           const ours = walletAddrs.has(addr);
           return (
             <div key={i} style={{fontFamily: 'monospace', fontSize: 12, marginTop: 3,
               color: ours ? 'green' : 'inherit'}}
             >
-              {addr}: <Amt sat={val} symbol={symbol} signed />{ours && ' ← yours'}
+              {addr}: <Amt sat={value} symbol={symbol} signed />{ours && ' ← yours'}
             </div>
           );
         })}
@@ -982,27 +982,27 @@ function SendScreen({wallet, onSent}){
   );
 }
 
-// Inscribe Screen
-function InscribeScreen({wallet, onSent}){
+// KV add Screen
+function Kv_add_screen({wallet, onSent}){
   const {conf, c: {utxos=[], changeAddrInfo}} = wallet;
-  const [inscKey, setInscKey] = useState('');
-  const [inscVal, setInscVal] = useState('');
+  const [kv_key, set_kv_key] = useState('');
+  const [kv_val, set_kv_val] = useState('');
   const [sending, setSending] = useState(false);
   const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [valError, setValError] = useState(false);
   const [fee, setFee] = useState(()=>{
-    try { return kv_tx_add(wallet, inscKey.trim(), inscVal.trim()).fee; }
+    try { return kv_tx_add(wallet, kv_key.trim(), kv_val.trim()).fee; }
     catch(e){ return 0; }
   });
   useEffect(()=>{
     try {
-      const {fee} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim());
+      const {fee} = kv_tx_add(wallet, kv_key.trim(), kv_val.trim());
       setFee(fee);
     } catch(e){}
-  }, [inscKey, inscVal]);
+  }, [kv_key, kv_val]);
 
   useEffect(()=>{
-    const key = inscKey.trim();
+    const key = kv_key.trim();
     if (!key){
       setNameStatus(null);
       return;
@@ -1022,21 +1022,21 @@ function InscribeScreen({wallet, onSent}){
       })();
     }, 500);
     return ()=>clearTimeout(timer);
-  }, [inscKey]);
-  const handleInscribe = async()=>{
-    if (!inscKey.trim())
+  }, [kv_key]);
+  const handle_kv_add = async()=>{
+    if (!kv_key.trim())
       return alert('Key is required');
-    if (!inscVal.trim())
+    if (!kv_val.trim())
       return alert('Value is required');
     setSending(true);
     try {
-      const {fee: _fee, tx} = kv_tx_add(wallet, inscKey.trim(), inscVal.trim(), fee);
+      const {fee: _fee, tx} = kv_tx_add(wallet, kv_key.trim(), kv_val.trim(), fee);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(_fee);
-      alert(`Inscription sent!\nTXID: ${txid}`);
-      setInscKey('');
-      setInscVal('');
+      alert(`Domain registration sent!\nTXID: ${txid}`);
+      set_kv_key('');
+      set_kv_val('');
       onSent?.();
     } catch(err){
       alert(err.message);
@@ -1046,38 +1046,38 @@ function InscribeScreen({wallet, onSent}){
   };
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
-      <h3>Inscribe new name</h3>
+      <h3>Register new domain</h3>
       <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
-        Writes a LIF key/value inscription to the blockchain.
+        Writes a LIF key/value domain registration to the blockchain.
       </p>
       <div style={{marginTop: 12}}>
         <label>Name:</label>
         <input
           placeholder="e.g. dns/jungo"
-          value={inscKey}
-          onChange={e=>setInscKey(e.target.value)}
+          value={kv_key}
+          onChange={e=>set_kv_key(e.target.value)}
           style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
             fontSize: 13, boxSizing: 'border-box'}}
         />
         {nameStatus=='checking' && <div style={{fontSize: 12, color: '#aaa', marginTop: 3}}>Checking…</div>}
         {nameStatus=='available' && <div style={{fontSize: 12, color: 'green', marginTop: 3}}>Available</div>}
-        {nameStatus=='taken' && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Already inscribed</div>}
+        {nameStatus=='taken' && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Already taken</div>}
       </div>
       <div style={{marginTop: 12}}>
         <label>Value:</label>
         <textarea
           rows={5}
           placeholder={'{"site": "lif:git/..."}'}
-          value={inscVal}
-          onChange={e=>{ setInscVal(e.target.value); try { JSON.parse(e.target.value); setValError(false); } catch { setValError(true); } }}
+          value={kv_val}
+          onChange={e=>{ set_kv_val(e.target.value); try { JSON.parse(e.target.value); setValError(false); } catch { setValError(true); } }}
           style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
             fontSize: 13, boxSizing: 'border-box'}}
         />
         {valError && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Invalid JSON</div>}
       </div>
       <FeeField value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handleInscribe} disabled={sending||nameStatus=='taken'||valError} style={{marginTop: 12}}>
-        {sending ? 'Inscribing…' : 'Inscribe'}
+      <button onClick={handle_kv_add} disabled={sending||nameStatus=='taken'||valError} style={{marginTop: 12}}>
+        {sending ? 'Registering…' : 'Registered'}
       </button>
     </div>
   );
@@ -1095,7 +1095,7 @@ function SettingsScreen({servers, networks, onSave, onCacheClear, onBack}){
     const newServers = {};
     for (const key in networks){
       const val = values[key]?.trim();
-      if (val)
+      if (value)
         newServers[key] = val;
     }
     onSave(newServers);
