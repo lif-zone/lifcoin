@@ -51,27 +51,28 @@ function BrightWallet(){
   const [cacheVer, setCacheVer] = useState(0);
   useEffect(()=>{
     setWallets(ws=>ws.map(w=>({...w,
-      conf: networks[w.network]||Object.values(networks)[0]})));
+      conf: networks[w.ls.network]||Object.values(networks)[0]})));
   }, [networks]);
-  const addWallet = (wallet)=>{
-    const updated = [...wallets,
-      {...wallet, conf: networks[wallet.network]||Object.values(networks)[0]}];
+  const addWallet = (w_ls)=>{
+    const new_wallet = {ls: w_ls, c: {},
+      conf: networks[w_ls.network]||Object.values(networks)[0]};
+    const updated = [...wallets, new_wallet];
     setWallets(updated);
     wallets_save(updated);
   };
   const updateWallet = (id, changes)=>{
-    const updated = wallets.map(w=>w.id===id ? {...w, ...changes} : w);
+    const updated = wallets.map(w=>w.ls.id===id ? {...w, ...changes} : w);
     setWallets(updated);
     wallets_save(updated);
   };
   const deleteWallet = (id)=>{
-    const updated = wallets.filter(w=>w.id!==id);
+    const updated = wallets.filter(w=>w.ls.id!==id);
     setWallets(updated);
     wallets_save(updated);
     setScreen('home');
     setActiveWalletId(null);
   };
-  const activeWallet = wallets.find(w=>w.id===activeWalletId);
+  const activeWallet = wallets.find(w=>w.ls.id===activeWalletId);
   const goHome = ()=>setScreen('home');
   const goBack = ()=>{
     if (screen=='name-transfer' || screen=='name-edit')
@@ -109,15 +110,15 @@ function BrightWallet(){
         <AddWalletScreen
           networks={networks}
           wallets={wallets}
-          onAdd={(w)=>{ addWallet(w); goHome(); }}
+          onAdd={(w_ls)=>{ addWallet(w_ls); goHome(); }}
           onCancel={goHome}
         />
       )}
       {screen=='wallet-detail' && activeWallet && (
         <WalletDetailScreen
           wallet={activeWallet}
-          onDelete={()=>deleteWallet(activeWallet.id)}
-          onUpdate={(changes)=>updateWallet(activeWallet.id, changes)}
+          onDelete={()=>deleteWallet(activeWallet.ls.id)}
+          onUpdate={(changes)=>updateWallet(activeWallet.ls.id, changes)}
           onBack={goHome}
           onSelectTx={(data)=>{ setSelectedTxData(data); setScreen('tx-detail'); }}
           onSelectKey={(data)=>{ setSelectedKeyData(data); setScreen('key-detail'); }}
@@ -128,7 +129,7 @@ function BrightWallet(){
           tx={selectedTxData.tx}
           conf={selectedTxData.conf}
           walletAddrs={selectedTxData.walletAddrs}
-          walletName={activeWallet.name || (activeWallet.mode=='hd' ? 'HD Wallet' : 'Wallet')}
+          walletName={activeWallet.ls.name || (activeWallet.mode=='hd' ? 'HD Wallet' : 'Wallet')}
         />
       )}
       {screen=='key-detail' && selectedKeyData && activeWallet && (
@@ -174,9 +175,9 @@ function HomeScreen({wallets, onSelect, onAddNew}){
       <div style={{display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 16}}>
         {wallets.map(wallet=>(
           <WalletCard
-            key={wallet.id}
+            key={wallet.ls.id}
             wallet={wallet}
-            onClick={()=>onSelect(wallet.id)}
+            onClick={()=>onSelect(wallet.ls.id)}
           />
         ))}
         <div style={newCardStyle} onClick={onAddNew}>
@@ -199,10 +200,10 @@ function WalletCard({wallet, onClick}){
   const [connErr, setConnErr] = useState(false);
   const derived = useMemo(()=>{
     try {
-      hd_root(wallet.mnemonic, conf.network, wallet.passphrase||'');
+      hd_root(wallet.ls.mnemonic, conf.network, wallet.ls.passphrase||'');
       return true;
     } catch { return false; }
-  }, [wallet.id, wallet.network]);
+  }, [wallet.ls.id, wallet.ls.network]);
 
   useEffect(()=>{
     if (!derived)
@@ -218,7 +219,7 @@ function WalletCard({wallet, onClick}){
         setConnErr(true);
       }
     })();
-  }, [wallet.id, wallet.network, conf.electrum]);
+  }, [wallet.ls.id, wallet.ls.network, conf.electrum]);
 
   if (!derived){
     return (
@@ -229,7 +230,7 @@ function WalletCard({wallet, onClick}){
   }
 
   const symbol = conf.symbol;
-  const label = wallet.name || '';
+  const label = wallet.ls.name || '';
   return (
     <div style={cardStyle} onClick={onClick}>
       <div style={{fontWeight: 'bold', fontSize: 15}}>{label}</div>
@@ -269,7 +270,7 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
   const defaultName = (()=>{
     let max = 0;
     for (const w of wallets){
-      const m = w.name && w.name.match(/^Wallet #(\d+)$/);
+      const m = w.ls.name && w.ls.name.match(/^Wallet #(\d+)$/);
       if (m)
         max = Math.max(max, parseInt(m[1], 10));
     }
@@ -404,7 +405,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
 
   useEffect(()=>{
     try {
-      hd_root(wallet.mnemonic, wallet.network, wallet.passphrase||'');
+      hd_root(wallet.ls.mnemonic, wallet.ls.network, wallet.ls.passphrase||'');
     } catch(e){ return; }
     (async()=>{
       try {
@@ -418,10 +419,10 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
         setLoading(false);
       }
     })();
-  }, [wallet.id, wallet.network]);
+  }, [wallet.ls.id, wallet.ls.network]);
 
   const symbol = conf.symbol;
-  const label = wallet.name || '';
+  const label = wallet.ls.name || '';
   const handleDelete = ()=>{
     if (window.confirm(`Delete wallet "${label}"?\n\nMake sure you have backed up the mnemonic!`))
       onDelete();
@@ -556,9 +557,9 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
 function WalletSettingsSubscreen({wallet, onUpdate, onDelete}){
   const conf = wallet.conf;
   const [revealed, setRevealed] = useState(false);
-  const [name, setName] = useState(wallet.name);
-  const hasPassphrase = !!wallet.passphrase;
-  const derivPath = wallet.derivPath || hd_path_def(conf);
+  const [name, setName] = useState(wallet.ls.name);
+  const hasPassphrase = !!wallet.ls.passphrase;
+  const derivPath = wallet.ls.derivPath || hd_path_def(conf);
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Wallet Settings</h3>
@@ -592,7 +593,7 @@ function WalletSettingsSubscreen({wallet, onUpdate, onDelete}){
         <input
           type={revealed ? 'text' : 'password'}
           readOnly
-          value={wallet.mnemonic}
+          value={wallet.ls.mnemonic}
           style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
             fontSize: 13, boxSizing: 'border-box', background: '#f4f4f4', border: '1px solid #ccc',
             borderRadius: 4, padding: 8}}
@@ -604,7 +605,7 @@ function WalletSettingsSubscreen({wallet, onUpdate, onDelete}){
           <input
             type={revealed ? 'text' : 'password'}
             readOnly
-            value={wallet.passphrase}
+            value={wallet.ls.passphrase}
             style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
               fontSize: 13, boxSizing: 'border-box', background: '#f4f4f4', border: '1px solid #ccc',
               borderRadius: 4, padding: 8}}

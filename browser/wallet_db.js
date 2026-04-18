@@ -167,30 +167,24 @@ const wallet_store = {};
 
 export function wallets_load(networks){
   try {
-    const raw = JSON.parse(localStorage.getItem('wallets')||'[]');
-    return raw.map(w=>{
-      const conf = networks[w.network]||Object.values(networks)[0];
-      if (wallet_store[w.id]){
-        wallet_store[w.id].conf = conf;
-        return wallet_store[w.id];
+    const wallets_ls = JSON.parse(localStorage.getItem('wallets')||'[]');
+    return wallets_ls.map(ls=>{
+      const conf = networks[ls.network]||Object.values(networks)[0];
+      if (wallet_store[ls.id]){
+        wallet_store[ls.id].conf = conf;
+        return wallet_store[ls.id];
       }
-      const wallet = {...w, conf, name: w.name||'', c: {}};
-      wallet_store[w.id] = wallet;
+      ls.name ||= '';
+      const wallet = {ls, conf, c: {}};
+      wallet_store[ls.id] = wallet;
       return wallet;
     });
   } catch { return []; }
 }
 
 export function wallets_save(wallets){
-  const raw = wallets.map(w=>{
-    const o = {};
-    for (const f of wallet_store_fields){
-      if (w[f]!==undefined)
-        o[f] = w[f];
-    }
-    return o;
-  });
-  localStorage.setItem('wallets', JSON.stringify(raw));
+  const wallets_ls = wallets.map(w=>w.ls);
+  localStorage.setItem('wallets', JSON.stringify(wallets_ls));
 }
 
 export function servers_load(){
@@ -236,13 +230,13 @@ export async function cache_clear(){
 async function wallet_load_cache(wallet){
   if (wallet.c.addrs)
     return;
-  const cached = await db_get('walletData:'+wallet.id);
+  const cached = await db_get('walletData:'+wallet.ls.id);
   if (!cached)
     return;
   try {
     const {conf} = wallet;
-    const root = hd_root(wallet.mnemonic, conf.network, wallet.passphrase||'');
-    const ap = wallet.derivPath||hd_path_def(conf);
+    const root = hd_root(wallet.ls.mnemonic, conf.network, wallet.ls.passphrase||'');
+    const ap = wallet.derivPath || hd_path_def(conf);
     const addrs = (cached.addrs||[]).map(a=>({...a, ...hd_addr(root, ap,
       conf.network, a.chain, a.index)}));
     const changeAddrInfo = cached.changeAddrInfo
@@ -288,8 +282,8 @@ export async function wallet_fetch(wallet){
   const conf = wallet.conf;
   const network = conf.network;
   const el = await el_connect(conf);
-  const root = hd_root(wallet.mnemonic, network, wallet.passphrase||'');
-  const ap = wallet.derivPath||hd_path_def(conf);
+  const root = hd_root(wallet.ls.mnemonic, network, wallet.ls.passphrase||'');
+  const ap = wallet.ls.derivPath || hd_path_def(conf);
   const [extRes, chgRes] = await Promise.all([
     hd_scan(conf, root, ap, 0),
     hd_scan(conf, root, ap, 1),
@@ -393,7 +387,7 @@ export async function wallet_fetch(wallet){
   }
   Object.assign(wallet.c, {balance, receiveAddress, feeRate, addrs,
     changeAddrInfo, utxos, transactions, ownedKeys});
-  await db_put('walletData:'+wallet.id, wallet_json(wallet));
+  await db_put('walletData:'+wallet.ls.id, wallet_json(wallet));
   return wallet;
 }
 
