@@ -180,14 +180,6 @@ export function wallets_load(){
   for (let id in wallets_store)
     _wallet_del(id);
   let wallets_ls = T(()=>JSON.parse(localStorage.getItem('wallets'))) || {};
-  if (Array.isArray(wallets_ls)){
-    console.log('converting', wallets_ls);
-    // convert old
-    let conv = {};
-    for (let ls of wallets_ls)
-      conv[ls.id] = ls;
-    wallets_ls = conv;
-  }
   for (const [id, ls] of OE(wallets_ls)){
     if (ls.id!=id){
       console.error(`invalid wallet id ${ls.id} ${id}`);
@@ -195,7 +187,6 @@ export function wallets_load(){
     }
     _wallet_add(ls);
   }
-  console.log('wallets_store', wallets_store);
   return wallets_store;
 }
 
@@ -207,7 +198,6 @@ export function wallets_save(){
   const wallets_ls = {};
   for (const [id, w] of OE(wallets_store))
     wallets_ls[id] = w.ls;
-  console.log('wallets_save', wallets_ls);
   localStorage.setItem('wallets', JSON.stringify(wallets_ls));
 }
 
@@ -249,7 +239,6 @@ export function servers_load(){
 }
 
 export function servers_save(servers){
-  console.log('servers_save', servers);
   localStorage.setItem('electrum_servers', JSON.stringify(servers));
 }
 
