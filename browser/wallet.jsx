@@ -70,10 +70,10 @@ function BrightWallet(){
   const activeWallet = wallet_get(activeWalletId);
   const goHome = ()=>setScreen('home');
   const goBack = ()=>{
-    if (screen=='name-transfer' || screen=='name-edit')
-      setScreen('key-detail');
-    else if (screen=='tx-detail' || screen=='key-detail')
-      setScreen('wallet-detail');
+    if (screen=='kv_transfer' || screen=='kv_edit')
+      setScreen('kv_info');
+    else if (screen=='tx_info' || screen=='kv_info')
+      setScreen('wallet_info');
     else
       goHome();
   };
@@ -94,60 +94,60 @@ function BrightWallet(){
         }
       </div>
       {screen=='home' && (
-        <HomeScreen
+        <Home_screen
           key={cacheVer}
           wallets={wallets}
-          onSelect={(id)=>{ setActiveWalletId(id); setScreen('wallet-detail'); }}
-          onAddNew={()=>setScreen('add-wallet')}
+          onSelect={(id)=>{ setActiveWalletId(id); setScreen('wallet_info'); }}
+          onAddNew={()=>setScreen('wallet_add')}
         />
       )}
-      {screen=='add-wallet' && (
-        <AddWalletScreen
+      {screen=='wallet_add' && (
+        <Wallet_add_screen
           networks={networks}
           wallets={wallets}
           onAdd={(w_ls)=>{ addWallet(w_ls); goHome(); }}
           onCancel={goHome}
         />
       )}
-      {screen=='wallet-detail' && activeWallet && (
-        <WalletDetailScreen
+      {screen=='wallet_info' && activeWallet && (
+        <Wallet_info_screen
           wallet={activeWallet}
           onDelete={()=>deleteWallet(activeWallet.ls.id)}
           onUpdate={(changes)=>updateWallet(activeWallet.ls.id, changes)}
           onBack={goHome}
-          onSelectTx={(data)=>{ setSelectedTxData(data); setScreen('tx-detail'); }}
-          onSelectKey={(data)=>{ setSelectedKeyData(data); setScreen('key-detail'); }}
+          onSelectTx={(data)=>{ setSelectedTxData(data); setScreen('tx_info'); }}
+          onSelectKey={(data)=>{ setSelectedKeyData(data); setScreen('kv_info'); }}
         />
       )}
-      {screen=='tx-detail' && selectedTxData && activeWallet && (
-        <TxDetailScreen
+      {screen=='tx_info' && selectedTxData && activeWallet && (
+        <Tx_info_screen
           tx={selectedTxData.tx}
           conf={selectedTxData.conf}
           walletAddrs={selectedTxData.walletAddrs}
           walletName={activeWallet.ls.name || (activeWallet.mode=='hd' ? 'HD Wallet' : 'Wallet')}
         />
       )}
-      {screen=='key-detail' && selectedKeyData && activeWallet && (
-        <KeyDetailScreen
+      {screen=='kv_info' && selectedKeyData && activeWallet && (
+        <Kv_info_screen
           kv_d={selectedKeyData}
           conf={activeWallet.conf}
-          onViewTx={(tx)=>{ setSelectedTxData({tx, conf: activeWallet.conf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx-detail'); }}
-          onTransfer={()=>setScreen('name-transfer')}
-          onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _val_orig: d.val, val: newVal})); setScreen('name-edit'); }}
+          onViewTx={(tx)=>{ setSelectedTxData({tx, conf: activeWallet.conf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx_info'); }}
+          onTransfer={()=>setScreen('kv_transfer')}
+          onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _val_orig: d.val, val: newVal})); setScreen('kv_edit'); }}
         />
       )}
-      {screen=='name-transfer' && selectedKeyData && activeWallet && (
-        <NameTransferScreen
+      {screen=='kv_transfer' && selectedKeyData && activeWallet && (
+        <Kv_transfer_screen
           wallet={activeWallet}
           kv_d={selectedKeyData}
-          onSent={()=>setScreen('wallet-detail')}
+          onSent={()=>setScreen('wallet_info')}
         />
       )}
-      {screen=='name-edit' && selectedKeyData && activeWallet && (
-        <NameEditScreen
+      {screen=='kv_edit' && selectedKeyData && activeWallet && (
+        <Kv_edit_screen
           wallet={activeWallet}
           kv_d={selectedKeyData}
-          onSent={()=>setScreen('wallet-detail')}
+          onSent={()=>setScreen('wallet_info')}
         />
       )}
       {screen=='settings' && (
@@ -164,12 +164,12 @@ function BrightWallet(){
 }
 
 // Home Screen
-function HomeScreen({wallets, onSelect, onAddNew}){
+function Home_screen({wallets, onSelect, onAddNew}){
   return (
     <div>
       <div style={{display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 16}}>
         {OV(wallets).map(wallet=>(
-          <WalletCard
+          <Wallet_card
             key={wallet.ls.id}
             wallet={wallet}
             onClick={()=>onSelect(wallet.ls.id)}
@@ -187,7 +187,7 @@ function HomeScreen({wallets, onSelect, onAddNew}){
 }
 
 // Wallet Card (summary box on home screen)
-function WalletCard({wallet, onClick}){
+function Wallet_card({wallet, onClick}){
   const conf = wallet.conf;
   const [balance, setBalance] = useState(wallet.c.balance ?? null);
   const [txCount, setTxCount] = useState(wallet.c.transactions?.length ?? null);
@@ -210,7 +210,7 @@ function WalletCard({wallet, onClick}){
         setTxCount(wallet.c.transactions.length);
         setKeysOwned(wallet.c.ownedKeys.length);
       } catch(e){
-        console.error('WalletCard fetch error:', e);
+        console.error('Wallet_card fetch error:', e);
         setConnErr(true);
       }
     })();
@@ -238,7 +238,7 @@ function WalletCard({wallet, onClick}){
         ) : (
           <>
             <div style={{fontWeight: 'bold'}}>
-              <Amt sat={balance} symbol={symbol} signed />
+              <Amount sat={balance} symbol={symbol} signed />
             </div>
             <div style={{fontSize: 12, color: '#666'}}>
               {txCount ? ''+txCount+' TXs' : 'No transactions'}
@@ -256,7 +256,7 @@ function WalletCard({wallet, onClick}){
 }
 
 // Add Wallet Screen
-function AddWalletScreen({networks, wallets, onAdd, onCancel}){
+function Wallet_add_screen({networks, wallets, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('mainnet');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [derivPath, setDerivPath] = useState(
@@ -376,7 +376,7 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
 }
 
 // Wallet Detail Screen
-function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
+function Wallet_info_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
   onSelectKey})
 {
   const conf = wallet.conf;
@@ -434,7 +434,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
         <strong>Balance:</strong>{' '}
         {balance===null
           ? (connErr ? 'unavailable' : 'loading…')
-          : <Amt sat={balance} symbol={symbol} signed />
+          : <Amount sat={balance} symbol={symbol} signed />
         }
       </div>
       <div style={{display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center'}}>
@@ -458,8 +458,8 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
           style={{fontWeight: subscreen=='kv_add' ? 'bold' : 'normal'}}
         >Get Domain</button>
         <button
-          onClick={()=>setSubscreen('wallet-settings')}
-          style={{marginLeft: 'auto', fontWeight: subscreen=='wallet-settings' ? 'bold' : 'normal'}}
+          onClick={()=>setSubscreen('wallet_settings')}
+          style={{marginLeft: 'auto', fontWeight: subscreen=='wallet_settings' ? 'bold' : 'normal'}}
         >⚙ Settings</button>
       </div>
 
@@ -503,7 +503,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
                         : <span style={{color: '#f90'}}>unconfirmed</span>
                       }
                     </span>
-                    <Amt sat={tx.amount} symbol={symbol} signed />
+                    <Amount sat={tx.amount} symbol={symbol} signed />
                   </li>
                 );
               })}
@@ -520,7 +520,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
         </div>
       )}
       {subscreen=='receive' && receiveAddress && (
-        <ReceiveScreen
+        <Receive_screen
           address={receiveAddress}
           symbol={symbol}
         />
@@ -537,8 +537,8 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
           onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { wallet_apply(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
-      {subscreen=='wallet-settings' && (
-        <WalletSettingsSubscreen
+      {subscreen=='wallet_settings' && (
+        <Wallet_settings_subscreen
           wallet={wallet}
           onUpdate={onUpdate}
           onDelete={handleDelete}
@@ -549,7 +549,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
 }
 
 // Wallet Settings Subscreen
-function WalletSettingsSubscreen({wallet, onUpdate, onDelete}){
+function Wallet_settings_subscreen({wallet, onUpdate, onDelete}){
   const conf = wallet.conf;
   const [revealed, setRevealed] = useState(false);
   const [name, setName] = useState(wallet.ls.name);
@@ -621,7 +621,7 @@ function WalletSettingsSubscreen({wallet, onUpdate, onDelete}){
 }
 
 // Receive Screen
-function ReceiveScreen({address, symbol}){
+function Receive_screen({address, symbol}){
   const [copied, setCopied] = useState(false);
   const handleCopy = ()=>{
     navigator.clipboard.writeText(address);
@@ -658,7 +658,7 @@ function ReceiveScreen({address, symbol}){
 }
 
 // Key Detail Screen
-function KeyDetailScreen({kv_d, conf, onViewTx, onTransfer, onEdit}){
+function Kv_info_screen({kv_d, conf, onViewTx, onTransfer, onEdit}){
   const tx = kv_d._tx;
   const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
@@ -710,7 +710,7 @@ function KeyDetailScreen({kv_d, conf, onViewTx, onTransfer, onEdit}){
 }
 
 // Name Transfer Screen
-function NameTransferScreen({wallet, kv_d, onSent}){
+function Kv_transfer_screen({wallet, kv_d, onSent}){
   const conf = wallet.conf;
   const [toAddress, setToAddress] = useState('');
   const [sending, setSending] = useState(false);
@@ -752,7 +752,7 @@ function NameTransferScreen({wallet, kv_d, onSent}){
         onChange={e=>setToAddress(e.target.value)}
         style={{display: 'block', width: '100%', marginTop: 12, boxSizing: 'border-box'}}
       />
-      <FeeField value={fee} onChange={setFee} conf={conf} />
+      <Fee_field value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleTransfer} disabled={sending} style={{marginTop: 8}}>
         {sending ? 'Transferring…' : 'Transfer'}
       </button>
@@ -761,7 +761,7 @@ function NameTransferScreen({wallet, kv_d, onSent}){
 }
 
 // Name Edit Screen
-function NameEditScreen({wallet, kv_d, onSent}){
+function Kv_edit_screen({wallet, kv_d, onSent}){
   const conf = wallet.conf;
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
@@ -788,14 +788,14 @@ function NameEditScreen({wallet, kv_d, onSent}){
 
   return (
     <div style={{marginTop: 16, maxWidth: 400}}>
-      <h3>Edit Name</h3>
+      <h3>Edit Domain Name</h3>
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         Name: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
       </div>
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         New value: <span style={{fontFamily: 'monospace'}}>{kv_d.val}</span>
       </div>
-      <FeeField value={fee} onChange={setFee} conf={conf} />
+      <Fee_field value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleSave} disabled={sending} style={{marginTop: 12}}>
         {sending ? 'Saving…' : 'Save'}
       </button>
@@ -804,7 +804,7 @@ function NameEditScreen({wallet, kv_d, onSent}){
 }
 
 // Tx Detail Screen
-function TxDetailScreen({tx, conf, walletAddrs, walletName}){
+function Tx_info_screen({tx, conf, walletAddrs, walletName}){
   const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
   const positive = tx.amount>=0;
@@ -823,7 +823,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
       {tx.amount!==undefined &&
         <div style={{marginTop: 4}}>
           <strong>Amount:</strong>{' '}
-          <Amt sat={tx.amount} symbol={symbol} signed />
+          <Amount sat={tx.amount} symbol={symbol} signed />
         </div>
       }
       <div style={{marginTop: 8}}><strong>TXID:</strong></div>
@@ -850,7 +850,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
             <div key={i} style={{fontFamily: 'monospace', fontSize: 12, marginTop: 3,
               color: ours ? '#c00' : 'inherit'}}
             >
-              {addr}{value!==null && <> <Amt sat={-value} symbol={symbol} signed /></>}{ours && ' ← yours'}
+              {addr}{value!==null && <> <Amount sat={-value} symbol={symbol} signed /></>}{ours && ' ← yours'}
             </div>
           );
         })}
@@ -863,7 +863,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
             <div key={i} style={{fontFamily: 'monospace', fontSize: 12, marginTop: 3,
               color: ours ? 'green' : 'inherit'}}
             >
-              {addr}: <Amt sat={value} symbol={symbol} signed />{ours && ' ← yours'}
+              {addr}: <Amount sat={value} symbol={symbol} signed />{ours && ' ← yours'}
             </div>
           );
         })}
@@ -872,7 +872,7 @@ function TxDetailScreen({tx, conf, walletAddrs, walletName}){
   );
 }
 
-function Amt({sat, symbol, signed}){
+function Amount({sat, symbol, signed}){
   const sign = !signed ? null : sat>0 ? '+' : sat<0 ? '-' : '';
   const color = !signed ? null : sat>0 ? 'green' : sat<0 ? '#c00' : null;
   const [int, dec] = (Math.abs(sat)/1e8).toFixed(8).split('.');
@@ -889,7 +889,7 @@ function Amt({sat, symbol, signed}){
   );
 }
 
-function FeeField({value, onChange, conf}){
+function Fee_field({value, onChange, conf}){
   const symbol = conf?.symbol;
   const [editing, setEditing] = useState(false);
   const [str, setStr] = useState((value/1e8).toFixed(8));
@@ -914,7 +914,7 @@ function FeeField({value, onChange, conf}){
       ) : (
         <span onClick={()=>{ setStr((value/1e8).toFixed(8)); setEditing(true); }}
           style={{cursor: 'pointer', borderBottom: '1px dotted #999'}}
-        ><Amt sat={value} symbol={symbol} /></span>
+        ><Amount sat={value} symbol={symbol} /></span>
       )}
     </div>
   );
@@ -931,8 +931,8 @@ function SendScreen({wallet, onSent}){
     catch(e){ return 0; }
   });
   useEffect(()=>{
-    const amt = Math.round(parseFloat(amountSat)*1e8);
-    const target = amt>0 ? amt : 1;
+    const amount = Math.round(parseFloat(amountSat)*1e8);
+    const target = amount>0 ? amount : 1;
     try { setFee(tx_send(wallet, changeAddrInfo.address, target).fee); }
     catch(e){}
   }, [amountSat, utxos]);
@@ -974,7 +974,7 @@ function SendScreen({wallet, onSent}){
         onChange={e=>setAmountSat(e.target.value)}
         style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
       />
-      <FeeField value={fee} onChange={setFee} conf={conf} />
+      <Fee_field value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleSend} disabled={sending} style={{marginTop: 8}}>
         {sending ? 'Sending…' : 'Send'}
       </button>
@@ -1075,7 +1075,7 @@ function Kv_add_screen({wallet, onSent}){
         />
         {valError && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Invalid JSON</div>}
       </div>
-      <FeeField value={fee} onChange={setFee} conf={conf} />
+      <Fee_field value={fee} onChange={setFee} conf={conf} />
       <button onClick={handle_kv_add} disabled={sending||nameStatus=='taken'||valError} style={{marginTop: 12}}>
         {sending ? 'Registering…' : 'Registered'}
       </button>
@@ -1095,7 +1095,7 @@ function SettingsScreen({servers, networks, onSave, onCacheClear, onBack}){
     const newServers = {};
     for (const key in networks){
       const val = values[key]?.trim();
-      if (value)
+      if (val)
         newServers[key] = val;
     }
     onSave(newServers);
