@@ -9,6 +9,16 @@ const ecpair = ECPairFactory(ecc);
 import ElectrumClient from '@aguycalled/electrum-client-js';
 import {openDB} from 'idb';
 
+// throw Error -> undefined
+export function T(fn, throw_val){
+  try {
+    return fn();
+  } catch(err){ return throw_val; }
+}
+export const OE = o=>o ? Object.entries(o) : [];
+export const OV = o=>o ? Object.values(o) : [];
+export const OA = Object.assign;
+
 // add Lif network, from lif-coin/lib/protocol/networks.js
 let networks_lif = {
   bech32: 'lif',
@@ -55,7 +65,7 @@ export const nets_list = {
   },
 };
 function networks_init(){
-  for (let [name, net] of Object.entries(nets_list))
+  for (let [name, net] of OE(nets_list))
     net.network.conf = net;
 }
 networks_init();
@@ -163,37 +173,83 @@ const wallet_store_fields = ['id', 'name', 'network', 'mnemonic',
   'passphrase', 'derivPath'];
 
 // id → single wallet object instance (mutated in place)
-const wallet_store = {};
+const wallets_store = {};
 
-export function wallets_load(networks){
-  try {
-    const wallets_ls = JSON.parse(localStorage.getItem('wallets')||'[]');
-    return wallets_ls.map(ls=>{
-      const conf = networks[ls.network]||Object.values(networks)[0];
-      if (wallet_store[ls.id]){
-        wallet_store[ls.id].conf = conf;
-        return wallet_store[ls.id];
-      }
-      ls.name ||= '';
-      const wallet = {ls, conf, c: {}};
-      wallet_store[ls.id] = wallet;
-      return wallet;
-    });
-  } catch { return []; }
+export function wallets_load(){
+  let networks = nets_get(servers_load());
+  for (let id in wallets_store)
+    _wallet_del(id);
+  let wallets_ls = T(()=>JSON.parse(localStorage.getItem('wallets'))) || {};
+  if (Array.isArray(wallets_ls)){
+    console.log('converting', wallets_ls);
+    // convert old
+    let conv = {};
+    for (let ls of wallets_ls)
+      conv[ls.id] = ls;
+    wallets_ls = conv;
+  }
+  for (const [id, ls] of OE(wallets_ls)){
+    if (ls.id!=id){
+      console.error(`invalid wallet id ${ls.id} ${id}`);
+      ls.id = id;
+    }
+    _wallet_add(ls);
+  }
+  console.log('wallets_store', wallets_store);
+  return wallets_store;
 }
 
-export function wallets_save(wallets){
-  const wallets_ls = wallets.map(w=>w.ls);
+export function wallets_get(){
+  return wallets_store;
+}
+
+export function wallets_save(){
+  const wallets_ls = {};
+  for (const [id, w] of OE(wallets_store))
+    wallets_ls[id] = w.ls;
+  console.log('wallets_save', wallets_ls);
   localStorage.setItem('wallets', JSON.stringify(wallets_ls));
 }
 
+export function wallet_get(id){
+  return wallets_store[id];
+}
+
+function _wallet_add(w_ls){
+  let networks = nets_get(servers_load());
+  let wallet = {
+    ls: {...w_ls},
+    c: {},
+    conf: networks[w_ls.network],
+  };
+  wallet.ls.name ||= '';
+  wallets_store[wallet.ls.id] = wallet;
+}
+
+export function wallet_add(w_ls){
+  _wallet_add(w_ls);
+  wallets_save();
+}
+
+export function wallet_update(id){
+  wallets_save();
+}
+
+function _wallet_del(id){
+  delete wallets_store[id];
+}
+
+export function wallet_del(id){
+  _wallet_del(id);
+  wallets_save();
+}
+
 export function servers_load(){
-  try {
-    return JSON.parse(localStorage.getItem('electrum_servers') || '{}');
-  } catch { return {}; }
+  return T(()=>JSON.parse(localStorage.getItem('electrum_servers'))) || {};
 }
 
 export function servers_save(servers){
+  console.log('servers_save', servers);
   localStorage.setItem('electrum_servers', JSON.stringify(servers));
 }
 
@@ -218,10 +274,8 @@ export async function db_put(id, data){
 }
 export async function cache_clear(){
   try { await db.clear('cache'); } catch{}
-  for (const id in wallet_store){
-    const w = wallet_store[id];
+  for (const w of wallets_store)
     w.c = {};
-  }
 }
 
 // Populate wallet with cached data from IndexedDB (re-derives keyPairs from
@@ -247,7 +301,7 @@ async function wallet_load_cache(wallet){
       ...u, addrInfo: addrs.find(a=>a.address==u.address)||hd_addr(root,
         ap, conf.network, u.chain, u.index)
     }));
-    Object.assign(wallet.c, {...cached, addrs, changeAddrInfo, utxos});
+    OA(wallet.c, {...cached, addrs, changeAddrInfo, utxos});
   } catch(e){}
 }
 
@@ -273,8 +327,8 @@ function wallet_json(wallet){
 // Preload all wallets from IndexedDB into memory at module startup
 export async function wallet_db_init(){
   await db_init();
-  const _networks = nets_get(servers_load());
-  for (const w of wallets_load(_networks))
+  wallets_load();
+  for (const w of OV(wallets_store))
     await wallet_load_cache(w);
 }
 
@@ -385,7 +439,7 @@ export async function wallet_fetch(wallet){
     }
     ownedKeys = [...keyMap.values()];
   }
-  Object.assign(wallet.c, {balance, receiveAddress, feeRate, addrs,
+  OA(wallet.c, {balance, receiveAddress, feeRate, addrs,
     changeAddrInfo, utxos, transactions, ownedKeys});
   await db_put('walletData:'+wallet.ls.id, wallet_json(wallet));
   return wallet;

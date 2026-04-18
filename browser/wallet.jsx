@@ -3,7 +3,8 @@ import React, {useState, useEffect, useMemo} from 'react';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import {nets_list, servers_save, servers_load, wallet_db_init,
-  wallets_save, wallets_load, nets_get, wallet_fetch,
+  nets_get, wallet_fetch, OV, OA, OE,
+  wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear,
@@ -40,39 +41,33 @@ const newCardStyle = {
 
 // Main App
 function BrightWallet(){
-  const [servers, setServers] = useState(servers_load);
+  const [servers, setServers] = useState(()=>servers_load());
   const networks = useMemo(()=>nets_get(servers), [servers]);
-  const [wallets, setWallets] = useState(
-    ()=>wallets_load(nets_get(servers_load())));
+  const [wallets, setWallets] = useState(()=>wallets_get());
   const [screen, setScreen] = useState('home');
   const [activeWalletId, setActiveWalletId] = useState(null);
   const [selectedTxData, setSelectedTxData] = useState(null);
   const [selectedKeyData, setSelectedKeyData] = useState(null);
   const [cacheVer, setCacheVer] = useState(0);
   useEffect(()=>{
-    setWallets(ws=>ws.map(w=>({...w,
-      conf: networks[w.ls.network]||Object.values(networks)[0]})));
+    setWallets(wallets_get());
   }, [networks]);
   const addWallet = (w_ls)=>{
-    const new_wallet = {ls: w_ls, c: {},
-      conf: networks[w_ls.network]||Object.values(networks)[0]};
-    const updated = [...wallets, new_wallet];
-    setWallets(updated);
-    wallets_save(updated);
+    wallet_add(w_ls);
+    setWallets(wallets_get());
   };
   const updateWallet = (id, changes)=>{
-    const updated = wallets.map(w=>w.ls.id===id ? {...w, ...changes} : w);
-    setWallets(updated);
-    wallets_save(updated);
+    OA(wallet_get(id).ls, changes);
+    wallet_update(id);
+    setWallets(wallets_get());
   };
   const deleteWallet = (id)=>{
-    const updated = wallets.filter(w=>w.ls.id!==id);
-    setWallets(updated);
-    wallets_save(updated);
+    wallet_del(id);
+    setWallets(wallets_get());
     setScreen('home');
     setActiveWalletId(null);
   };
-  const activeWallet = wallets.find(w=>w.ls.id===activeWalletId);
+  const activeWallet = wallet_get(activeWalletId);
   const goHome = ()=>setScreen('home');
   const goBack = ()=>{
     if (screen=='name-transfer' || screen=='name-edit')
@@ -173,7 +168,7 @@ function HomeScreen({wallets, onSelect, onAddNew}){
   return (
     <div>
       <div style={{display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 16}}>
-        {wallets.map(wallet=>(
+        {OV(wallets).map(wallet=>(
           <WalletCard
             key={wallet.ls.id}
             wallet={wallet}
@@ -323,7 +318,7 @@ function AddWalletScreen({networks, wallets, onAdd, onCancel}){
           onChange={e=>{ setNetworkKey(e.target.value); setDerivPath(hd_path_def(networks[e.target.value])); }}
           style={{display: 'block', width: '100%', marginTop: 4}}
         >
-          {Object.entries(networks).map(([key, conf])=>(
+          {OE(networks).map(([key, conf])=>(
             <option key={key} value={key}>{conf.name}</option>
           ))}
         </select>
@@ -1116,7 +1111,7 @@ function SettingsScreen({servers, networks, onSave, onCacheClear, onBack}){
       <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
         Configure the ElectrumX server URL for each network.
       </p>
-      {Object.entries(networks).map(([key, conf])=>(
+      {OE(networks).map(([key, conf])=>(
         <div key={key} style={{marginTop: 14}}>
           <label style={{fontWeight: 'bold'}}>{conf.name}:</label>
           <div style={{display: 'flex', gap: 6, marginTop: 4}}>
