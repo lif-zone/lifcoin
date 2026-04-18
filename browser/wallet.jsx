@@ -400,8 +400,8 @@ function Wallet_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
 
   useEffect(()=>{
     try {
-      hd_root(wallet.ls.mnemonic, wallet.ls.network, wallet.ls.passphrase||'');
-    } catch(e){ return; }
+      hd_root(wallet.ls.mnemonic, wallet.conf.network, wallet.ls.passphrase||'');
+    } catch(e){ return console.error(e); }
     (async()=>{
       try {
         setLoading(true);
