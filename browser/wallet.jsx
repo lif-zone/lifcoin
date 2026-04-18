@@ -193,9 +193,9 @@ function HomeScreen({wallets, onSelect, onAddNew}){
 // Wallet Card (summary box on home screen)
 function WalletCard({wallet, onClick}){
   const conf = wallet.conf;
-  const [balance, setBalance] = useState(wallet.balance ?? null);
-  const [txCount, setTxCount] = useState(wallet.transactions?.length ?? null);
-  const [keysOwned, setKeysOwned] = useState(wallet.ownedKeys?.length ?? 0);
+  const [balance, setBalance] = useState(wallet.c.balance ?? null);
+  const [txCount, setTxCount] = useState(wallet.c.transactions?.length ?? null);
+  const [keysOwned, setKeysOwned] = useState(wallet.c.ownedKeys?.length ?? 0);
   const [connErr, setConnErr] = useState(false);
   const derived = useMemo(()=>{
     try {
@@ -209,10 +209,10 @@ function WalletCard({wallet, onClick}){
       return;
     (async()=>{
       try {
-        const data = await wallet_fetch(wallet);
-        setBalance(data.balance);
-        setTxCount(data.transactions.length);
-        setKeysOwned(data.ownedKeys.length);
+        await wallet_fetch(wallet);
+        setBalance(wallet.c.balance);
+        setTxCount(wallet.c.transactions.length);
+        setKeysOwned(wallet.c.ownedKeys.length);
       } catch(e){
         console.error('WalletCard fetch error:', e);
         setConnErr(true);
@@ -386,20 +386,20 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
   const conf = wallet.conf;
   const [connected, setConnected] = useState(false);
   const [balance, setBalance] = useState(wallet.balance ?? null);
-  const [transactions, setTransactions] = useState(wallet.transactions ?? []);
-  const [ownedKeys, setOwnedKeys] = useState(wallet.ownedKeys ?? []);
+  const [transactions, setTransactions] = useState(wallet.c.transactions ?? []);
+  const [ownedKeys, setOwnedKeys] = useState(wallet.c.ownedKeys ?? []);
   const [subscreen, setSubscreen] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [connErr, setConnErr] = useState(false);
   const [receiveAddress, setReceiveAddress] =
-    useState(wallet.receiveAddress ?? null);
-  const [allAddrs, setAllAddrs] = useState(wallet.addrs ?? []);
-  const applyData = (data)=>{
-    setBalance(data.balance);
-    setTransactions(data.transactions);
-    setOwnedKeys(data.ownedKeys);
-    setAllAddrs(data.addrs);
-    setReceiveAddress(data.receiveAddress);
+    useState(wallet.c.receiveAddress ?? null);
+  const [allAddrs, setAllAddrs] = useState(wallet.c.addrs ?? []);
+  const wallet_apply = (wallet)=>{
+    setBalance(wallet.c.balance);
+    setTransactions(wallet.c.transactions);
+    setOwnedKeys(wallet.c.ownedKeys);
+    setAllAddrs(wallet.c.addrs);
+    setReceiveAddress(wallet.c.receiveAddress);
   };
 
   useEffect(()=>{
@@ -409,7 +409,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
     (async()=>{
       try {
         setLoading(true);
-        applyData(await wallet_fetch(wallet));
+        wallet_apply(await wallet_fetch(wallet));
         setConnected(true);
       } catch(e){
         console.error('Connect error:', e);
@@ -515,7 +515,7 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
           )}
           <button style={{marginTop: 10}} onClick={async()=>{
             setLoading(true);
-            try { applyData(await wallet_fetch(wallet)); }
+            try { wallet_apply(await wallet_fetch(wallet)); }
             catch(e){ console.error('Refresh error:', e); }
             finally { setLoading(false); }
           }}>
@@ -532,13 +532,13 @@ function WalletDetailScreen({wallet, onDelete, onUpdate, onBack, onSelectTx,
       {subscreen=='send' && allAddrs.length>0 && (
         <SendScreen
           wallet={wallet}
-          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
+          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { wallet_apply(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
       {subscreen=='inscribe' && allAddrs.length>0 && (
         <InscribeScreen
           wallet={wallet}
-          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { applyData(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
+          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { wallet_apply(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
         />
       )}
       {subscreen=='wallet-settings' && (
@@ -720,7 +720,7 @@ function NameTransferScreen({wallet, kv_d, onSent}){
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
     try {
-      const addr = wallet.changeAddrInfo?.address||'';
+      const addr = wallet.c.changeAddrInfo?.address||'';
       return kv_tx_send(wallet, kv_d, addr).fee;
     } catch(e){ return 0; }
   });
@@ -926,7 +926,7 @@ function FeeField({value, onChange, conf}){
 
 // Send Screen
 function SendScreen({wallet, onSent}){
-  const {conf, utxos=[], changeAddrInfo} = wallet;
+  const {conf, c: {utxos=[], changeAddrInfo}} = wallet;
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
@@ -988,7 +988,7 @@ function SendScreen({wallet, onSent}){
 
 // Inscribe Screen
 function InscribeScreen({wallet, onSent}){
-  const {conf, utxos=[], changeAddrInfo} = wallet;
+  const {conf, c: {utxos=[], changeAddrInfo}} = wallet;
   const [inscKey, setInscKey] = useState('');
   const [inscVal, setInscVal] = useState('');
   const [sending, setSending] = useState(false);

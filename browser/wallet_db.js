@@ -174,7 +174,7 @@ export function wallets_load(networks){
         wallet_store[w.id].conf = conf;
         return wallet_store[w.id];
       }
-      const wallet = {...w, conf, name: w.name||''};
+      const wallet = {...w, conf, name: w.name||'', c: {}};
       wallet_store[w.id] = wallet;
       return wallet;
     });
@@ -226,22 +226,15 @@ export async function cache_clear(){
   try { await db.clear('cache'); } catch{}
   for (const id in wallet_store){
     const w = wallet_store[id];
-    delete w.balance;
-    delete w.receiveAddress;
-    delete w.feeRate;
-    delete w.addrs;
-    delete w.changeAddrInfo;
-    delete w.utxos;
-    delete w.transactions;
-    delete w.ownedKeys;
+    w.c = {};
   }
 }
 
 // Populate wallet with cached data from IndexedDB (re-derives keyPairs from
 // mnemonic). Idempotent: does nothing if wallet already has
-// data (wallet.addrs defined).
+// data (wallet.c.addrs defined).
 async function wallet_load_cache(wallet){
-  if (wallet.addrs)
+  if (wallet.c.addrs)
     return;
   const cached = await db_get('walletData:'+wallet.id);
   if (!cached)
@@ -260,26 +253,26 @@ async function wallet_load_cache(wallet){
       ...u, addrInfo: addrs.find(a=>a.address==u.address)||hd_addr(root,
         ap, conf.network, u.chain, u.index)
     }));
-    Object.assign(wallet, {...cached, addrs, changeAddrInfo, utxos});
+    Object.assign(wallet.c, {...cached, addrs, changeAddrInfo, utxos});
   } catch(e){}
 }
 
 function wallet_json(wallet){
   return {
-    balance: wallet.balance,
-    receiveAddress: wallet.receiveAddress,
-    feeRate: wallet.feeRate,
-    addrs: (wallet.addrs||[]).map(({address, chain, index, hist})=>(
+    balance: wallet.c.balance,
+    receiveAddress: wallet.c.receiveAddress,
+    feeRate: wallet.c.feeRate,
+    addrs: (wallet.c.addrs||[]).map(({address, chain, index, hist})=>(
       {address, chain, index, hist})),
-    changeAddrInfo: wallet.changeAddrInfo
-      ? {address: wallet.changeAddrInfo.address,
-        chain: wallet.changeAddrInfo.chain, index: wallet.changeAddrInfo.index}
+    changeAddrInfo: wallet.c.changeAddrInfo
+      ? {address: wallet.c.changeAddrInfo.address,
+        chain: wallet.c.changeAddrInfo.chain, index: wallet.c.changeAddrInfo.index}
       : null,
     utxos: (wallet.utxos||[]).map(
       ({tx_hash, tx_pos, value, address, chain, index})=>
         ({tx_hash, tx_pos, value, address, chain, index})),
-    transactions: wallet.transactions||[],
-    ownedKeys: wallet.ownedKeys||[],
+    transactions: wallet.c.transactions||[],
+    ownedKeys: wallet.c.ownedKeys||[],
   };
 }
 
@@ -398,7 +391,7 @@ export async function wallet_fetch(wallet){
     }
     ownedKeys = [...keyMap.values()];
   }
-  Object.assign(wallet, {balance, receiveAddress, feeRate, addrs,
+  Object.assign(wallet.c, {balance, receiveAddress, feeRate, addrs,
     changeAddrInfo, utxos, transactions, ownedKeys});
   await db_put('walletData:'+wallet.id, wallet_json(wallet));
   return wallet;
@@ -422,7 +415,7 @@ export function kv_tx_add(wallet, key, val, fee){
   if (!_utxos.length)
     throw new Error('No funds available');
   if (!fee)
-    fee = fee_calc(wallet.feeRate, kv_tx_add(wallet, key, val, 1).tx);
+    fee = fee_calc(wallet.c.feeRate, kv_tx_add(wallet, key, val, 1).tx);
   const selected = [];
   let total = 0;
   for (const u of _utxos){
@@ -460,7 +453,7 @@ export function kv_tx_edit(wallet, kv_d, fee){
     throw new Error('Name UTXO address not found in wallet');
   const dest = changeAddrInfo.address;
   if (!fee)
-    fee = fee_calc(wallet.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
+    fee = fee_calc(wallet.c.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
   const signers = [addr];
   const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, saddr}];
   let extraTotal = 0;
@@ -495,7 +488,7 @@ export function kv_tx_send(wallet, kv_d, saddr_to, fee){
   if (!addr)
     throw new Error('Name UTXO address not found in wallet');
   if (!fee)
-    fee = fee_calc(wallet.feeRate, kv_tx_send(wallet, kv_d, saddr_to, 1).tx);
+    fee = fee_calc(wallet.c.feeRate, kv_tx_send(wallet, kv_d, saddr_to, 1).tx);
   const signers = [addr];
   const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, saddr}];
   let extraTotal = 0;
@@ -526,7 +519,7 @@ export function tx_send(wallet, saddr_to, value, fee){
   if (!_utxos.length)
     throw new Error('No funds available');
   if (!fee)
-    fee = fee_calc(wallet.feeRate, tx_send(wallet, saddr_to, value, 1).tx);
+    fee = fee_calc(wallet.c.feeRate, tx_send(wallet, saddr_to, value, 1).tx);
   const selected = [];
   let total = 0;
   for (const u of _utxos){
