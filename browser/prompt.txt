@@ -750,3 +750,9 @@ USER: Why is cacheVer needed in so many places? Just clear cache and re-fetch.
 CLAUDE: Moved cacheVer to key={cacheVer} on HomeScreen only (in BrightWallet). This remounts HomeScreen and all WalletCards on clear, triggering fresh fetches. Removed cacheVer from HomeScreen and WalletCard props/deps entirely.
 
 ---
+
+USER: why does Back on Wallet_screen take 1 second? fix the delay
+
+CLAUDE: The delay was hd_root() (PBKDF2/mnemonicToSeedSync) running synchronously in useMemo in Wallet_card, blocking React from painting. Replaced with bip39.validateMnemonic() which is instant (word list + checksum only). The expensive key derivation stays in wallet_fetch which runs async in useEffect after the screen paints.
+
+---

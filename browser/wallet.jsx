@@ -193,12 +193,7 @@ function Wallet_card({wallet, onClick}){
   const [txCount, setTxCount] = useState(wallet.c.transactions?.length ?? null);
   const [keysOwned, setKeysOwned] = useState(wallet.c.ownedKeys?.length ?? 0);
   const [connErr, setConnErr] = useState(false);
-  const derived = useMemo(()=>{
-    try {
-      hd_root(wallet.ls.mnemonic, conf.network, wallet.ls.passphrase||'');
-      return true;
-    } catch { return false; }
-  }, [wallet.ls.id, wallet.ls.network]);
+  const derived = bip39.validateMnemonic(wallet.ls.mnemonic);
 
   useEffect(()=>{
     if (!derived)
@@ -399,9 +394,8 @@ function Wallet_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
   };
 
   useEffect(()=>{
-    try {
-      hd_root(wallet.ls.mnemonic, wallet.conf.network, wallet.ls.passphrase||'');
-    } catch(e){ return console.error(e); }
+    if (!bip39.validateMnemonic(wallet.ls.mnemonic))
+      return;
     (async()=>{
       try {
         setLoading(true);
