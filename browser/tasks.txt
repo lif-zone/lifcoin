@@ -32,6 +32,24 @@ make wallet.jsx support multiple wallets
 - dont show in BTC wallets the lif kv options
 - open new users in github, and re-import the projects, but with different
   login names/emails
+- in wallet domain operations: change to default just DNS and site, and
+  clicking advanced will allow full JSON edit, and full key edit
+- make lif/git source to bring most up-to-date versions
+
+Low priority:
+-------------
+- add support for any str (not only utf8/json) in lif kv server.
+- add ipc keep alive: every 100ms update a place in memory. On the waiting
+  side, if for 1000ms no update - it starts giving error messages
+- move the boot_worker web worker to the service worker.
+- make esplora load from LIF:
+  - fork it into a new tree
+  - add to lif kernel support for answeing index.html for any URL, and
+    supporting SPA, and 'virtual 404'.
+  - support lif kernel JsRx and make esplora run on it
+- separate lif-kernel from lif-os: create a new tree, and re-create commits.
+- add support for lif no-cors via out servers routing requests in return
+  to mining or tx with money.
 
 coding conventions:
 -------------------
