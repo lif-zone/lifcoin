@@ -107,6 +107,12 @@ export function nets_get(servers){
 export function hd_root(mnemonic, network, passphrase=''){
   return bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic, passphrase), network);
 }
+function wallet_root(wallet){
+  if (wallet.c.root)
+    return wallet.c.root;
+  return wallet.c.root = hd_root(wallet.ls.mnemonic, wallet.conf.network,
+    wallet.ls.passphrase||'');
+}
 
 export function hd_path_def(conf){
   return `m/84'/${conf.coin_type}'/0'`;
@@ -278,7 +284,7 @@ async function wallet_load_cache(wallet){
     return;
   try {
     const {conf} = wallet;
-    const root = hd_root(wallet.ls.mnemonic, conf.network, wallet.ls.passphrase||'');
+    const root = wallet_root(wallet);
     const ap = wallet.derivPath || hd_path_def(conf);
     const addrs = (cached.addrs||[]).map(a=>({...a, ...hd_addr(root, ap,
       conf.network, a.chain, a.index)}));
@@ -325,7 +331,7 @@ export async function wallet_fetch(wallet){
   const conf = wallet.conf;
   const network = conf.network;
   const el = await el_connect(conf);
-  const root = hd_root(wallet.ls.mnemonic, network, wallet.ls.passphrase||'');
+  const root = wallet_root(wallet);
   const ap = wallet.ls.derivPath || hd_path_def(conf);
   const [extRes, chgRes] = await Promise.all([
     hd_scan(conf, root, ap, 0),

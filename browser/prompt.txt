@@ -756,3 +756,9 @@ USER: why does Back on Wallet_screen take 1 second? fix the delay
 CLAUDE: The delay was hd_root() (PBKDF2/mnemonicToSeedSync) running synchronously in useMemo in Wallet_card, blocking React from painting. Replaced with bip39.validateMnemonic() which is instant (word list + checksum only). The expensive key derivation stays in wallet_fetch which runs async in useEffect after the screen paints.
 
 ---
+
+USER: still slow after bip39.validateMnemonic fix
+
+CLAUDE: Real cause: hd_root (mnemonicToSeedSync/PBKDF2) runs synchronously in wallet_fetch after el_connect resolves, blocking React from painting the screen transition. Added wallet_root(wallet) which caches the BIP32 root on wallet._root so mnemonicToSeedSync only runs once per wallet per session. Both wallet_load_cache and wallet_fetch now use wallet_root().
+
+---
