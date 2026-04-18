@@ -110,7 +110,7 @@ function BrightWallet(){
         />
       )}
       {screen=='wallet_info' && activeWallet && (
-        <Wallet_info_screen
+        <Wallet_screen
           wallet={activeWallet}
           onDelete={()=>deleteWallet(activeWallet.ls.id)}
           onUpdate={(changes)=>updateWallet(activeWallet.ls.id, changes)}
@@ -376,7 +376,7 @@ function Wallet_add_screen({networks, wallets, onAdd, onCancel}){
 }
 
 // Wallet Detail Screen
-function Wallet_info_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
+function Wallet_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
   onSelectKey})
 {
   const conf = wallet.conf;
