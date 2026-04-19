@@ -322,14 +322,14 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
         />
       </div>
       <div style={{marginTop: 12}}>
-        <label>Network:</label>
+        <label>Coin:</label>
         <select
           value={networkKey}
           onChange={e=>{ setNetworkKey(e.target.value); setDerivPath(hd_path_def(networks[e.target.value])); }}
           style={{display: 'block', width: '100%', marginTop: 4}}
         >
           {OE(networks).filter(([key])=>devTools||!nets_list[key]?.test).map(([key, conf])=>(
-            <option key={key} value={key}>{conf.name}</option>
+            <option key={key} value={key}>{conf.symbol}</option>
           ))}
         </select>
       </div>
