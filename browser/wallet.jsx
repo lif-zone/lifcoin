@@ -474,7 +474,7 @@ function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx, onSelectKey,
       <div style={{display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center'}}>
         <button onClick={onReceive} disabled={!allAddrs.length}>Receive</button>
         <button onClick={onSend} disabled={!allAddrs.length}>Send</button>
-        <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain</button>
+        {conf.lif_kv && <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain</button>}
         <button onClick={onSettings} style={{marginLeft: 'auto'}}>⚙ Settings</button>
       </div>
       <div style={{marginTop: 16}}>

@@ -59,6 +59,7 @@ export const nets_list = {
     coin_type: 1842,
     fee_def: 5000000, // 1MB = 50LIF
     fee_max: 10000000,
+    lif_kv: true,
   },
   btc: {
     name: 'Bitcoin',
@@ -423,31 +424,33 @@ async function _wallet_fetch(wallet){
       return {...tx, timestamp: tx.height>0 ? tsMap[tx.height] : null,
         amount: received-spent, _vtx:{...vtx, vin: enrichedVin}};
     });
-    const keyMap = new Map();
-    for (const etx of c.transactions){
-      const vouts = etx._vtx?.vout||[];
-      for (let i=0; i<vouts.length; i++){
-        const vout = vouts[i];
-        if (!vout.lif_kv)
-          continue;
-        const saddr = vout.scriptPubKey?.address ||
-          vout.scriptPubKey?.addresses?.[0];
-        if (!addr_set.has(saddr))
-          continue;
-        for (const kv of vout.lif_kv){
-          const isUnconfirmed = etx.height<=0;
-          const priority = isUnconfirmed ? Infinity : etx.height;
-          const existing = keyMap.get(kv.key);
-          if (!existing || priority>=existing._priority){
-            const _kstatus = vout.spent ? 'spent' : isUnconfirmed ?
-              'receiving' : 'confirmed';
-            keyMap.set(kv.key, {key: kv.key, val: kv.val, tx: etx.tx_hash,
-              vout: i, _kstatus, _priority: priority});
+    if (conf.lif_kv){
+      const keyMap = new Map();
+      for (const etx of c.transactions){
+        const vouts = etx._vtx?.vout||[];
+        for (let i=0; i<vouts.length; i++){
+          const vout = vouts[i];
+          if (!vout.lif_kv)
+            continue;
+          const saddr = vout.scriptPubKey?.address ||
+            vout.scriptPubKey?.addresses?.[0];
+          if (!addr_set.has(saddr))
+            continue;
+          for (const kv of vout.lif_kv){
+            const isUnconfirmed = etx.height<=0;
+            const priority = isUnconfirmed ? Infinity : etx.height;
+            const existing = keyMap.get(kv.key);
+            if (!existing || priority>=existing._priority){
+              const _kstatus = vout.spent ? 'spent' : isUnconfirmed ?
+                'receiving' : 'confirmed';
+              keyMap.set(kv.key, {key: kv.key, val: kv.val, tx: etx.tx_hash,
+                vout: i, _kstatus, _priority: priority});
+            }
           }
         }
       }
+      c.ownedKeys = [...keyMap.values()];
     }
-    c.ownedKeys = [...keyMap.values()];
   }
   cs.transactions = c.transactions;
   cs.ownedKeys = c.ownedKeys;

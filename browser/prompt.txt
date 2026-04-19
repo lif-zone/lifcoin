@@ -816,3 +816,9 @@ USER: Send/Receive/Get Domain/Settings should be separate pages; Back returns to
 CLAUDE: Moved wallet sub-screens (send, receive, kv_add, wallet_settings) to top-level BrightWallet screens (wallet_send, wallet_receive, wallet_kv_add, wallet_settings). Added them to goBack logic pointing back to wallet_info. Wallet_screen now only shows overview with buttons that call onSend/onReceive/onKvAdd/onSettings. Removed subscreen state, Overview button, and inline sub-screen rendering from Wallet_screen.
 
 ---
+
+USER: hide Get Domain button and skip lif_kv processing in wallet_fetch when conf.lif_kv is not true
+
+CLAUDE: Wrapped keyMap/ownedKeys block in wallet_fetch with if (conf.lif_kv). Hidden Get Domain button in Wallet_screen with {conf.lif_kv && ...}.
+
+---
