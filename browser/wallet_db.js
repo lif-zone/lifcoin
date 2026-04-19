@@ -51,7 +51,7 @@ let networks_lif = {
 
 export const nets_list = {
   btc: {
-    name: 'Bitcoin Mainnet',
+    name: 'Bitcoin',
     symbol: 'BTC',
     network: bitcoin.networks.bitcoin,
     //electrum: 'wss://electrumx.nimiq.com:443/electrumx', // restricted from localhost:5000
@@ -71,7 +71,7 @@ export const nets_list = {
     fee_def: 1000,
   },
   lif: {
-    name: 'Lif Mainnet', // Life Chai
+    name: 'Lifcoin', // Life Chai
     symbol: 'LIF',
     network: networks_lif,
     electrum: 'ws://localhost:8432',
