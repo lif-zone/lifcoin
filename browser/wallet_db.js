@@ -50,7 +50,7 @@ let networks_lif = {
 };
 
 export const nets_list = {
-  mainnet: {
+  btc: {
     name: 'Bitcoin Mainnet',
     symbol: 'BTC',
     network: bitcoin.networks.bitcoin,
@@ -61,7 +61,7 @@ export const nets_list = {
     coin_type: 0,
     fee_def: 1000, // 1MB = 0.01BTC
   },
-  testnet: {
+  btc_testnet: {
     name: 'Bitcoin Testnet',
     symbol: 'tBTC',
     network: bitcoin.networks.testnet,
