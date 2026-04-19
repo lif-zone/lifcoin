@@ -21,7 +21,7 @@ make wallet.jsx support multiple wallets
 + in Network options, put LIF by default, and first, BTC second. via Radio
   button.
 + dont show in BTC wallets the lif kv options
-* fees are not working: click Send: dont throw Error() on fees - give a
++ fees are not working: click Send: dont throw Error() on fees - give a
   funding specific error (on no funds, or not enough funds, telling how much
   is missing. Should already appear on the page itself the missing funds,
   not as a surprise.
