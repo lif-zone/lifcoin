@@ -1151,8 +1151,30 @@ function SettingsScreen({servers, networks, onSave, onDevTools, onBack}){
   );
 }
 
+const LIF_SERVER_DEF = 'http://localhost:8432';
+function lif_server_load(){
+  return localStorage.getItem('lif_server') || LIF_SERVER_DEF;
+}
+function lif_server_save(val){
+  localStorage.setItem('lif_server', val);
+}
+
 // Developer Tools Screen
 function DevToolsScreen({onCacheClear, onBack}){
+  const [lifServer, setLifServer] = useState(lif_server_load);
+  const [mempoolResult, setMempoolResult] = useState(null);
+  const handleServerChange = (val)=>{
+    setLifServer(val);
+    lif_server_save(val);
+  };
+  const handleResetMempool = async()=>{
+    try {
+      const res = await fetch(`${lifServer}/reset_mempool`, {method: 'POST'});
+      setMempoolResult(await res.json());
+    } catch(e){
+      setMempoolResult({error: e.message});
+    }
+  };
   return (
     <div style={{maxWidth: 520}}>
       <h2>Developer Tools</h2>
@@ -1161,6 +1183,27 @@ function DevToolsScreen({onCacheClear, onBack}){
         <p style={{fontSize: 13, color: '#666', marginTop: 6}}>
           Clears all cached wallet data and re-fetches from Electrum.
         </p>
+      </div>
+      <div style={{marginTop: 20}}>
+        <label style={{fontWeight: 'bold'}}>Lifcoin Server:</label>
+        <div style={{display: 'flex', gap: 6, marginTop: 4}}>
+          <input
+            value={lifServer}
+            onChange={e=>handleServerChange(e.target.value)}
+            placeholder={LIF_SERVER_DEF}
+            style={{flex: 1, fontFamily: 'monospace', fontSize: 12, boxSizing: 'border-box'}}
+          />
+          <button onClick={()=>handleServerChange(LIF_SERVER_DEF)} title="Reset to default">↺</button>
+        </div>
+      </div>
+      <div style={{marginTop: 16}}>
+        <button onClick={handleResetMempool}>Reset lifcoin mempool</button>
+        {mempoolResult && (
+          <pre style={{marginTop: 8, fontSize: 12, background: '#f4f4f4',
+            padding: 8, borderRadius: 4, overflowX: 'auto'}}>
+            {JSON.stringify(mempoolResult, null, 2)}
+          </pre>
+        )}
       </div>
     </div>
   );

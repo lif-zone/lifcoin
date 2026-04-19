@@ -16,9 +16,9 @@ make wallet.jsx support multiple wallets
   networks (Bitcoin, Bitcoin testnet, Lif...)
 + cache (c) and cache store (cs) for instant statup and screen switching
 + Settings screen: move Developer tools to separate screen.
-- in dev tools screen: Add a Memopool delete button /reset_mempool
-- add click to mine
++ in dev tools screen: Add a Memopool delete button /reset_mempool
 - move BTC test network into "Developer tools"
+- add click to mine
 - add LIF test network, and additional bitcoin test networks.
 - in Network options, put LIF by default, and first, BTC second. via Radio
   button.

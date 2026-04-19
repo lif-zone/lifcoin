@@ -768,3 +768,21 @@ USER: move "Developer tools" into a screen of its own, accessible via a button i
 CLAUDE: Added DevToolsScreen with Clear Cache button. Settings screen now has a "Developer Tools" button that navigates to dev_tools screen. Added dev_tools to goBack logic (goes back to settings). Moved onCacheClear from SettingsScreen to DevToolsScreen.
 
 ---
+
+USER: in dev_tools screen add a button "Reset lifcoin mempool" that calls fetch("/reset_mempool") and shows JSON result
+
+CLAUDE: Added handleResetMempool in DevToolsScreen: fetches /reset_mempool, stores JSON result in state, displays it in a <pre> block below the button. Errors shown as {error: message}.
+
+---
+
+USER: add lifcoin server edit field to DevToolsScreen, default http://localhost:8432, stored in localStorage. fetch uses it as prefix.
+
+CLAUDE: Added LIF_SERVER_DEF='http://localhost:8432', lif_server_load/save helpers. DevToolsScreen now has a Lifcoin Server input with reset button, persisted to localStorage. fetch uses `${lifServer}/reset_mempool`.
+
+---
+
+USER: reset_mempool should be POST not GET
+
+CLAUDE: Changed fetch to use {method: 'POST'}.
+
+---
