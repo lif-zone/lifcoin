@@ -90,6 +90,7 @@ function networks_init(){
 networks_init();
 
 const HD_SCAN_GAP = 20;
+const DUST_VAL = 1;
 
 function Electrum_connect(url){
   let u = URL.parse(url);
@@ -528,6 +529,76 @@ function tx_psbt(network){
   return p;
 }
 
+function psbt_input_get_value(psbt, vin){
+    throw new Error(`Input index ${vin} is out of range. PSBT has ${psbt.inputCount} inputs.`);
+  const in_data = psbt.data.inputs[vin];
+  // Most common case: Native SegWit / Taproot
+  if (in_data.witnessUtxo)
+    return in_data.witnessUtxo.value;
+  // Legacy / Nested SegWit case
+  if (in_data.nonWitnessUtxo){
+    const prevTx = bitcoin.Transaction.fromBuffer(in_data.nonWitnessUtxo);
+    const outputIndex = psbt.txInputs[vin].index;
+    return prevTx.outs[outputIndex].value;
+  }
+  // No value information available
+  throw new Error(`Input ${vin} missing value info (witnessUtxo or nonWitnessUtxo)`);
+}
+
+function tx_fund(wallet, p, fee, saddr_chg){
+  const {c, conf} = wallet;
+  const value_out = Number(
+    p.txOutputs.reduce((sum, output)=>sum+output.value, 0n));
+  const needed = value_out+fee;
+  let value_in = 0;
+  for (let i=0; i<p.inputCount; i++)
+    value_in += Number(psbt_input_get_value(p, i));
+  if (conf.fee_max)
+    p.setMaximumFeeRate(conf.fee_max/1000);
+  const total = value_out+fee;
+  if (total==value_in || value_in-total<=DUST_VAL)
+    return p;
+  if (total>value_in){
+    let chg = total-value_in; // add output to change
+    p.addOutput({address: saddr_chg, value: BigInt(chg)});
+    return p;
+  }
+  // sort from big to small
+  // filter out 0 value (which are probably lif kv coins) and
+  // and dust coins.
+  const _utxos = [...c.utxos].sort((a,b)=>b.value-a.value)
+  .filter(u=>u.value>DUST_VAL);
+  if (!_utxos.length)
+    return {err: "no funds"};
+  const selected = [];
+  if (_utxos[0].value>=total-value_in){
+    // find smallest single coin that is still enough
+    let coin = _utxos[0];
+    for (const u of _utxos){
+      if (u.value<total-value_in)
+        break;
+      coin = u;
+    }
+    selected.push(coin);
+    value_in += Number(coin.value);
+  } else {
+    // fund with multiple coins
+    for (const u of _utxos){
+      selected.push(u);
+      value_in += Number(u.value);
+      if (value_in>=total)
+        break;
+    }
+  }
+  if (value_in<total)
+    return {err: "insufficient funds"};
+  if (total==value_in || value_in-total<=DUST_VAL)
+    return p;
+  let chg = total-value_in; // add output to change
+  p.addOutput({address: saddr_chg, value: BigInt(chg)});
+  return p;
+}
+
 // inputs: [{tx_hash, tx_pos, value, addrInfo:{address, keyPair}}]
 export function tx_send_build(network, inputs, saddr_to, value, saddr_chg,
   total, fee)
@@ -700,8 +771,10 @@ export function kv_tx_edit(wallet, kv_d, fee){
   const saddr = vout.scriptPubKey?.address ||
     vout.scriptPubKey?.addresses?.[0];
   const addr = c.addrs.find(a=>a.address==saddr);
+  let ret = {};
   if (!addr)
-    throw new Error('Name UTXO address not found in wallet');
+    throw new Error('Name not owned by this wallet');
+    // return {err: 'no_kv', msg: 'Name not owned by this wallet'};
   const dest = c.changeAddrInfo.address;
   if (!fee)
     fee = fee_calc(wallet.c.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
@@ -722,9 +795,10 @@ export function kv_tx_edit(wallet, kv_d, fee){
     }
     if (extraTotal<fee)
       throw new Error('Insufficient balance to cover fees');
+      // res = {err: 'no_funds', msg: 'Insufficient balance to cover fees'};
   }
   const tx = kv_tx_edit_build(network, inputs, signers, kv_d,
     dest, value, extraTotal, c.changeAddrInfo.address, fee);
-  return {fee, tx};
+  return {...ret, fee, tx};
 }
 
