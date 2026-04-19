@@ -156,7 +156,7 @@ function BrightWallet(){
         />
       )}
       {screen=='settings' && (
-        <SettingsScreen
+        <Settings_screen
           servers={servers}
           networks={networks}
           devTools={devTools}
@@ -1107,7 +1107,7 @@ function Kv_add_screen({wallet, onSent}){
 }
 
 // Settings Screen
-function SettingsScreen({servers, networks, devTools, onSave, onDevToolsToggle,
+function Settings_screen({servers, networks, devTools, onSave, onDevToolsToggle,
   onDevTools, onBack})
 {
   const [values, setValues] = useState(()=>{
