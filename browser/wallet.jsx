@@ -323,15 +323,20 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
       </div>
       <div style={{marginTop: 12}}>
         <label>Coin:</label>
-        <select
-          value={networkKey}
-          onChange={e=>{ setNetworkKey(e.target.value); setDerivPath(hd_path_def(networks[e.target.value])); }}
-          style={{display: 'block', width: '100%', marginTop: 4}}
-        >
+        <div style={{marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4}}>
           {OE(networks).filter(([key])=>devTools||!nets_list[key]?.test).map(([key, conf])=>(
-            <option key={key} value={key}>{conf.symbol}</option>
+            <label key={key} style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
+              <input
+                type="radio"
+                name="network"
+                value={key}
+                checked={networkKey==key}
+                onChange={()=>{ setNetworkKey(key); setDerivPath(hd_path_def(networks[key])); }}
+              />
+              {conf.symbol} ({conf.name})
+            </label>
           ))}
-        </select>
+        </div>
       </div>
       <div style={{marginTop: 12}}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>

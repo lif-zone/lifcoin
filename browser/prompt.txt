@@ -804,3 +804,9 @@ USER: hide test networks (test:true in nets_list) in Settings electrum servers a
 CLAUDE: Hoisted devTools state to BrightWallet, passed to SettingsScreen and Wallet_add_screen. Both filter OE(networks) with devTools||!nets_list[key]?.test. SettingsScreen now receives devTools+onDevToolsToggle as props instead of local state.
 
 ---
+
+USER: replace Coin dropdown in new wallet screen with radio buttons
+
+CLAUDE: Replaced <select> with radio buttons rendered via map. Each shows symbol — name. networkKey/derivPath updated on change same as before.
+
+---
