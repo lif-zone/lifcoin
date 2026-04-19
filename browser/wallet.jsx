@@ -76,6 +76,9 @@ function BrightWallet(){
       setScreen('kv_info');
     else if (screen=='tx_info' || screen=='kv_info')
       setScreen('wallet_info');
+    else if (screen=='wallet_send' || screen=='wallet_receive' ||
+      screen=='wallet_kv_add' || screen=='wallet_settings')
+      setScreen('wallet_info');
     else if (screen=='dev_tools')
       setScreen('settings');
     else
@@ -119,9 +122,37 @@ function BrightWallet(){
           wallet={activeWallet}
           onDelete={()=>deleteWallet(activeWallet.ls.id)}
           onUpdate={(changes)=>updateWallet(activeWallet.ls.id, changes)}
-          onBack={goHome}
           onSelectTx={(data)=>{ setSelectedTxData(data); setScreen('tx_info'); }}
           onSelectKey={(data)=>{ setSelectedKeyData(data); setScreen('kv_info'); }}
+          onSend={()=>setScreen('wallet_send')}
+          onReceive={()=>setScreen('wallet_receive')}
+          onKvAdd={()=>setScreen('wallet_kv_add')}
+          onSettings={()=>setScreen('wallet_settings')}
+        />
+      )}
+      {screen=='wallet_send' && activeWallet && (
+        <SendScreen
+          wallet={activeWallet}
+          onSent={()=>setScreen('wallet_info')}
+        />
+      )}
+      {screen=='wallet_receive' && activeWallet && (
+        <Receive_screen
+          address={activeWallet.c.receiveAddress}
+          symbol={activeWallet.conf.symbol}
+        />
+      )}
+      {screen=='wallet_kv_add' && activeWallet && (
+        <Kv_add_screen
+          wallet={activeWallet}
+          onSent={()=>setScreen('wallet_info')}
+        />
+      )}
+      {screen=='wallet_settings' && activeWallet && (
+        <Wallet_settings_subscreen
+          wallet={activeWallet}
+          onUpdate={(changes)=>updateWallet(activeWallet.ls.id, changes)}
+          onDelete={()=>deleteWallet(activeWallet.ls.id)}
         />
       )}
       {screen=='tx_info' && selectedTxData && activeWallet && (
@@ -390,26 +421,21 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
 }
 
 // Wallet Detail Screen
-function Wallet_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
-  onSelectKey})
+function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx, onSelectKey,
+  onSend, onReceive, onKvAdd, onSettings})
 {
   const conf = wallet.conf;
-  const [connected, setConnected] = useState(false);
-  const [balance, setBalance] = useState(wallet.balance ?? null);
+  const [balance, setBalance] = useState(wallet.c.balance ?? null);
   const [transactions, setTransactions] = useState(wallet.c.transactions ?? []);
   const [ownedKeys, setOwnedKeys] = useState(wallet.c.ownedKeys ?? []);
-  const [subscreen, setSubscreen] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [connErr, setConnErr] = useState(false);
-  const [receiveAddress, setReceiveAddress] =
-    useState(wallet.c.receiveAddress ?? null);
   const [allAddrs, setAllAddrs] = useState(wallet.c.addrs ?? []);
   const wallet_apply = (wallet)=>{
     setBalance(wallet.c.balance);
     setTransactions(wallet.c.transactions);
     setOwnedKeys(wallet.c.ownedKeys);
     setAllAddrs(wallet.c.addrs);
-    setReceiveAddress(wallet.c.receiveAddress);
   };
 
   useEffect(()=>{
@@ -419,7 +445,6 @@ function Wallet_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
       try {
         setLoading(true);
         wallet_apply(await wallet_fetch(wallet, true));
-        setConnected(true);
       } catch(e){
         console.error('Connect error:', e);
         setConnErr(true);
@@ -431,10 +456,6 @@ function Wallet_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
 
   const symbol = conf.symbol;
   const label = wallet.ls.name || '';
-  const handleDelete = ()=>{
-    if (window.confirm(`Delete wallet "${label}"?\n\nMake sure you have backed up the mnemonic!`))
-      onDelete();
-  };
   return (
     <div>
       <h2>{label}</h2>
@@ -451,124 +472,62 @@ function Wallet_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
         }
       </div>
       <div style={{display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center'}}>
-        <button
-          onClick={()=>setSubscreen('overview')}
-          style={{fontWeight: subscreen=='overview' ? 'bold' : 'normal'}}
-        >Overview</button>
-        <button
-          onClick={()=>setSubscreen('receive')}
-          disabled={!receiveAddress}
-          style={{fontWeight: subscreen=='receive' ? 'bold' : 'normal'}}
-        >Receive</button>
-        <button
-          onClick={()=>setSubscreen('send')}
-          disabled={!allAddrs.length}
-          style={{fontWeight: subscreen=='send' ? 'bold' : 'normal'}}
-        >Send</button>
-        <button
-          onClick={()=>setSubscreen('kv_add')}
-          disabled={!allAddrs.length}
-          style={{fontWeight: subscreen=='kv_add' ? 'bold' : 'normal'}}
-        >Get Domain</button>
-        <button
-          onClick={()=>setSubscreen('wallet_settings')}
-          style={{marginLeft: 'auto', fontWeight: subscreen=='wallet_settings' ? 'bold' : 'normal'}}
-        >⚙ Settings</button>
+        <button onClick={onReceive} disabled={!allAddrs.length}>Receive</button>
+        <button onClick={onSend} disabled={!allAddrs.length}>Send</button>
+        <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain</button>
+        <button onClick={onSettings} style={{marginLeft: 'auto'}}>⚙ Settings</button>
       </div>
-
-      {subscreen=='overview' && (
-        <div style={{marginTop: 16}}>
-          {ownedKeys.length > 0 && (<>
-            <h3>Names</h3>
-            <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
-              {ownedKeys.map((k, i)=>(
-                <li key={i}
-                  onClick={()=>onSelectKey({...k, _tx: transactions.find(t=>t.tx_hash==k.tx), _walletAddrs: new Set(allAddrs.map(a=>a.address))})}
-                  style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
-                    borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', gap: 8}}
-                >
-                  <span style={{fontFamily: 'monospace', color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>{k.key}</span>
-                  <span style={{color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220}}>
-                    {trunc(json(k.val), 40)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </>)}
-          <h3>Transactions</h3>
-          {loading ? (
-            <p style={{color: '#aaa'}}>Loading…</p>
-          ) : !transactions.length ? (
-            <p>No transactions yet.</p>
-          ) : (
-            <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
-              {transactions.map((tx, i)=>{
-                const positive = tx.amount>=0;
-                return (
-                  <li key={i}
-                    onClick={()=>onSelectTx({tx, conf, walletAddrs: new Set(allAddrs.map(a=>a.address))})}
-                    style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
-                      borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between'}}
-                  >
-                    <span>
-                      {tx.timestamp
-                        ? new Date(tx.timestamp*1000).toLocaleString()
-                        : <span style={{color: '#f90'}}>unconfirmed</span>
-                      }
-                    </span>
-                    <Amount sat={tx.amount} symbol={symbol} signed />
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <button style={{marginTop: 10}} onClick={async()=>{
-            setLoading(true);
-            try { wallet_apply(await wallet_fetch(wallet, true)); }
-            catch(e){ console.error('Refresh error:', e); }
-            finally { setLoading(false); }
-          }}>
-            Refresh
-          </button>
-        </div>
-      )}
-      {subscreen=='receive' && receiveAddress && (
-        <Receive_screen
-          address={receiveAddress}
-          symbol={symbol}
-        />
-      )}
-      {subscreen=='send' && allAddrs.length>0 && (
-        <SendScreen
-          wallet={wallet}
-          onSent={async()=>{
-            setSubscreen('overview');
-            setLoading(true);
-            try { wallet_apply(await wallet_fetch(wallet, true)); }
-            catch(e){}
-            finally { setLoading(false); }
-          }}
-        />
-      )}
-      {subscreen=='kv_add' && allAddrs.length>0 && (
-        <Kv_add_screen
-          wallet={wallet}
-          onSent={async()=>{
-            setSubscreen('overview');
-            setLoading(true);
-            try { wallet_apply(await wallet_fetch(wallet, true)); }
-            catch(e){}
-            finally { setLoading(false); }
-          }}
-        />
-      )}
-      {subscreen=='wallet_settings' && (
-        <Wallet_settings_subscreen
-          wallet={wallet}
-          onUpdate={onUpdate}
-          onDelete={handleDelete}
-        />
-      )}
+      <div style={{marginTop: 16}}>
+        {ownedKeys.length > 0 && (<>
+          <h3>Names</h3>
+          <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
+            {ownedKeys.map((k, i)=>(
+              <li key={i}
+                onClick={()=>onSelectKey({...k, _tx: transactions.find(t=>t.tx_hash==k.tx), _walletAddrs: new Set(allAddrs.map(a=>a.address))})}
+                style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
+                  borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', gap: 8}}
+              >
+                <span style={{fontFamily: 'monospace', color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>{k.key}</span>
+                <span style={{color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220}}>
+                  {trunc(json(k.val), 40)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>)}
+        <h3>Transactions</h3>
+        {loading ? (
+          <p style={{color: '#aaa'}}>Loading…</p>
+        ) : !transactions.length ? (
+          <p>No transactions yet.</p>
+        ) : (
+          <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
+            {transactions.map((tx, i)=>(
+              <li key={i}
+                onClick={()=>onSelectTx({tx, conf, walletAddrs: new Set(allAddrs.map(a=>a.address))})}
+                style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
+                  borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between'}}
+              >
+                <span>
+                  {tx.timestamp
+                    ? new Date(tx.timestamp*1000).toLocaleString()
+                    : <span style={{color: '#f90'}}>unconfirmed</span>
+                  }
+                </span>
+                <Amount sat={tx.amount} symbol={symbol} signed />
+              </li>
+            ))}
+          </ul>
+        )}
+        <button style={{marginTop: 10}} onClick={async()=>{
+          setLoading(true);
+          try { wallet_apply(await wallet_fetch(wallet, true)); }
+          catch(e){ console.error('Refresh error:', e); }
+          finally { setLoading(false); }
+        }}>
+          Refresh
+        </button>
+      </div>
     </div>
   );
 }

@@ -810,3 +810,9 @@ USER: replace Coin dropdown in new wallet screen with radio buttons
 CLAUDE: Replaced <select> with radio buttons rendered via map. Each shows symbol — name. networkKey/derivPath updated on change same as before.
 
 ---
+
+USER: Send/Receive/Get Domain/Settings should be separate pages; Back returns to wallet overview; remove Overview button
+
+CLAUDE: Moved wallet sub-screens (send, receive, kv_add, wallet_settings) to top-level BrightWallet screens (wallet_send, wallet_receive, wallet_kv_add, wallet_settings). Added them to goBack logic pointing back to wallet_info. Wallet_screen now only shows overview with buttons that call onSend/onReceive/onKvAdd/onSettings. Removed subscreen state, Overview button, and inline sub-screen rendering from Wallet_screen.
+
+---
