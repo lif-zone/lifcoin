@@ -786,3 +786,9 @@ USER: reset_mempool should be POST not GET
 CLAUDE: Changed fetch to use {method: 'POST'}.
 
 ---
+
+USER: show curl command on first line, "Fetching..." on second line while loading, replace with result when done
+
+CLAUDE: Added mempoolCmd state. On click: sets curl command line, clears result. Pre block shows curl cmd + newline + "Fetching..." until result arrives, then shows JSON result.
+
+---

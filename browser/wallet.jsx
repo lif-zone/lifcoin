@@ -1162,14 +1162,18 @@ function lif_server_save(val){
 // Developer Tools Screen
 function DevToolsScreen({onCacheClear, onBack}){
   const [lifServer, setLifServer] = useState(lif_server_load);
+  const [mempoolCmd, setMempoolCmd] = useState(null);
   const [mempoolResult, setMempoolResult] = useState(null);
   const handleServerChange = (val)=>{
     setLifServer(val);
     lif_server_save(val);
   };
   const handleResetMempool = async()=>{
+    const url = `${lifServer}/reset_mempool`;
+    setMempoolCmd(`curl -X POST ${url}`);
+    setMempoolResult(null);
     try {
-      const res = await fetch(`${lifServer}/reset_mempool`, {method: 'POST'});
+      const res = await fetch(url, {method: 'POST'});
       setMempoolResult(await res.json());
     } catch(e){
       setMempoolResult({error: e.message});
@@ -1198,10 +1202,11 @@ function DevToolsScreen({onCacheClear, onBack}){
       </div>
       <div style={{marginTop: 16}}>
         <button onClick={handleResetMempool}>Reset lifcoin mempool</button>
-        {mempoolResult && (
+        {mempoolCmd && (
           <pre style={{marginTop: 8, fontSize: 12, background: '#f4f4f4',
             padding: 8, borderRadius: 4, overflowX: 'auto'}}>
-            {JSON.stringify(mempoolResult, null, 2)}
+            {mempoolCmd}{'\n'}
+            {mempoolResult ? JSON.stringify(mempoolResult, null, 2) : 'Fetching...'}
           </pre>
         )}
       </div>
