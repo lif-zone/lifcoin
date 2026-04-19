@@ -17,11 +17,13 @@ make wallet.jsx support multiple wallets
 + cache (c) and cache store (cs) for instant statup and screen switching
 + Settings screen: move Developer tools to separate screen.
 + in dev tools screen: Add a Memopool delete button /reset_mempool
-- move BTC test network into "Developer tools"
-- add click to mine
-- add LIF test network, and additional bitcoin test networks.
-- in Network options, put LIF by default, and first, BTC second. via Radio
++ move BTC test network into "Developer tools"
++ in Network options, put LIF by default, and first, BTC second. via Radio
   button.
+- dont show in BTC wallets the lif kv options
+- in wallet domain operations: change to default just DNS and site, and
+  clicking advanced will allow full JSON edit, and full key edit
+- add click to mine
 - create tx with kv_lif controlling outputs with 0 value (like runs)
   (inscribe/edit/transfer)
 - never use lif_kv outputs for regular Send tx. Need to do a kv transfer tx
@@ -29,11 +31,8 @@ make wallet.jsx support multiple wallets
 - fix kv_lif passing for missing 'val'
 - show in wallet tx list txs with lif_kv: that they have lif kv in them,
   both in the tx list, and in tx detail list
-- dont show in BTC wallets the lif kv options
 - open new users in github, and re-import the projects, but with different
   login names/emails
-- in wallet domain operations: change to default just DNS and site, and
-  clicking advanced will allow full JSON edit, and full key edit
 - make lif/git source to bring most up-to-date versions
 
 Low priority:
@@ -50,6 +49,7 @@ Low priority:
 - separate lif-kernel from lif-os: create a new tree, and re-create commits.
 - add support for lif no-cors via out servers routing requests in return
   to mining or tx with money.
+- add LIF test network, and additional bitcoin test networks.
 
 coding conventions:
 -------------------
