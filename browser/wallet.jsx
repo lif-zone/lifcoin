@@ -3,7 +3,7 @@ import React, {useState, useEffect, useMemo} from 'react';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import {nets_list, servers_save, servers_load, wallet_db_init,
-  nets_get, wallet_fetch, OV, OA, OE,
+  nets_get, wallet_fetch, OV, OA, OE, esleep,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
@@ -195,15 +195,20 @@ function Wallet_card({wallet, onClick}){
   const [connErr, setConnErr] = useState(false);
   const derived = bip39.validateMnemonic(wallet.ls.mnemonic);
 
+  const fetch_update = ()=>{
+    if (wallet.c.balance==undefined)
+      return;
+    setBalance(wallet.c.balance);
+    setTxCount(wallet.c.transactions.length);
+    setKeysOwned(wallet.c.ownedKeys.length);
+  };
   useEffect(()=>{
     if (!derived)
       return;
     (async()=>{
       try {
         await wallet_fetch(wallet);
-        setBalance(wallet.c.balance);
-        setTxCount(wallet.c.transactions.length);
-        setKeysOwned(wallet.c.ownedKeys.length);
+        fetch_update();
       } catch(e){
         console.error('Wallet_card fetch error:', e);
         setConnErr(true);
@@ -399,7 +404,7 @@ function Wallet_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
     (async()=>{
       try {
         setLoading(true);
-        wallet_apply(await wallet_fetch(wallet));
+        wallet_apply(await wallet_fetch(wallet, true));
         setConnected(true);
       } catch(e){
         console.error('Connect error:', e);
@@ -505,7 +510,7 @@ function Wallet_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
           )}
           <button style={{marginTop: 10}} onClick={async()=>{
             setLoading(true);
-            try { wallet_apply(await wallet_fetch(wallet)); }
+            try { wallet_apply(await wallet_fetch(wallet, true)); }
             catch(e){ console.error('Refresh error:', e); }
             finally { setLoading(false); }
           }}>
@@ -522,13 +527,25 @@ function Wallet_screen({wallet, onDelete, onUpdate, onBack, onSelectTx,
       {subscreen=='send' && allAddrs.length>0 && (
         <SendScreen
           wallet={wallet}
-          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { wallet_apply(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
+          onSent={async()=>{
+            setSubscreen('overview');
+            setLoading(true);
+            try { wallet_apply(await wallet_fetch(wallet, true)); }
+            catch(e){}
+            finally { setLoading(false); }
+          }}
         />
       )}
       {subscreen=='kv_add' && allAddrs.length>0 && (
         <Kv_add_screen
           wallet={wallet}
-          onSent={async()=>{ setSubscreen('overview'); setLoading(true); try { wallet_apply(await wallet_fetch(wallet)); } catch(e){} finally { setLoading(false); } }}
+          onSent={async()=>{
+            setSubscreen('overview');
+            setLoading(true);
+            try { wallet_apply(await wallet_fetch(wallet, true)); }
+            catch(e){}
+            finally { setLoading(false); }
+          }}
         />
       )}
       {subscreen=='wallet_settings' && (
@@ -617,10 +634,11 @@ function Wallet_settings_subscreen({wallet, onUpdate, onDelete}){
 // Receive Screen
 function Receive_screen({address, symbol}){
   const [copied, setCopied] = useState(false);
-  const handleCopy = ()=>{
+  const handleCopy = async()=>{
     navigator.clipboard.writeText(address);
     setCopied(true);
-    setTimeout(()=>setCopied(false), 2000);
+    await esleep(2000);
+    setCopied(false);
   };
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
@@ -996,26 +1014,24 @@ function Kv_add_screen({wallet, onSent}){
   }, [kv_key, kv_val]);
 
   useEffect(()=>{
-    const key = kv_key.trim();
-    if (!key){
-      setNameStatus(null);
-      return;
-    }
-    setNameStatus('checking');
-    const timer = setTimeout(()=>{
-      (async()=>{
-        try {
-          let kv = await kv_get(conf, key);
-          if (!kv) // this electrumx client returns undefined for error responses
-            setNameStatus('available');
-          else
-            setNameStatus('taken');
-        } catch(e){
-          setNameStatus('error');
-        }
-      })();
-    }, 500);
-    return ()=>clearTimeout(timer);
+    (async()=>{
+      const key = kv_key.trim();
+      if (!key){
+        setNameStatus(null);
+        return;
+      }
+      setNameStatus('checking');
+      await esleep(500);
+      try {
+        let kv = await kv_get(conf, key);
+        if (!kv) // this electrumx client returns undefined for error responses
+          setNameStatus('available');
+        else
+          setNameStatus('taken');
+      } catch(e){
+        setNameStatus('error');
+      }
+    })();
   }, [kv_key]);
   const handle_kv_add = async()=>{
     if (!kv_key.trim())

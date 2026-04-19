@@ -9,6 +9,7 @@ const ecpair = ECPairFactory(ecc);
 import ElectrumClient from '@aguycalled/electrum-client-js';
 import {openDB} from 'idb';
 
+// from lif-kernel/util.js
 // throw Error -> undefined
 export function T(fn, throw_val){
   try {
@@ -18,6 +19,22 @@ export function T(fn, throw_val){
 export const OE = o=>o ? Object.entries(o) : [];
 export const OV = o=>o ? Object.values(o) : [];
 export const OA = Object.assign;
+export const ewait = ()=>{
+  let _return, _throw;
+  let promise = new Promise((resolve, reject)=>{
+    _return = ret=>{ resolve(ret); return ret; };
+    _throw = err=>{ reject(err); return err; };
+  });
+  promise.return = _return;
+  promise.throw = _throw;
+  promise.catch(err=>{}); // catch un-waited wait() objects. avoid Uncaught in promise
+  return promise;
+};
+export const esleep = ms=>{
+  let p = ewait();
+  setTimeout(()=>p.return(), ms);
+  return p;
+};
 
 // add Lif network, from lif-coin/lib/protocol/networks.js
 let networks_lif = {
@@ -70,6 +87,8 @@ function networks_init(){
 }
 networks_init();
 
+const HD_SCAN_GAP = 20;
+
 function Electrum_connect(url){
   let u = URL.parse(url);
   let protocol = u.protocol.slice(0, -1);
@@ -108,10 +127,10 @@ export function hd_root(mnemonic, network, passphrase=''){
   return bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic, passphrase), network);
 }
 function wallet_root(wallet){
-  if (wallet.c.root)
-    return wallet.c.root;
-  return wallet.c.root = hd_root(wallet.ls.mnemonic, wallet.conf.network,
-    wallet.ls.passphrase||'');
+  const {ls, c, conf} = wallet;
+  if (c.root)
+    return c.root;
+  return c.root = hd_root(ls.mnemonic, conf.network, ls.passphrase||'');
 }
 
 export function hd_path_def(conf){
@@ -142,7 +161,7 @@ export function hd_wallet(mnemonic, networkKey, networks, passphrase='',
 export async function hd_scan(conf, root, accountPath, chain){
   const network = conf.network;
   const el = await el_connect(conf);
-  const GAP = 20;
+  const GAP = HD_SCAN_GAP;
   const used = [];
   let lastUsed = -1;
   let start = 0;
@@ -174,9 +193,6 @@ export function addr_sh(saddr, network){
   const hash = bitcoin.crypto.sha256(script);
   return Buffer.from(hash.reverse()).toString('hex');
 }
-
-const wallet_store_fields = ['id', 'name', 'network', 'mnemonic',
-  'passphrase', 'derivPath'];
 
 // id → single wallet object instance (mutated in place)
 const wallets_store = {};
@@ -216,6 +232,7 @@ function _wallet_add(w_ls){
   let wallet = {
     ls: {...w_ls},
     c: {},
+    cs: {},
     conf: networks[w_ls.network],
   };
   wallet.ls.name ||= '';
@@ -269,54 +286,39 @@ export async function db_put(id, data){
 }
 export async function cache_clear(){
   try { await db.clear('cache'); } catch{}
-  for (const w of wallets_store)
+  for (const w of wallets_store){
     w.c = {};
+    w.cs = {};
+  }
 }
 
+const cache_ver = '2';
 // Populate wallet with cached data from IndexedDB (re-derives keyPairs from
 // mnemonic). Idempotent: does nothing if wallet already has
 // data (wallet.c.addrs defined).
-async function wallet_load_cache(wallet){
-  if (wallet.c.addrs)
+async function wallet_cs_load(wallet){
+  const {c, cs, conf} = wallet;
+  if (cs.addrs)
     return;
-  const cached = await db_get('walletData:'+wallet.ls.id);
-  if (!cached)
+  const _cs = await db_get('walletData:'+wallet.ls.id);
+  if (!_cs)
     return;
-  try {
-    const {conf} = wallet;
-    const root = wallet_root(wallet);
-    const ap = wallet.derivPath || hd_path_def(conf);
-    const addrs = (cached.addrs||[]).map(a=>({...a, ...hd_addr(root, ap,
-      conf.network, a.chain, a.index)}));
-    const changeAddrInfo = cached.changeAddrInfo
-      ? {...cached.changeAddrInfo, ...hd_addr(root, ap, conf.network,
-        cached.changeAddrInfo.chain, cached.changeAddrInfo.index)}
-      : null;
-    const utxos = (cached.utxos||[]).map(u=>({
-      ...u, addrInfo: addrs.find(a=>a.address==u.address)||hd_addr(root,
-        ap, conf.network, u.chain, u.index)
-    }));
-    OA(wallet.c, {...cached, addrs, changeAddrInfo, utxos});
-  } catch(e){}
-}
-
-function wallet_json(wallet){
-  return {
-    balance: wallet.c.balance,
-    receiveAddress: wallet.c.receiveAddress,
-    feeRate: wallet.c.feeRate,
-    addrs: (wallet.c.addrs||[]).map(({address, chain, index, hist})=>(
-      {address, chain, index, hist})),
-    changeAddrInfo: wallet.c.changeAddrInfo
-      ? {address: wallet.c.changeAddrInfo.address,
-        chain: wallet.c.changeAddrInfo.chain, index: wallet.c.changeAddrInfo.index}
-      : null,
-    utxos: (wallet.utxos||[]).map(
-      ({tx_hash, tx_pos, value, address, chain, index})=>
-        ({tx_hash, tx_pos, value, address, chain, index})),
-    transactions: wallet.c.transactions||[],
-    ownedKeys: wallet.c.ownedKeys||[],
-  };
+  if (_cs.cache_ver!=cache_ver)
+    return console.log(`cache_ver changed ${cs.cache_ver} -> ${cache_ver}`);
+  OA(cs, _cs);
+  OA(c, _cs);
+  const root = wallet_root(wallet);
+  const ap = wallet.derivPath || hd_path_def(conf);
+  c.addrs = cs.addrs.map(a=>({...a, ...hd_addr(root, ap,
+    conf.network, a.chain, a.index)}));
+  c.changeAddrInfo = cs.changeAddrInfo
+    ? {...cs.changeAddrInfo, ...hd_addr(root, ap, conf.network,
+      cs.changeAddrInfo.chain, cs.changeAddrInfo.index)}
+    : null;
+  c.utxos = cs.utxos.map(u=>({
+    ...u, addrInfo: cs.addrs.find(a=>a.address==u.address)||hd_addr(root,
+      ap, conf.network, u.chain, u.index)
+  }));
 }
 
 // Preload all wallets from IndexedDB into memory at module startup
@@ -324,23 +326,30 @@ export async function wallet_db_init(){
   await db_init();
   wallets_load();
   for (const w of OV(wallets_store))
-    await wallet_load_cache(w);
+    await wallet_cs_load(w);
 }
 
-export async function wallet_fetch(wallet){
-  const conf = wallet.conf;
+async function _wallet_fetch(wallet){
+  const {conf, ls, c, cs} = wallet;
   const network = conf.network;
   const el = await el_connect(conf);
   const root = wallet_root(wallet);
-  const ap = wallet.ls.derivPath || hd_path_def(conf);
+  const ap = ls.derivPath || hd_path_def(conf);
   const [extRes, chgRes] = await Promise.all([
     hd_scan(conf, root, ap, 0),
     hd_scan(conf, root, ap, 1),
   ]);
-  const addrs = [...extRes.used, ...chgRes.used];
-  const receiveAddress = hd_addr(root, ap, network, 0, extRes.nextIndex)
+  const addrs = c.addrs = [...extRes.used, ...chgRes.used];
+  cs.addrs = c.addrs.map(({address, chain, index, hist})=>(
+    {address, chain, index, hist}));
+  c.receiveAddress = hd_addr(root, ap, network, 0, extRes.nextIndex)
     .address;
-  const changeAddrInfo = hd_addr(root, ap, network, 1, chgRes.nextIndex);
+  cs.receiveAddress = c.receiveAddress;
+  c.changeAddrInfo = hd_addr(root, ap, network, 1, chgRes.nextIndex);
+  cs.changeAddrInfo = c.changeAddrInfo
+    ? {address: c.changeAddrInfo.address,
+      chain: c.changeAddrInfo.chain, index: c.changeAddrInfo.index}
+    : null;
   const addr_set = new Set(addrs.map(a=>a.address));
   const [utxo_list, bals] = await Promise.all([
     Promise.all(addrs.map(async(a)=>{
@@ -351,10 +360,14 @@ export async function wallet_fetch(wallet){
     Promise.all(addrs.map(a=>el.blockchain_scripthash_getBalance(
       addr_sh(a.address, network)))),
   ]);
-  const utxos = utxo_list.flat().map(u=>({...u, addrInfo: addrs.find(
+  c.utxos = utxo_list.flat().map(u=>({...u, addrInfo: addrs.find(
     a=>a.address==u.address)}));
-  const balance = bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0);
-  const feeRate = await el_estimatefee(conf);
+  cs.utxos = c.utxos.map(({tx_hash, tx_pos, value, address, chain, index})=>
+    ({tx_hash, tx_pos, value, address, chain, index}));
+  c.balance = bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0);
+  cs.balance = c.balance;
+  c.feeRate = await el_estimatefee(conf);
+  cs.feeRate = c.feeRate;
   // Transactions
   const txByHash = new Map();
   for (const a of addrs){
@@ -363,7 +376,8 @@ export async function wallet_fetch(wallet){
   }
   const hist = [...txByHash.values()].sort((a, b)=>(b.height||1e9)
     -(a.height||1e9));
-  let transactions = [], ownedKeys=[];
+  c.transactions = [];
+  c.ownedKeys = [];
   if (hist.length){
     const heights = [...new Set(hist.filter(t=>t.height>0).map(t=>t.height))];
     const [verboseTxs, ...headers] = await Promise.all([
@@ -388,7 +402,7 @@ export async function wallet_fetch(wallet){
       return as.some(a=>addr_set.has(a)) ? sum+Math.round(vout.value*1e8)
         : sum;
     }, 0);
-    transactions = hist.map((tx, i)=>{
+    c.transactions = hist.map((tx, i)=>{
       const vtx = verboseTxs[i];
       const enrichedVin = (vtx.vin||[]).map(vin=>{
         if (!vin.txid)
@@ -409,7 +423,7 @@ export async function wallet_fetch(wallet){
         amount: received-spent, _vtx:{...vtx, vin: enrichedVin}};
     });
     const keyMap = new Map();
-    for (const etx of transactions){
+    for (const etx of c.transactions){
       const vouts = etx._vtx?.vout||[];
       for (let i=0; i<vouts.length; i++){
         const vout = vouts[i];
@@ -423,7 +437,7 @@ export async function wallet_fetch(wallet){
           const isUnconfirmed = etx.height<=0;
           const priority = isUnconfirmed ? Infinity : etx.height;
           const existing = keyMap.get(kv.key);
-          if (!existing||priority>=existing._priority){
+          if (!existing || priority>=existing._priority){
             const _kstatus = vout.spent ? 'spent' : isUnconfirmed ?
               'receiving' : 'confirmed';
             keyMap.set(kv.key, {key: kv.key, val: kv.val, tx: etx.tx_hash,
@@ -432,12 +446,21 @@ export async function wallet_fetch(wallet){
         }
       }
     }
-    ownedKeys = [...keyMap.values()];
+    c.ownedKeys = [...keyMap.values()];
   }
-  OA(wallet.c, {balance, receiveAddress, feeRate, addrs,
-    changeAddrInfo, utxos, transactions, ownedKeys});
-  await db_put('walletData:'+wallet.ls.id, wallet_json(wallet));
+  cs.transactions = c.transactions;
+  cs.ownedKeys = c.ownedKeys;
+  cs.cache_ver = cache_ver;
+  await db_put('walletData:'+ls.id, cs);
   return wallet;
+}
+
+export async function wallet_fetch(wallet, force){
+  let wait;
+  if (wait = wallet.c_wait)
+    return await wait;
+  wait = wallet.c_wait = ewait();
+  return wait.return(await _wallet_fetch(wallet));
 }
 
 export async function el_estimatefee(conf){
