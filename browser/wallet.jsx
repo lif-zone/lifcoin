@@ -167,7 +167,7 @@ function BrightWallet(){
         />
       )}
       {screen=='dev_tools' && (
-        <DevToolsScreen
+        <Devtools_screen
           onCacheClear={async()=>{ await cache_clear(); setCacheVer(v=>v+1); }}
           onBack={()=>setScreen('settings')}
         />
@@ -1177,7 +1177,7 @@ function lif_server_save(val){
 }
 
 // Developer Tools Screen
-function DevToolsScreen({onCacheClear, onBack}){
+function Devtools_screen({onCacheClear, onBack}){
   const [lifServer, setLifServer] = useState(lif_server_load);
   const [mempoolCmd, setMempoolCmd] = useState(null);
   const [mempoolResult, setMempoolResult] = useState(null);
