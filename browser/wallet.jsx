@@ -77,7 +77,7 @@ function BrightWallet(){
     else if (screen=='tx_info' || screen=='kv_info')
       setScreen('wallet_info');
     else if (screen=='wallet_send' || screen=='wallet_receive' ||
-      screen=='wallet_kv_add' || screen=='wallet_settings')
+      screen=='wallet_kv_add' || screen=='wallet_kv_raw' || screen=='wallet_settings')
       setScreen('wallet_info');
     else if (screen=='dev_tools')
       setScreen('settings');
@@ -120,6 +120,7 @@ function BrightWallet(){
       {screen=='wallet_info' && activeWallet && (
         <Wallet_screen
           wallet={activeWallet}
+          devTools={devTools}
           onDelete={()=>deleteWallet(activeWallet.ls.id)}
           onUpdate={(changes)=>updateWallet(activeWallet.ls.id, changes)}
           onSelectTx={(data)=>{ setSelectedTxData(data); setScreen('tx_info'); }}
@@ -127,11 +128,12 @@ function BrightWallet(){
           onSend={()=>setScreen('wallet_send')}
           onReceive={()=>setScreen('wallet_receive')}
           onKvAdd={()=>setScreen('wallet_kv_add')}
+          onKvRaw={()=>setScreen('wallet_kv_raw')}
           onSettings={()=>setScreen('wallet_settings')}
         />
       )}
       {screen=='wallet_send' && activeWallet && (
-        <SendScreen
+        <Send_screen
           wallet={activeWallet}
           onSent={()=>setScreen('wallet_info')}
         />
@@ -144,6 +146,12 @@ function BrightWallet(){
       )}
       {screen=='wallet_kv_add' && activeWallet && (
         <Kv_add_screen
+          wallet={activeWallet}
+          onSent={()=>setScreen('wallet_info')}
+        />
+      )}
+      {screen=='wallet_kv_raw' && activeWallet && (
+        <Kv_raw_screen
           wallet={activeWallet}
           onSent={()=>setScreen('wallet_info')}
         />
@@ -421,8 +429,8 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
 }
 
 // Wallet Detail Screen
-function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx, onSelectKey,
-  onSend, onReceive, onKvAdd, onSettings})
+function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
+  onSelectKey, onSend, onReceive, onKvAdd, onKvRaw, onSettings})
 {
   const conf = wallet.conf;
   const [balance, setBalance] = useState(wallet.c.balance ?? null);
@@ -475,6 +483,7 @@ function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx, onSelectKey,
         <button onClick={onReceive} disabled={!allAddrs.length}>Receive</button>
         <button onClick={onSend} disabled={!allAddrs.length}>Send</button>
         {conf.lif_kv && <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain</button>}
+        {conf.lif_kv && devTools && <button onClick={onKvRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
         <button onClick={onSettings} style={{marginLeft: 'auto'}}>⚙ Settings</button>
       </div>
       <div style={{marginTop: 16}}>
@@ -700,10 +709,8 @@ function Kv_transfer_screen({wallet, kv_d, onSent}){
   const [toAddress, setToAddress] = useState('');
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
-    try {
-      const addr = wallet.c.changeAddrInfo?.address||'';
-      return kv_tx_send(wallet, kv_d, addr).fee;
-    } catch(e){ return 0; }
+    const addr = wallet.c.changeAddrInfo?.address||'';
+    return kv_tx_send(wallet, kv_d, addr).fee;
   });
 
   const handleTransfer = async()=>{
@@ -750,8 +757,7 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
   const conf = wallet.conf;
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
-    try { return kv_tx_edit(wallet, kv_d).fee; }
-    catch(e){ return 0; }
+    return kv_tx_edit(wallet, kv_d).fee;
   });
 
   const handleSave = async()=>{
@@ -906,28 +912,28 @@ function Fee_field({value, onChange, conf}){
 }
 
 // Send Screen
-function SendScreen({wallet, onSent}){
+function Send_screen({wallet, onSent}){
   const {conf, c: {utxos=[], changeAddrInfo}} = wallet;
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
-    try { return tx_send(wallet, changeAddrInfo.address, 1).fee; }
-    catch(e){ return 0; }
+    return tx_send(wallet, changeAddrInfo.address, 1).fee||0;
   });
   useEffect(()=>{
     const amount = Math.round(parseFloat(amountSat)*1e8);
     const target = amount>0 ? amount : 1;
-    try { setFee(tx_send(wallet, changeAddrInfo.address, target).fee); }
-    catch(e){}
+    setFee(tx_send(wallet, changeAddrInfo.address, target).fee||0);
   }, [amountSat, utxos]);
   const handleSend = async()=>{
     const amountValue = Math.round(parseFloat(amountSat)*1e8);
-    if (isNaN(amountValue)||amountValue<=0)
+    if (isNaN(amountValue) || amountValue<=0)
       return alert('Invalid amount');
     setSending(true);
     try {
-      const {fee: _fee, tx} = tx_send(wallet, toAddress, amountValue, fee);
+      const {err, fee: _fee, tx} = tx_send(wallet, toAddress, amountValue, fee);
+      if (err)
+        throw Error(err);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(_fee);
@@ -967,25 +973,106 @@ function SendScreen({wallet, onSent}){
   );
 }
 
-// KV add Screen
+// DNS Domain registration screen (simplified: key=dns/<name>, val={site:...})
 function Kv_add_screen({wallet, onSent}){
-  const {conf, c: {utxos=[], changeAddrInfo}} = wallet;
+  const {conf} = wallet;
+  const [name, setName] = useState('');
+  const [site, setSite] = useState('');
+  const [sending, setSending] = useState(false);
+  const [nameStatus, setNameStatus] = useState(null);
+  const kv_key = ()=>'dns/'+name.trim();
+  const kv_val = ()=>JSON.stringify({site: site.trim()});
+  const [fee, setFee] = useState(0);
+  useEffect(()=>{
+    try { setFee(kv_tx_add(wallet, kv_key(), kv_val()).fee); }
+    catch(e){}
+  }, [name, site]);
+  useEffect(()=>{
+    (async()=>{
+      const key = kv_key();
+      if (!name.trim()){
+        setNameStatus(null);
+        return;
+      }
+      setNameStatus('checking');
+      await esleep(500);
+      try {
+        const kv = await kv_get(conf, key);
+        setNameStatus(kv ? 'taken' : 'available');
+      } catch(e){
+        setNameStatus('error');
+      }
+    })();
+  }, [name]);
+  const handle_add = async()=>{
+    if (!name.trim())
+      return alert('Name is required');
+    if (!site.trim())
+      return alert('Site is required');
+    setSending(true);
+    try {
+      const {fee: _fee, tx} = kv_tx_add(wallet, kv_key(), kv_val(), fee);
+      await tx_broadcast(conf, tx);
+      setFee(_fee);
+      alert(`Domain registration sent!\nTXID: ${tx.getId()}`);
+      setName('');
+      setSite('');
+      onSent?.();
+    } catch(err){
+      alert(err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+  return (
+    <div style={{marginTop: 16, maxWidth: 480}}>
+      <h3>Register Domain</h3>
+      <div style={{marginTop: 12}}>
+        <label>Domain name:</label>
+        <input
+          placeholder="e.g. jungo"
+          value={name}
+          onChange={e=>setName(e.target.value)}
+          style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
+            fontSize: 13, boxSizing: 'border-box'}}
+        />
+        {nameStatus=='checking' && <div style={{fontSize: 12, color: '#aaa', marginTop: 3}}>Checking…</div>}
+        {nameStatus=='available' && <div style={{fontSize: 12, color: 'green', marginTop: 3}}>Available</div>}
+        {nameStatus=='taken' && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Already taken</div>}
+      </div>
+      <div style={{marginTop: 12}}>
+        <label>Site:</label>
+        <input
+          placeholder="e.g. lif:git/myproject"
+          value={site}
+          onChange={e=>setSite(e.target.value)}
+          style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
+            fontSize: 13, boxSizing: 'border-box'}}
+        />
+      </div>
+      <Fee_field value={fee} onChange={setFee} conf={conf} />
+      <button onClick={handle_add} disabled={sending||nameStatus=='taken'} style={{marginTop: 12}}>
+        {sending ? 'Registering…' : 'Register'}
+      </button>
+    </div>
+  );
+}
+
+// Raw KV add screen (dev tools)
+function Kv_raw_screen({wallet, onSent}){
+  const {conf} = wallet;
   const [kv_key, set_kv_key] = useState('');
   const [kv_val, set_kv_val] = useState('');
   const [sending, setSending] = useState(false);
-  const [nameStatus, setNameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
+  const [nameStatus, setNameStatus] = useState(null);
   const [valError, setValError] = useState(false);
   const [fee, setFee] = useState(()=>{
-    try { return kv_tx_add(wallet, kv_key.trim(), kv_val.trim()).fee; }
-    catch(e){ return 0; }
+    return kv_tx_add(wallet, kv_key.trim(), kv_val.trim()).fee;
   });
   useEffect(()=>{
-    try {
-      const {fee} = kv_tx_add(wallet, kv_key.trim(), kv_val.trim());
-      setFee(fee);
-    } catch(e){}
+    try { setFee(kv_tx_add(wallet, kv_key.trim(), kv_val.trim()).fee); }
+    catch(e){}
   }, [kv_key, kv_val]);
-
   useEffect(()=>{
     (async()=>{
       const key = kv_key.trim();
@@ -996,17 +1083,14 @@ function Kv_add_screen({wallet, onSent}){
       setNameStatus('checking');
       await esleep(500);
       try {
-        let kv = await kv_get(conf, key);
-        if (!kv) // this electrumx client returns undefined for error responses
-          setNameStatus('available');
-        else
-          setNameStatus('taken');
+        const kv = await kv_get(conf, key);
+        setNameStatus(kv ? 'taken' : 'available');
       } catch(e){
         setNameStatus('error');
       }
     })();
   }, [kv_key]);
-  const handle_kv_add = async()=>{
+  const handle_add = async()=>{
     if (!kv_key.trim())
       return alert('Key is required');
     if (!kv_val.trim())
@@ -1014,10 +1098,9 @@ function Kv_add_screen({wallet, onSent}){
     setSending(true);
     try {
       const {fee: _fee, tx} = kv_tx_add(wallet, kv_key.trim(), kv_val.trim(), fee);
-      const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(_fee);
-      alert(`Domain registration sent!\nTXID: ${txid}`);
+      alert(`Key/value sent!\nTXID: ${tx.getId()}`);
       set_kv_key('');
       set_kv_val('');
       onSent?.();
@@ -1029,12 +1112,9 @@ function Kv_add_screen({wallet, onSent}){
   };
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
-      <h3>Register new domain</h3>
-      <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
-        Writes a LIF key/value domain registration to the blockchain.
-      </p>
+      <h3>Write Key/Value</h3>
       <div style={{marginTop: 12}}>
-        <label>Name:</label>
+        <label>Key:</label>
         <input
           placeholder="e.g. dns/jungo"
           value={kv_key}
@@ -1059,8 +1139,8 @@ function Kv_add_screen({wallet, onSent}){
         {valError && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Invalid JSON</div>}
       </div>
       <Fee_field value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handle_kv_add} disabled={sending||nameStatus=='taken'||valError} style={{marginTop: 12}}>
-        {sending ? 'Registering…' : 'Registered'}
+      <button onClick={handle_add} disabled={sending||nameStatus=='taken'||valError} style={{marginTop: 12}}>
+        {sending ? 'Sending…' : 'Send'}
       </button>
     </div>
   );

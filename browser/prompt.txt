@@ -822,3 +822,9 @@ USER: hide Get Domain button and skip lif_kv processing in wallet_fetch when con
 CLAUDE: Wrapped keyMap/ownedKeys block in wallet_fetch with if (conf.lif_kv). Hidden Get Domain button in Wallet_screen with {conf.lif_kv && ...}.
 
 ---
+
+USER: Get Domain simplified to dns/<name>+{site:...}; devtools adds Get Key/Val button with raw kv screen
+
+CLAUDE: Rewrote Kv_add_screen as simplified DNS screen (key=dns/<name>, val={site:...}, no JSON textarea). Added Kv_raw_screen (old full kv screen). Added wallet_kv_raw top-level screen. Get Key/Val button shown only when conf.lif_kv && devTools. Wallet_screen accepts devTools+onKvRaw props.
+
+---

@@ -479,9 +479,9 @@ export async function el_estimatefee(conf){
 }
 
 export function kv_tx_add(wallet, key, val, fee){
-  const {conf, utxos, changeAddrInfo} = wallet;
+  const {conf, c} = wallet;
   const network = conf.network;
-  const _utxos = [...(utxos||[])].sort((a,b)=>b.value-a.value);
+  const _utxos = [...(c.utxos||[])].sort((a,b)=>b.value-a.value);
   if (!_utxos.length)
     throw new Error('No funds available');
   if (!fee)
@@ -497,7 +497,7 @@ export function kv_tx_add(wallet, key, val, fee){
   if (total<fee)
     throw new Error('Insufficient balance to cover fee');
   const tx = kv_tx_new_build(network, selected, {key, val},
-    changeAddrInfo.address, total, fee);
+    c.changeAddrInfo.address, total, fee);
   return {fee, tx};
 }
 
@@ -512,23 +512,23 @@ function kv_script(key, val){
 }
 
 export function kv_tx_edit(wallet, kv_d, fee){
-  const {conf, addrs, utxos, changeAddrInfo} = wallet;
+  const {conf, c} = wallet;
   const network = conf.network;
   const vout = kv_d._tx._vtx.vout[kv_d.vout];
   const value = Math.round(vout.value*1e8);
   const saddr = vout.scriptPubKey?.address ||
     vout.scriptPubKey?.addresses?.[0];
-  const addr = addrs.find(a=>a.address==saddr);
+  const addr = c.addrs.find(a=>a.address==saddr);
   if (!addr)
     throw new Error('Name UTXO address not found in wallet');
-  const dest = changeAddrInfo.address;
+  const dest = c.changeAddrInfo.address;
   if (!fee)
     fee = fee_calc(wallet.c.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
   const signers = [addr];
   const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, saddr}];
   let extraTotal = 0;
   if (value<fee){
-    const _utxos = (utxos||[]).filter(
+    const _utxos = (c.utxos||[]).filter(
       u=>!(u.tx_hash==kv_d.tx && u.tx_pos==kv_d.vout))
       .sort((a,b)=>b.value-a.value);
     for (const u of _utxos){
@@ -543,18 +543,18 @@ export function kv_tx_edit(wallet, kv_d, fee){
       throw new Error('Insufficient balance to cover fees');
   }
   const tx = kv_tx_edit_build(network, inputs, signers, kv_d,
-    dest, value, extraTotal, changeAddrInfo.address, fee);
+    dest, value, extraTotal, c.changeAddrInfo.address, fee);
   return {fee, tx};
 }
 
 export function kv_tx_send(wallet, kv_d, saddr_to, fee){
-  const {conf, addrs, utxos, changeAddrInfo} = wallet;
+  const {conf, c} = wallet;
   const network = conf.network;
   const vout = kv_d._tx._vtx.vout[kv_d.vout];
   const value = Math.round(vout.value*1e8);
   const saddr = vout.scriptPubKey?.address ||
     vout.scriptPubKey?.addresses?.[0];
-  const addr = addrs.find(a=>a.address==saddr);
+  const addr = c.addrs.find(a=>a.address==saddr);
   if (!addr)
     throw new Error('Name UTXO address not found in wallet');
   if (!fee)
@@ -563,7 +563,7 @@ export function kv_tx_send(wallet, kv_d, saddr_to, fee){
   const inputs = [{txid: kv_d.tx, vout: kv_d.vout, value, saddr}];
   let extraTotal = 0;
   if (value<fee){
-    const _utxos = (utxos||[]).filter(
+    const _utxos = (c.utxos||[]).filter(
       u=>!(u.tx_hash==kv_d.tx && u.tx_pos==kv_d.vout))
       .sort((a,b)=>b.value-a.value);
     for (const u of _utxos){
@@ -578,16 +578,16 @@ export function kv_tx_send(wallet, kv_d, saddr_to, fee){
       throw new Error('Insufficient balance to cover fees');
   }
   const tx = kv_tx_send_build(network, inputs, signers, saddr_to, value,
-    extraTotal, changeAddrInfo.address, fee);
+    extraTotal, c.changeAddrInfo.address, fee);
   return {fee, tx};
 }
 
 export function tx_send(wallet, saddr_to, value, fee){
-  const {conf, utxos, changeAddrInfo} = wallet;
+  const {conf, c} = wallet;
   const network = conf.network;
-  const _utxos = [...(utxos||[])].sort((a,b)=>b.value-a.value);
+  const _utxos = [...(c.utxos||[])].sort((a,b)=>b.value-a.value);
   if (!_utxos.length)
-    throw new Error('No funds available');
+    return {err: "no funds"};
   if (!fee)
     fee = fee_calc(wallet.c.feeRate, tx_send(wallet, saddr_to, value, 1).tx);
   const selected = [];
@@ -599,9 +599,9 @@ export function tx_send(wallet, saddr_to, value, fee){
       break;
   }
   if (total<value+fee)
-    throw new Error('Insufficient balance');
+    return {err: "insufficient funds"};
   const tx = tx_send_build(network, selected, saddr_to, value,
-    changeAddrInfo.address, total, fee);
+    c.changeAddrInfo.address, total, fee);
   return {fee, tx};
 }
 

@@ -20,15 +20,18 @@ make wallet.jsx support multiple wallets
 + move BTC test network into "Developer tools"
 + in Network options, put LIF by default, and first, BTC second. via Radio
   button.
-- dont show in BTC wallets the lif kv options
-- in wallet domain operations: change to default just DNS and site, and
++ dont show in BTC wallets the lif kv options
+* fees are not working: click Send: dont throw Error() on fees - give a
+  funding specific error (on no funds, or not enough funds, telling how much
+  is missing. Should already appear on the page itself the missing funds,
+  not as a surprise.
+* in wallet domain operations: change to default just DNS and site, and
   clicking advanced will allow full JSON edit, and full key edit
-- add click to mine
 - create tx with kv_lif controlling outputs with 0 value (like runs)
   (inscribe/edit/transfer)
 - never use lif_kv outputs for regular Send tx. Need to do a kv transfer tx
   and then the change will get "separated" back to us.
-- fix kv_lif passing for missing 'val'
+- add click to mine
 - show in wallet tx list txs with lif_kv: that they have lif kv in them,
   both in the tx list, and in tx detail list
 - open new users in github, and re-import the projects, but with different
@@ -37,6 +40,7 @@ make wallet.jsx support multiple wallets
 
 Low priority:
 -------------
+- fix kv_lif passing for missing 'val'
 - add support for any str (not only utf8/json) in lif kv server.
 - add ipc keep alive: every 100ms update a place in memory. On the waiting
   side, if for 1000ms no update - it starts giving error messages
