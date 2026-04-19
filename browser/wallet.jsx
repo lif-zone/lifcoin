@@ -274,7 +274,7 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [derivPath, setDerivPath] = useState(
     ()=>hd_path_def(networks['lif']));
-  const [mnemonicInput, setMnemonicInput] = useState('');
+  const [mnemonicInput, setMnemonicInput] = useState(bip39.generateMnemonic());
   const defaultName = (()=>{
     let max = 0;
     for (const w of OV(wallets)){
@@ -288,9 +288,6 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
   const [usePassphrase, setUsePassphrase] = useState(false);
   const [passphrase, setPassphrase] = useState('');
   const [error, setError] = useState('');
-  const handleGenerate = ()=>{
-    setMnemonicInput(bip39.generateMnemonic());
-  };
   const handleAdd = ()=>{
     setError('');
     const cleaned = mnemonicInput.trim().toLowerCase();
@@ -338,12 +335,11 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
       </div>
       <div style={{marginTop: 12}}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-          <label>Mnemonic:</label>
-          <button onClick={handleGenerate}>Generate</button>
+          <label>Wallet secret 12 words - WRITE THIS DOWN ON PAPER:</label>
         </div>
         <textarea
           rows={4}
-          placeholder={'Enter the 12 or 24 words of your wallet, or click "Generate" to create a new wallet.'}
+          placeholder={'Enter the 12 or 24 secret words of your wallet'}
           value={mnemonicInput}
           onChange={e=>setMnemonicInput(e.target.value)}
           style={{display: 'block', width: '100%', marginTop: 6, boxSizing: 'border-box'}}
@@ -356,7 +352,7 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
             checked={usePassphrase}
             onChange={e=>setUsePassphrase(e.target.checked)}
           />
-          Passphrase (BIP39)
+          Passphrase
         </label>
         {usePassphrase && (
           <input
