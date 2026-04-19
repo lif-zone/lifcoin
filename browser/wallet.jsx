@@ -49,6 +49,8 @@ function BrightWallet(){
   const [selectedTxData, setSelectedTxData] = useState(null);
   const [selectedKeyData, setSelectedKeyData] = useState(null);
   const [cacheVer, setCacheVer] = useState(0);
+  const [devTools, setDevTools] = useState(
+    ()=>localStorage.getItem('dev_tools_enabled')=='1');
   useEffect(()=>{
     setWallets(wallets_get());
   }, [networks]);
@@ -107,6 +109,7 @@ function BrightWallet(){
         <Wallet_add_screen
           networks={networks}
           wallets={wallets}
+          devTools={devTools}
           onAdd={(w_ls)=>{ addWallet(w_ls); goHome(); }}
           onCancel={goHome}
         />
@@ -156,7 +159,9 @@ function BrightWallet(){
         <SettingsScreen
           servers={servers}
           networks={networks}
+          devTools={devTools}
           onSave={(s)=>{ setServers(s); servers_save(s); }}
+          onDevToolsToggle={(v)=>{ setDevTools(v); localStorage.setItem('dev_tools_enabled', v ? '1' : '0'); }}
           onDevTools={()=>setScreen('dev_tools')}
           onBack={goHome}
         />
@@ -264,15 +269,15 @@ function Wallet_card({wallet, onClick}){
 }
 
 // Add Wallet Screen
-function Wallet_add_screen({networks, wallets, onAdd, onCancel}){
-  const [networkKey, setNetworkKey] = useState('mainnet');
+function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
+  const [networkKey, setNetworkKey] = useState('lif');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [derivPath, setDerivPath] = useState(
-    ()=>hd_path_def(networks['mainnet']));
+    ()=>hd_path_def(networks['lif']));
   const [mnemonicInput, setMnemonicInput] = useState('');
   const defaultName = (()=>{
     let max = 0;
-    for (const w of wallets){
+    for (const w of OV(wallets)){
       const m = w.ls.name && w.ls.name.match(/^Wallet #(\d+)$/);
       if (m)
         max = Math.max(max, parseInt(m[1], 10));
@@ -326,7 +331,7 @@ function Wallet_add_screen({networks, wallets, onAdd, onCancel}){
           onChange={e=>{ setNetworkKey(e.target.value); setDerivPath(hd_path_def(networks[e.target.value])); }}
           style={{display: 'block', width: '100%', marginTop: 4}}
         >
-          {OE(networks).map(([key, conf])=>(
+          {OE(networks).filter(([key])=>devTools||!nets_list[key]?.test).map(([key, conf])=>(
             <option key={key} value={key}>{conf.name}</option>
           ))}
         </select>
@@ -1102,15 +1107,15 @@ function Kv_add_screen({wallet, onSent}){
 }
 
 // Settings Screen
-function SettingsScreen({servers, networks, onSave, onDevTools, onBack}){
+function SettingsScreen({servers, networks, devTools, onSave, onDevToolsToggle,
+  onDevTools, onBack})
+{
   const [values, setValues] = useState(()=>{
     const v = {};
     for (const key in networks)
       v[key] = servers[key] || networks[key].electrum;
     return v;
   });
-  const [devToolsEnabled, setDevToolsEnabled] = useState(
-    ()=>localStorage.getItem('dev_tools_enabled')=='1');
   const handleSave = ()=>{
     const newServers = {};
     for (const key in networks){
@@ -1124,10 +1129,6 @@ function SettingsScreen({servers, networks, onSave, onDevTools, onBack}){
   const handleReset = (key)=>{
     setValues(v=>({...v, [key]: nets_list[key]?.electrum || ''}));
   };
-  const handleDevToolsToggle = (checked)=>{
-    setDevToolsEnabled(checked);
-    localStorage.setItem('dev_tools_enabled', checked ? '1' : '0');
-  };
   return (
     <div style={{maxWidth: 520}}>
       <h2>Settings</h2>
@@ -1135,7 +1136,7 @@ function SettingsScreen({servers, networks, onSave, onDevTools, onBack}){
       <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
         Configure the ElectrumX server URL for each network.
       </p>
-      {OE(networks).map(([key, conf])=>(
+      {OE(networks).filter(([key])=>devTools||!nets_list[key]?.test).map(([key, conf])=>(
         <div key={key} style={{marginTop: 14}}>
           <label style={{fontWeight: 'bold'}}>{conf.name}:</label>
           <div style={{display: 'flex', gap: 6, marginTop: 4}}>
@@ -1154,12 +1155,12 @@ function SettingsScreen({servers, networks, onSave, onDevTools, onBack}){
         <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
           <input
             type="checkbox"
-            checked={devToolsEnabled}
-            onChange={e=>handleDevToolsToggle(e.target.checked)}
+            checked={devTools}
+            onChange={e=>onDevToolsToggle(e.target.checked)}
           />
           Enable Developer Tools
         </label>
-        {devToolsEnabled && (
+        {devTools && (
           <button onClick={onDevTools} style={{marginTop: 10}}>Developer Tools</button>
         )}
       </div>

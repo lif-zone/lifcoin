@@ -79,6 +79,7 @@ export const nets_list = {
     explorer_tx: 'https://mempool.space/testnet/tx/',
     coin_type: 1,
     fee_def: 1000,
+    test: true,
   },
 };
 function networks_init(){

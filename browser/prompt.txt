@@ -798,3 +798,9 @@ USER: add "Enable developer tools" checkbox in settings; Developer Tools button 
 CLAUDE: Added devToolsEnabled state in SettingsScreen, persisted to localStorage as 'dev_tools_enabled'. Checkbox toggles it; Developer Tools button only renders when checked.
 
 ---
+
+USER: hide test networks (test:true in nets_list) in Settings electrum servers and new wallet page when dev tools disabled
+
+CLAUDE: Hoisted devTools state to BrightWallet, passed to SettingsScreen and Wallet_add_screen. Both filter OE(networks) with devTools||!nets_list[key]?.test. SettingsScreen now receives devTools+onDevToolsToggle as props instead of local state.
+
+---
