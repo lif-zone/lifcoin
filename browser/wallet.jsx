@@ -74,6 +74,8 @@ function BrightWallet(){
       setScreen('kv_info');
     else if (screen=='tx_info' || screen=='kv_info')
       setScreen('wallet_info');
+    else if (screen=='dev_tools')
+      setScreen('settings');
     else
       goHome();
   };
@@ -155,8 +157,14 @@ function BrightWallet(){
           servers={servers}
           networks={networks}
           onSave={(s)=>{ setServers(s); servers_save(s); }}
-          onCacheClear={async()=>{ await cache_clear(); setCacheVer(v=>v+1); }}
+          onDevTools={()=>setScreen('dev_tools')}
           onBack={goHome}
+        />
+      )}
+      {screen=='dev_tools' && (
+        <DevToolsScreen
+          onCacheClear={async()=>{ await cache_clear(); setCacheVer(v=>v+1); }}
+          onBack={()=>setScreen('settings')}
         />
       )}
     </div>
@@ -1094,7 +1102,7 @@ function Kv_add_screen({wallet, onSent}){
 }
 
 // Settings Screen
-function SettingsScreen({servers, networks, onSave, onCacheClear, onBack}){
+function SettingsScreen({servers, networks, onSave, onDevTools, onBack}){
   const [values, setValues] = useState(()=>{
     const v = {};
     for (const key in networks)
@@ -1136,8 +1144,24 @@ function SettingsScreen({servers, networks, onSave, onCacheClear, onBack}){
         </div>
       ))}
       <button onClick={handleSave} style={{marginTop: 20}}>Save Settings</button>
-      <h3 style={{marginTop: 28}}>Debug Tools</h3>
-      <button onClick={onCacheClear} style={{marginTop: 8}}>Clear Cache</button>
+      <div style={{marginTop: 28}}>
+        <button onClick={onDevTools}>Developer Tools</button>
+      </div>
+    </div>
+  );
+}
+
+// Developer Tools Screen
+function DevToolsScreen({onCacheClear, onBack}){
+  return (
+    <div style={{maxWidth: 520}}>
+      <h2>Developer Tools</h2>
+      <div style={{marginTop: 16}}>
+        <button onClick={onCacheClear}>Clear Cache</button>
+        <p style={{fontSize: 13, color: '#666', marginTop: 6}}>
+          Clears all cached wallet data and re-fetches from Electrum.
+        </p>
+      </div>
     </div>
   );
 }

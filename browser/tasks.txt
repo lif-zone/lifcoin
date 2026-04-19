@@ -14,9 +14,9 @@ make wallet.jsx support multiple wallets
   delete the wallet, and to send and receive from this wallet.
 + in the global settings, you can set the electrumx server for the different
   networks (Bitcoin, Bitcoin testnet, Lif...)
-* cache (c) and cache store (cs) for instant statup and screen switching
-- Settings screen: move Developer tools to separate screen.
-  - Add a Memopool delete button /reset_mempool
++ cache (c) and cache store (cs) for instant statup and screen switching
++ Settings screen: move Developer tools to separate screen.
+- in dev tools screen: Add a Memopool delete button /reset_mempool
 - add click to mine
 - move BTC test network into "Developer tools"
 - add LIF test network, and additional bitcoin test networks.

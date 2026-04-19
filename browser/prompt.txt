@@ -762,3 +762,9 @@ USER: still slow after bip39.validateMnemonic fix
 CLAUDE: Real cause: hd_root (mnemonicToSeedSync/PBKDF2) runs synchronously in wallet_fetch after el_connect resolves, blocking React from painting the screen transition. Added wallet_root(wallet) which caches the BIP32 root on wallet._root so mnemonicToSeedSync only runs once per wallet per session. Both wallet_load_cache and wallet_fetch now use wallet_root().
 
 ---
+
+USER: move "Developer tools" into a screen of its own, accessible via a button in Settings screen called "Developer Tools"
+
+CLAUDE: Added DevToolsScreen with Clear Cache button. Settings screen now has a "Developer Tools" button that navigates to dev_tools screen. Added dev_tools to goBack logic (goes back to settings). Moved onCacheClear from SettingsScreen to DevToolsScreen.
+
+---
