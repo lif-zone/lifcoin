@@ -50,6 +50,16 @@ let networks_lif = {
 };
 
 export const nets_list = {
+  lif: {
+    name: 'Lifcoin', // Life Chai
+    symbol: 'LIF',
+    network: networks_lif,
+    electrum: 'ws://localhost:8432',
+    explorer_tx: 'http://localhost:5000/tx/',
+    coin_type: 1842,
+    fee_def: 5000000, // 1MB = 50LIF
+    fee_max: 10000000,
+  },
   btc: {
     name: 'Bitcoin',
     symbol: 'BTC',
@@ -69,16 +79,6 @@ export const nets_list = {
     explorer_tx: 'https://mempool.space/testnet/tx/',
     coin_type: 1,
     fee_def: 1000,
-  },
-  lif: {
-    name: 'Lifcoin', // Life Chai
-    symbol: 'LIF',
-    network: networks_lif,
-    electrum: 'ws://localhost:8432',
-    explorer_tx: 'http://localhost:5000/tx/',
-    coin_type: 1842,
-    fee_def: 5000000, // 1MB = 50LIF
-    fee_max: 10000000,
   },
 };
 function networks_init(){
