@@ -1109,6 +1109,8 @@ function SettingsScreen({servers, networks, onSave, onDevTools, onBack}){
       v[key] = servers[key] || networks[key].electrum;
     return v;
   });
+  const [devToolsEnabled, setDevToolsEnabled] = useState(
+    ()=>localStorage.getItem('dev_tools_enabled')=='1');
   const handleSave = ()=>{
     const newServers = {};
     for (const key in networks){
@@ -1121,6 +1123,10 @@ function SettingsScreen({servers, networks, onSave, onDevTools, onBack}){
   };
   const handleReset = (key)=>{
     setValues(v=>({...v, [key]: nets_list[key]?.electrum || ''}));
+  };
+  const handleDevToolsToggle = (checked)=>{
+    setDevToolsEnabled(checked);
+    localStorage.setItem('dev_tools_enabled', checked ? '1' : '0');
   };
   return (
     <div style={{maxWidth: 520}}>
@@ -1145,7 +1151,17 @@ function SettingsScreen({servers, networks, onSave, onDevTools, onBack}){
       ))}
       <button onClick={handleSave} style={{marginTop: 20}}>Save Settings</button>
       <div style={{marginTop: 28}}>
-        <button onClick={onDevTools}>Developer Tools</button>
+        <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
+          <input
+            type="checkbox"
+            checked={devToolsEnabled}
+            onChange={e=>handleDevToolsToggle(e.target.checked)}
+          />
+          Enable Developer Tools
+        </label>
+        {devToolsEnabled && (
+          <button onClick={onDevTools} style={{marginTop: 10}}>Developer Tools</button>
+        )}
       </div>
     </div>
   );

@@ -792,3 +792,9 @@ USER: show curl command on first line, "Fetching..." on second line while loadin
 CLAUDE: Added mempoolCmd state. On click: sets curl command line, clears result. Pre block shows curl cmd + newline + "Fetching..." until result arrives, then shows JSON result.
 
 ---
+
+USER: add "Enable developer tools" checkbox in settings; Developer Tools button only visible when checked
+
+CLAUDE: Added devToolsEnabled state in SettingsScreen, persisted to localStorage as 'dev_tools_enabled'. Checkbox toggles it; Developer Tools button only renders when checked.
+
+---
