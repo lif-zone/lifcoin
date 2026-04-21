@@ -72,7 +72,7 @@ function BrightWallet(){
   const activeWallet = wallet_get(activeWalletId);
   const goHome = ()=>setScreen('home');
   const goBack = ()=>{
-    if (screen=='kv_transfer' || screen=='kv_edit')
+    if (screen=='kv_send' || screen=='kv_edit')
       setScreen('kv_info');
     else if (screen=='tx_info' || screen=='kv_info')
       setScreen('wallet_info');
@@ -176,12 +176,12 @@ function BrightWallet(){
           kv_d={selectedKeyData}
           conf={activeWallet.conf}
           onViewTx={(tx)=>{ setSelectedTxData({tx, conf: activeWallet.conf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx_info'); }}
-          onTransfer={()=>setScreen('kv_transfer')}
+          onTransfer={()=>setScreen('kv_send')}
           onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _val_orig: d.val, val: newVal})); setScreen('kv_edit'); }}
         />
       )}
-      {screen=='kv_transfer' && selectedKeyData && activeWallet && (
-        <Kv_transfer_screen
+      {screen=='kv_send' && selectedKeyData && activeWallet && (
+        <Kv_send_screen
           wallet={activeWallet}
           kv_d={selectedKeyData}
           onSent={()=>setScreen('wallet_info')}
@@ -1091,7 +1091,7 @@ function Kv_raw_screen({wallet, onSent}){
 }
 
 // KV Name Transfer Screen
-function Kv_transfer_screen({wallet, kv_d, onSent}){
+function Kv_send_screen({wallet, kv_d, onSent}){
   const {conf, network} = wallet;
   const {setValid, isValid} = useFormValid();
   const [toAddress, setToAddress] = useState('');
