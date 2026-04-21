@@ -876,3 +876,9 @@ USER: Add optional min prop to Amount_field. If amount < min, field is invalid. 
 CLAUDE: Added min=0 default prop to Amount_field. valid = sat > 0 && sat >= min. Send_screen passes min={1}.
 
 ---
+
+USER: In Send/Kv_add/Kv_send/Kv_edit screens: show available balance at top using wallet_bal(), add validation that amount+fee<=bal.
+
+CLAUDE: Imported wallet_bal. In each screen: compute bal=wallet_bal(wallet), balOk=amount+fee<=bal (or fee<=bal for kv screens), useEffect setValid('bal',balOk), show Balance row at top, red "Insufficient balance" when !balOk. Added useFormValid to Kv_add_screen and Kv_edit_screen (they didn't have it). Button disabled uses !isValid throughout.
+
+---

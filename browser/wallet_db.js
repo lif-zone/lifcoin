@@ -555,6 +555,13 @@ function psbt_input_get_value(psbt, vin){
   throw new Error(`Input ${vin} missing value info (witnessUtxo or nonWitnessUtxo)`);
 }
 
+export function wallet_bal(wallet){
+  const {c, network} = wallet;
+  const utxos = [...c.utxos].sort((a,b)=>b.value-a.value)
+  .filter(u=>u.value>DUST_VAL);
+  return utxos.reduce((sum, u)=>sum+u.value, 0);
+}
+
 function tx_fund({wallet, p, in_sign=[], fee}){
   const {c, conf, network} = wallet;
   const _sum_out = Number(

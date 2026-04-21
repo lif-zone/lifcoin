@@ -7,7 +7,7 @@ import {nets_list, servers_save, servers_load, wallet_db_init,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
-  cache_clear,
+  cache_clear, wallet_bal,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -879,6 +879,9 @@ function Send_screen({wallet, onSent}){
   const [amountSat, setAmountSat] = useState(0);
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(0);
+  const bal = wallet_bal(wallet);
+  const balOk = amountSat + fee <= bal;
+  useEffect(()=>{ setValid('bal', balOk); }, [balOk]);
   useEffect(()=>{
     const value = amountSat || 1;
     const saddr_to = toAddress || changeAddrInfo.address;
@@ -909,6 +912,8 @@ function Send_screen({wallet, onSent}){
   return (
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Send {symbol}</h3>
+      <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={symbol} /></div>
+      {!balOk && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>Insufficient balance</div>}
       <Addr_field value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
       <Amount_field value={amountSat} onChange={setAmountSat} symbol={symbol} onValid={v=>setValid('amount',v)} min={1} />
       <Fee_field value={fee} onChange={setFee} conf={conf} />
@@ -922,6 +927,7 @@ function Send_screen({wallet, onSent}){
 // DNS Domain registration screen (simplified: key=dns/<name>, val={site:...})
 function Kv_add_screen({wallet, onSent}){
   const {conf} = wallet;
+  const {setValid, isValid} = useFormValid();
   const [name, setName] = useState('');
   const [site, setSite] = useState('');
   const [sending, setSending] = useState(false);
@@ -929,6 +935,9 @@ function Kv_add_screen({wallet, onSent}){
   const kv_key = ()=>'dns/'+name.trim();
   const kv_val = ()=>JSON.stringify({site: site.trim()});
   const [fee, setFee] = useState(0);
+  const bal = wallet_bal(wallet);
+  const balOk = fee <= bal;
+  useEffect(()=>{ setValid('bal', balOk); }, [balOk]);
   useEffect(()=>{
     setFee(kv_tx_add({wallet, key: kv_key(), val: kv_val()}).fee);
   }, [name, site]);
@@ -972,6 +981,8 @@ function Kv_add_screen({wallet, onSent}){
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Register Domain</h3>
+      <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={conf.symbol} /></div>
+      {!balOk && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>Insufficient balance</div>}
       <div style={{marginTop: 12}}>
         <label>Domain name:</label>
         <input
@@ -996,7 +1007,7 @@ function Kv_add_screen({wallet, onSent}){
         />
       </div>
       <Fee_field value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handle_add} disabled={sending||nameStatus=='taken'} style={{marginTop: 12}}>
+      <button onClick={handle_add} disabled={sending||!isValid||nameStatus=='taken'} style={{marginTop: 12}}>
         {sending ? 'Registering…' : 'Register'}
       </button>
     </div>
@@ -1100,6 +1111,9 @@ function Kv_send_screen({wallet, kv_d, onSent}){
     const saddr_to = wallet.c.changeAddrInfo.address;
     return kv_tx_send({wallet, kv_d, saddr_to}).fee;
   });
+  const bal = wallet_bal(wallet);
+  const balOk = fee <= bal;
+  useEffect(()=>{ setValid('bal', balOk); }, [balOk]);
 
   const handleTransfer = async()=>{
     setSending(true);
@@ -1123,6 +1137,8 @@ function Kv_send_screen({wallet, kv_d, onSent}){
   return (
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Transfer Name</h3>
+      <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={conf.symbol} /></div>
+      {!balOk && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>Insufficient balance</div>}
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         Transferring: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
       </div>
@@ -1138,10 +1154,14 @@ function Kv_send_screen({wallet, kv_d, onSent}){
 // KV Name Edit Screen
 function Kv_edit_screen({wallet, kv_d, onSent}){
   const conf = wallet.conf;
+  const {setValid, isValid} = useFormValid();
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
     return kv_tx_edit({wallet, kv_d}).fee;
   });
+  const bal = wallet_bal(wallet);
+  const balOk = fee <= bal;
+  useEffect(()=>{ setValid('bal', balOk); }, [balOk]);
 
   const handleSave = async()=>{
     setSending(true);
@@ -1165,6 +1185,8 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
   return (
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Edit Domain Name</h3>
+      <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={conf.symbol} /></div>
+      {!balOk && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>Insufficient balance</div>}
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         Name: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
       </div>
@@ -1172,7 +1194,7 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
         New value: <span style={{fontFamily: 'monospace'}}>{kv_d.val}</span>
       </div>
       <Fee_field value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handleSave} disabled={sending} style={{marginTop: 12}}>
+      <button onClick={handleSave} disabled={sending||!isValid} style={{marginTop: 12}}>
         {sending ? 'Saving…' : 'Save'}
       </button>
     </div>
