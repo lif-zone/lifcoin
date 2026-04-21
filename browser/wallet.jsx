@@ -1225,8 +1225,8 @@ function Devtools_screen({onCacheClear, onBack}){
     setLifServer(val);
     lif_server_save(val);
   };
-  const handle_lifnode_post = async()=>{
-    const url = `${lifServer}/reset_mempool`;
+  const handle_lifnode_post = async(uri)=>{
+    const url = `${lifServer}${uri}`;
     set_lifnode_cmd(`curl -X POST ${url}`);
     set_lifnode_res(null);
     try {
