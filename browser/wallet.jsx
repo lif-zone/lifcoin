@@ -441,6 +441,13 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
   );
 }
 
+function transactions_sorted(transactions){
+  return [...transactions].sort((a,b)=>!a.timestamp ? -1 :
+    !b.timestamp ? 1 :
+    b.timestamp-a.timestamp
+  );
+}
+
 // Wallet Detail Screen
 function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
   onSelectKey, onSend, onReceive, onKvAdd, onKvRaw, onSettings,
@@ -526,7 +533,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
           <p>No transactions yet.</p>
         ) : (
           <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
-            {transactions.map((tx, i)=>(
+            {transactions_sorted(transactions).map((tx, i)=>(
               <li key={i}
                 onClick={()=>onSelectTx({tx, conf, walletAddrs: new Set(allAddrs.map(a=>a.address))})}
                 style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',

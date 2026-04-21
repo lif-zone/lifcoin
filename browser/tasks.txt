@@ -38,18 +38,18 @@ make wallet.jsx support multiple wallets
   create transactions with insufficient funding. separate problems between
   funding and fees, and show the total available balance. (after removing
   dust)
++ add refresh button on main page, and on wallet page to force fetch again
++ unconfirmed tx first in wallet, not last
 * in wallet domain operations: change to default just DNS and site, and
   clicking advanced will allow full JSON edit, and full key edit
-- add refresh button on main page, and on wallet page to force fetch again
-- show in wallet tx list txs with lif_kv: that they have lif kv in them,
-  both in the tx list, and in tx detail list
 - open new users in github, and re-import the projects, but with different
   login names/emails
 - make lif/git source to bring most up-to-date versions
-- unconfirmed tx first in wallet, not last
 
 Low priority:
 -------------
+- show in wallet tx list txs with lif_kv: that they have lif kv in them,
+  both in the tx list, and in tx detail list
 - add support for websocket subscription on new transactions, and updating
   accordingly.
 - fix kv_lif passing for missing 'val'

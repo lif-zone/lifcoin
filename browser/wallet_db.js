@@ -404,7 +404,7 @@ async function _wallet_fetch(wallet){
     verboseTxs.forEach(vtx=>{ prevMap[vtx.txid]=vtx; });
     const voutToOurAmt=(vouts)=>(vouts||[]).reduce((sum, vout)=>{
       const as = vout.scriptPubKey?.addresses||(vout.scriptPubKey?.address ?
-        [vout.scriptPubKey.address]:[]);
+        [vout.scriptPubKey.address] : []);
       return as.some(a=>addr_set.has(a)) ? sum+Math.round(vout.value*1e8)
         : sum;
     }, 0);
@@ -426,7 +426,7 @@ async function _wallet_fetch(wallet){
           sum+Math.round(vin._prevVout.value*1e8) : sum;
       }, 0);
       return {...tx, timestamp: tx.height>0 ? tsMap[tx.height] : null,
-        amount: received-spent, _vtx:{...vtx, vin: enrichedVin}};
+        amount: received-spent, _vtx: {...vtx, vin: enrichedVin}};
     });
     if (conf.lif_kv){
       const keyMap = new Map();

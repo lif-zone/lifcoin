@@ -912,3 +912,9 @@ USER: Add "Settings" hover tooltip to Settings button like Refresh has.
 CLAUDE: Added title="Settings" to the Settings button.
 
 ---
+
+USER: In Wallet_screen, unconfirmed transactions should appear first.
+
+CLAUDE: Sort transactions on render: unconfirmed (no timestamp) first, then by descending timestamp.
+
+---
