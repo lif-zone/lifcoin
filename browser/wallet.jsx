@@ -718,7 +718,9 @@ function Kv_transfer_screen({wallet, kv_d, onSent}){
       return alert('Enter recipient address');
     setSending(true);
     try {
-      const {fee: _fee, tx} = kv_tx_send({wallet, kv_d, saddr_to: toAddress.trim(), fee});
+      const {fee: _fee, tx, err} = kv_tx_send({wallet, kv_d, saddr_to: toAddress.trim(), fee});
+      if (err)
+        return alert(err);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(_fee);
@@ -763,7 +765,9 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
   const handleSave = async()=>{
     setSending(true);
     try {
-      const {fee: _fee, tx} = kv_tx_edit({wallet, kv_d, fee});
+      const {fee: _fee, tx, err} = kv_tx_edit({wallet, kv_d, fee});
+      if (err)
+        return alert(err);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(_fee);
@@ -917,10 +921,7 @@ function Send_screen({wallet, onSent}){
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
-  const [fee, setFee] = useState(()=>{
-    const saddr_to = toAddress || changeAddrInfo.address;
-    return tx_send({wallet, saddr_to, value: 1}).fee||0;
-  });
+  const [fee, setFee] = useState(0);
   useEffect(()=>{
     const value = Math.round(parseFloat(amountSat)*1e8) || 1;
     const saddr_to = toAddress || changeAddrInfo.address;
@@ -986,8 +987,7 @@ function Kv_add_screen({wallet, onSent}){
   const kv_val = ()=>JSON.stringify({site: site.trim()});
   const [fee, setFee] = useState(0);
   useEffect(()=>{
-    try { setFee(kv_tx_add({wallet, key: kv_key(), val: kv_val()}).fee); }
-    catch(e){}
+    setFee(kv_tx_add({wallet, key: kv_key(), val: kv_val()}).fee);
   }, [name, site]);
   useEffect(()=>{
     (async()=>{
@@ -1068,12 +1068,9 @@ function Kv_raw_screen({wallet, onSent}){
   const [sending, setSending] = useState(false);
   const [nameStatus, setNameStatus] = useState(null);
   const [valError, setValError] = useState(false);
-  const [fee, setFee] = useState(()=>{
-    return kv_tx_add({wallet, key: kv_key.trim(), val: kv_val.trim()}).fee;
-  });
+  const [fee, setFee] = useState(0);
   useEffect(()=>{
-    try { setFee(kv_tx_add({wallet, key: kv_key.trim(), val: kv_val.trim()}).fee); }
-    catch(e){}
+    setFee(kv_tx_add({wallet, key: kv_key.trim(), val: kv_val.trim()}).fee);
   }, [kv_key, kv_val]);
   useEffect(()=>{
     (async()=>{
@@ -1099,7 +1096,9 @@ function Kv_raw_screen({wallet, onSent}){
       return alert('Value is required');
     setSending(true);
     try {
-      const {fee: _fee, tx} = kv_tx_add({wallet, key: kv_key.trim(), val: kv_val.trim(), fee});
+      const {fee: _fee, tx, err} = kv_tx_add({wallet, key: kv_key.trim(), val: kv_val.trim(), fee});
+      if (err)
+        alert(err);
       await tx_broadcast(conf, tx);
       setFee(_fee);
       alert(`Key/value sent!\nTXID: ${tx.getId()}`);
