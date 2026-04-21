@@ -334,8 +334,7 @@ export async function wallet_db_init(){
 }
 
 async function _wallet_fetch(wallet){
-  const {conf, ls, c, cs} = wallet;
-  const network = conf.network;
+  const {conf, network, ls, c, cs} = wallet;
   const el = await el_connect(conf);
   const root = wallet_root(wallet);
   const ap = ls.derivPath || hd_path_def(conf);
@@ -522,6 +521,15 @@ export function hd_addr_find(root, accountPath, network, saddr_find){
       if (info.address==saddr_find)
         return info;
     }
+  }
+}
+
+export function addr_valid(addr, network){
+  try {
+    bitcoin.address.toOutputScript(addr, network);
+    return true;
+  } catch(e){
+    return false;
   }
 }
 

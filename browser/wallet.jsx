@@ -5,7 +5,7 @@ import * as bip39 from 'bip39';
 import {nets_list, servers_save, servers_load, wallet_db_init,
   nets_get, wallet_fetch, OV, OA, OE, esleep,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
-  hd_root, hd_wallet, hd_addr, hd_path_def,
+  hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear,
 } from './wallet_db.js';
@@ -277,7 +277,7 @@ function Wallet_card({wallet, onClick}){
   }
 
   const symbol = conf.symbol;
-  const label = wallet.ls.name || '';
+  const label = wallet.ls.name;
   return (
     <div style={cardStyle} onClick={onClick}>
       <div style={{fontWeight: 'bold', fontSize: 15}}>{label}</div>
@@ -463,7 +463,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
   }, [wallet.ls.id, wallet.ls.network]);
 
   const symbol = conf.symbol;
-  const label = wallet.ls.name || '';
+  const label = wallet.ls.name;
   return (
     <div>
       <h2>{label}</h2>
@@ -709,7 +709,7 @@ function Kv_transfer_screen({wallet, kv_d, onSent}){
   const [toAddress, setToAddress] = useState('');
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
-    const saddr_to = wallet.c.changeAddrInfo?.address||'';
+    const saddr_to = wallet.c.changeAddrInfo.address;
     return kv_tx_send({wallet, kv_d, saddr_to}).fee;
   });
 
@@ -917,11 +917,15 @@ function Fee_field({value, onChange, conf}){
 
 // Send Screen
 function Send_screen({wallet, onSent}){
-  const {conf, c: {utxos=[], changeAddrInfo}} = wallet;
+  const {conf, network, c: {utxos=[], changeAddrInfo}} = wallet;
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(0);
+  const [addrError, setAddrError] = useState('');
+  useEffect(()=>{
+    setAddrError(!toAddress || addr_valid(toAddress, network) ? '' : 'Invalid address');
+  }, [toAddress]);
   useEffect(()=>{
     const value = Math.round(parseFloat(amountSat)*1e8) || 1;
     const saddr_to = toAddress || changeAddrInfo.address;
@@ -959,8 +963,10 @@ function Send_screen({wallet, onSent}){
         placeholder="Recipient address"
         value={toAddress}
         onChange={e=>setToAddress(e.target.value)}
-        style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
+        style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box',
+          borderColor: addrError ? 'red' : ''}}
       />
+      {addrError && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>{addrError}</div>}
       <input
         type="text"
         placeholder={`Amount (${symbol})`}
@@ -969,7 +975,7 @@ function Send_screen({wallet, onSent}){
         style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
       />
       <Fee_field value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handleSend} disabled={sending} style={{marginTop: 8}}>
+      <button onClick={handleSend} disabled={sending||!!addrError} style={{marginTop: 8}}>
         {sending ? 'Sending…' : 'Send'}
       </button>
     </div>

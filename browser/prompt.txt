@@ -834,3 +834,9 @@ USER: add "Mine lifcoin block" button in dev tools that POSTs /mine
 CLAUDE: Added handle_mine_block calling handle_lifnode_post('/mine'). Both buttons shown side by side, shared result pre block moved outside the individual divs.
 
 ---
+
+USER: In Send_screen() I want address validation (that it is valid, this this wallet's network). And if invalid - then cannot click Send, and a red error message appear (like the KV screen when the json is invalid)
+
+CLAUDE: Added addrError state in Send_screen. useEffect validates toAddress with bitcoin.address.toOutputScript(toAddress, conf.network) on each change. Red border on address input and red error message shown when invalid. Send button disabled when addrError is truthy.
+
+---
