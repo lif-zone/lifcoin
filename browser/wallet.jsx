@@ -53,6 +53,7 @@ function BrightWallet(){
     ()=>localStorage.getItem('dev_tools_enabled')=='1');
   const [refreshTick, setRefreshTick] = useState(0);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [homeRefreshTick, setHomeRefreshTick] = useState(0);
   useEffect(()=>{
     setWallets(wallets_get());
   }, [networks]);
@@ -98,18 +99,21 @@ function BrightWallet(){
             Bright Wallet
           </h1>
         </div>
-        {screen=='home' &&
-          <button onClick={()=>setScreen('settings')}>⚙ Settings</button>
-        }
-        {screen=='wallet_info' &&
-          <button onClick={()=>setRefreshTick(t=>t+1)} disabled={walletLoading} title="Refresh" style={{fontSize: 16}}>
-            {walletLoading ? '⏳' : '↻'}
-          </button>
-        }
+        <div style={{display: 'flex', gap: 8}}>
+          {screen=='home' && <>
+            <button onClick={()=>setHomeRefreshTick(t=>t+1)} title="Refresh" style={{fontSize: 16}}>↻</button>
+            <button onClick={()=>setScreen('settings')} title="Settings">⚙</button>
+          </>}
+          {screen=='wallet_info' &&
+            <button onClick={()=>setRefreshTick(t=>t+1)} disabled={walletLoading} title="Refresh" style={{fontSize: 16}}>
+              {walletLoading ? '⏳' : '↻'}
+            </button>
+          }
+        </div>
       </div>
       {screen=='home' && (
         <Home_screen
-          key={cacheVer}
+          key={`${cacheVer}-${homeRefreshTick}`}
           wallets={wallets}
           onSelect={(id)=>{ setActiveWalletId(id); setScreen('wallet_info'); }}
           onAddNew={()=>setScreen('wallet_add')}

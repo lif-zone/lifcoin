@@ -900,3 +900,15 @@ USER: Move refresh button to top right of the global nav bar (where back button 
 CLAUDE: Added refreshTick+walletLoading state to BrightWallet. Top bar shows ↻/⏳ button on right when screen=='wallet_info'. Wallet_screen accepts refreshTick (added to useEffect deps to re-fetch) and setWalletLoading (syncs local loading state up). Removed old inline refresh button and header flex wrapper from Wallet_screen.
 
 ---
+
+USER: Remove text from Settings button (keep only ⚙ icon). Add Refresh button to home screen like wallet_info.
+
+CLAUDE: Settings button now shows only ⚙. Added homeRefreshTick state; home screen shows ↻ and ⚙ buttons side-by-side in top right. Home_screen key is now `${cacheVer}-${homeRefreshTick}` so refresh remounts all Wallet_cards (triggering re-fetch). Both buttons wrapped in a flex div.
+
+---
+
+USER: Add "Settings" hover tooltip to Settings button like Refresh has.
+
+CLAUDE: Added title="Settings" to the Settings button.
+
+---
