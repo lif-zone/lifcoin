@@ -840,3 +840,27 @@ USER: In Send_screen() I want address validation (that it is valid, this this wa
 CLAUDE: Added addrError state in Send_screen. useEffect validates toAddress with bitcoin.address.toOutputScript(toAddress, conf.network) on each change. Red border on address input and red error message shown when invalid. Send button disabled when addrError is truthy.
 
 ---
+
+USER: Just like the <Amount> and <Fee> components, create a <Addr> component that includes the validation and red error message inside it.
+
+CLAUDE: Added Addr component after Fee_field. Takes value, onChange, network, placeholder props. Computes error inline (no state/useEffect needed). Renders input with red border and error message below when invalid. Refactored Send_screen and Kv_transfer_screen to use <Addr>; removed addrError state/useEffect from Send_screen (now a derived value), added addrError derived value and <Addr> to Kv_transfer_screen.
+
+---
+
+USER: Can the logic of addrError be moved into the <Addr> component? Also, empty address is invalid so why allow it?
+
+CLAUDE: Removed addrError from both Send_screen and Kv_transfer_screen. Addr component already computes error internally (shows red message only when value is non-empty). Button disabled uses !addr_valid(toAddress,network) which returns false for empty string too, so empty address also disables the button.
+
+---
+
+USER: Why does button Send have the logic of <Addr> in it again? Can <Addr> tell outside if it's valid/invalid?
+
+CLAUDE: Added onValid callback prop to Addr. Calls onValid?.(valid) via useEffect when validity changes. Parents add [addrValid, setAddrValid] = useState(false) and pass onValid={setAddrValid} to Addr. Button disabled uses addrValid state instead of re-calling addr_valid. Removed guard in handleTransfer since button is already disabled when invalid.
+
+---
+
+USER: Make a generic useFormValid hook so components report valid/invalid state and Send button just checks isValid without knowing about individual fields.
+
+CLAUDE: Added useFormValid() hook: holds {key: bool} states map, setValid(key, valid) to update, isValid = all values true. Per screen: one line for the hook, onValid={v=>setValid('addr',v)} per validated field, button uses !isValid. Updated Send_screen and Kv_transfer_screen to use it.
+
+---

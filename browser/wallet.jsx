@@ -705,7 +705,8 @@ function Kv_info_screen({kv_d, conf, onViewTx, onTransfer, onEdit}){
 
 // Name Transfer Screen
 function Kv_transfer_screen({wallet, kv_d, onSent}){
-  const conf = wallet.conf;
+  const {conf, network} = wallet;
+  const {setValid, isValid} = useFormValid();
   const [toAddress, setToAddress] = useState('');
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
@@ -714,8 +715,6 @@ function Kv_transfer_screen({wallet, kv_d, onSent}){
   });
 
   const handleTransfer = async()=>{
-    if (!toAddress.trim())
-      return alert('Enter recipient address');
     setSending(true);
     try {
       const {fee: _fee, tx, err} = kv_tx_send({wallet, kv_d, saddr_to: toAddress.trim(), fee});
@@ -740,14 +739,9 @@ function Kv_transfer_screen({wallet, kv_d, onSent}){
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         Transferring: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
       </div>
-      <input
-        placeholder="Recipient address"
-        value={toAddress}
-        onChange={e=>setToAddress(e.target.value)}
-        style={{display: 'block', width: '100%', marginTop: 12, boxSizing: 'border-box'}}
-      />
+      <Addr value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
       <Fee_field value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handleTransfer} disabled={sending} style={{marginTop: 8}}>
+      <button onClick={handleTransfer} disabled={sending||!isValid} style={{marginTop: 8}}>
         {sending ? 'Transferring…' : 'Transfer'}
       </button>
     </div>
@@ -867,6 +861,15 @@ function Tx_info_screen({tx, conf, walletAddrs, walletName}){
   );
 }
 
+function useFormValid(){
+  const [states, setStates] = useState({});
+  const setValid = (key, valid)=>{
+    setStates(s=>s[key]===valid ? s : {...s, [key]: valid});
+  };
+  const isValid = Object.values(states).every(Boolean);
+  return {setValid, isValid};
+}
+
 function Amount({sat, symbol, signed}){
   const sign = !signed ? null : sat>0 ? '+' : sat<0 ? '-' : '';
   const color = !signed ? null : sat>0 ? 'green' : sat<0 ? '#c00' : null;
@@ -915,17 +918,32 @@ function Fee_field({value, onChange, conf}){
   );
 }
 
+function Addr({value, onChange, network, onValid, placeholder='Recipient address'}){
+  const valid = addr_valid(value, network);
+  const err = value && !valid ? 'Invalid address' : '';
+  useEffect(()=>{ onValid?.(valid); }, [valid]);
+  return (
+    <div>
+      <input
+        placeholder={placeholder}
+        value={value}
+        onChange={e=>onChange(e.target.value)}
+        style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box',
+          ...(err && {borderColor: 'red'})}}
+      />
+      {err && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>{err}</div>}
+    </div>
+  );
+}
+
 // Send Screen
 function Send_screen({wallet, onSent}){
   const {conf, network, c: {utxos=[], changeAddrInfo}} = wallet;
+  const {setValid, isValid} = useFormValid();
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState('');
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(0);
-  const [addrError, setAddrError] = useState('');
-  useEffect(()=>{
-    setAddrError(!toAddress || addr_valid(toAddress, network) ? '' : 'Invalid address');
-  }, [toAddress]);
   useEffect(()=>{
     const value = Math.round(parseFloat(amountSat)*1e8) || 1;
     const saddr_to = toAddress || changeAddrInfo.address;
@@ -959,14 +977,7 @@ function Send_screen({wallet, onSent}){
   return (
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Send {symbol}</h3>
-      <input
-        placeholder="Recipient address"
-        value={toAddress}
-        onChange={e=>setToAddress(e.target.value)}
-        style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box',
-          borderColor: addrError ? 'red' : ''}}
-      />
-      {addrError && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>{addrError}</div>}
+      <Addr value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
       <input
         type="text"
         placeholder={`Amount (${symbol})`}
@@ -975,7 +986,7 @@ function Send_screen({wallet, onSent}){
         style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
       />
       <Fee_field value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handleSend} disabled={sending||!!addrError} style={{marginTop: 8}}>
+      <button onClick={handleSend} disabled={sending||!isValid} style={{marginTop: 8}}>
         {sending ? 'Sending…' : 'Send'}
       </button>
     </div>
