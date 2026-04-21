@@ -828,3 +828,9 @@ USER: Get Domain simplified to dns/<name>+{site:...}; devtools adds Get Key/Val 
 CLAUDE: Rewrote Kv_add_screen as simplified DNS screen (key=dns/<name>, val={site:...}, no JSON textarea). Added Kv_raw_screen (old full kv screen). Added wallet_kv_raw top-level screen. Get Key/Val button shown only when conf.lif_kv && devTools. Wallet_screen accepts devTools+onKvRaw props.
 
 ---
+
+USER: add "Mine lifcoin block" button in dev tools that POSTs /mine
+
+CLAUDE: Added handle_mine_block calling handle_lifnode_post('/mine'). Both buttons shown side by side, shared result pre block moved outside the individual divs.
+
+---

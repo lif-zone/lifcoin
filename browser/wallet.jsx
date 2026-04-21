@@ -1219,23 +1219,25 @@ function lif_server_save(val){
 // Developer Tools Screen
 function Devtools_screen({onCacheClear, onBack}){
   const [lifServer, setLifServer] = useState(lif_server_load);
-  const [mempoolCmd, setMempoolCmd] = useState(null);
-  const [mempoolResult, setMempoolResult] = useState(null);
+  const [lifnode_cmd, set_lifnode_cmd] = useState(null);
+  const [lifnode_res, set_lifnode_res] = useState(null);
   const handleServerChange = (val)=>{
     setLifServer(val);
     lif_server_save(val);
   };
-  const handleResetMempool = async()=>{
+  const handle_lifnode_post = async()=>{
     const url = `${lifServer}/reset_mempool`;
-    setMempoolCmd(`curl -X POST ${url}`);
-    setMempoolResult(null);
+    set_lifnode_cmd(`curl -X POST ${url}`);
+    set_lifnode_res(null);
     try {
       const res = await fetch(url, {method: 'POST'});
-      setMempoolResult(await res.json());
+      set_lifnode_res(await res.json());
     } catch(e){
-      setMempoolResult({error: e.message});
+      set_lifnode_res({error: e.message});
     }
   };
+  const handle_reset_mempool = async()=>handle_lifnode_post('/reset_mempool');
+  const handle_mine_block = async()=>handle_lifnode_post('/mine');
   return (
     <div style={{maxWidth: 520}}>
       <h2>Developer Tools</h2>
@@ -1257,16 +1259,17 @@ function Devtools_screen({onCacheClear, onBack}){
           <button onClick={()=>handleServerChange(LIF_SERVER_DEF)} title="Reset to default">↺</button>
         </div>
       </div>
-      <div style={{marginTop: 16}}>
-        <button onClick={handleResetMempool}>Reset lifcoin mempool</button>
-        {mempoolCmd && (
-          <pre style={{marginTop: 8, fontSize: 12, background: '#f4f4f4',
-            padding: 8, borderRadius: 4, overflowX: 'auto'}}>
-            {mempoolCmd}{'\n'}
-            {mempoolResult ? JSON.stringify(mempoolResult, null, 2) : 'Fetching...'}
-          </pre>
-        )}
+      <div style={{marginTop: 16, display: 'flex', gap: 8}}>
+        <button onClick={handle_reset_mempool}>Reset lifcoin mempool</button>
+        <button onClick={handle_mine_block}>Mine lifcoin block</button>
       </div>
+      {lifnode_cmd && (
+        <pre style={{marginTop: 8, fontSize: 12, background: '#f4f4f4',
+          padding: 8, borderRadius: 4, overflowX: 'auto'}}>
+          {lifnode_cmd}{'\n'}
+          {lifnode_res ? JSON.stringify(lifnode_res, null, 2) : 'Fetching...'}
+        </pre>
+      )}
     </div>
   );
 }
