@@ -107,6 +107,7 @@ let node = new FullNode({
   cors: true,
   'coinbase-address': [mine_address],
   'persistent-mempool': true,
+  'require-standard': false,
 });
 
 async function mine_blocks(n){

@@ -22,6 +22,10 @@ make wallet.jsx support multiple wallets
   button.
 + dont show in BTC wallets the lif kv options
 + fees are not working: click Send.
++ never use lif_kv outputs for regular Send tx. Need to do a kv transfer tx
+  and then the change will get "separated" back to us. Dust>1 protects this.
++ create tx with kv_lif controlling outputs with 1 value (like runs)
+  (inscribe/edit/transfer). Dust>1 protects from transering kv by mistake.
 * fees are not working: click Send: dont throw Error() on fees - give a
   funding specific error (on no funds, or not enough funds, telling how much
   is missing. Should already appear on the page itself the missing funds,
@@ -30,21 +34,22 @@ make wallet.jsx support multiple wallets
   create transactions with insufficient funding. separate problems between
   funding and fees, and show the total available balance. (after removing
   dust)
-+ create tx with kv_lif controlling outputs with 1 value (like runs)
-  (inscribe/edit/transfer). Dust>1 protects from transering kv by mistake.
-+ never use lif_kv outputs for regular Send tx. Need to do a kv transfer tx
-  and then the change will get "separated" back to us. Dust>1 protects this.
 * in wallet domain operations: change to default just DNS and site, and
   clicking advanced will allow full JSON edit, and full key edit
+- bug in edit/transfer domain: tx not appearing immediatly.
+- add refresh button on main page, and on wallet page to force fetch again
 - add click to mine
 - show in wallet tx list txs with lif_kv: that they have lif kv in them,
   both in the tx list, and in tx detail list
 - open new users in github, and re-import the projects, but with different
   login names/emails
 - make lif/git source to bring most up-to-date versions
+- unconfirmed tx first in wallet, not last
 
 Low priority:
 -------------
+- add support for websocket subscription on new transactions, and updating
+  accordingly.
 - fix kv_lif passing for missing 'val'
 - add support for any str (not only utf8/json) in lif kv server.
 - add ipc keep alive: every 100ms update a place in memory. On the waiting
@@ -59,6 +64,7 @@ Low priority:
 - add support for lif no-cors via out servers routing requests in return
   to mining or tx with money.
 - add LIF test network, and additional bitcoin test networks.
+- tx broadcast that fails should show a message that it failed
 
 coding conventions:
 -------------------
