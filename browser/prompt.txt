@@ -882,3 +882,21 @@ USER: In Send/Kv_add/Kv_send/Kv_edit screens: show available balance at top usin
 CLAUDE: Imported wallet_bal. In each screen: compute bal=wallet_bal(wallet), balOk=amount+fee<=bal (or fee<=bal for kv screens), useEffect setValid('bal',balOk), show Balance row at top, red "Insufficient balance" when !balOk. Added useFormValid to Kv_add_screen and Kv_edit_screen (they didn't have it). Button disabled uses !isValid throughout.
 
 ---
+
+USER: In Wallet_screen, move refresh button to top right with just a refresh icon.
+
+CLAUDE: Extracted handleRefresh function. Added flex header row with h2 on left and icon button (↻/⏳) on right, no border/background. Removed old Refresh button from bottom of transactions section.
+
+---
+
+USER: Make the refresh a proper button (with border/background).
+
+CLAUDE: Removed the no-border/no-background style overrides so it renders as a standard button.
+
+---
+
+USER: Move refresh button to top right of the global nav bar (where back button and BrightWallet icon are).
+
+CLAUDE: Added refreshTick+walletLoading state to BrightWallet. Top bar shows ↻/⏳ button on right when screen=='wallet_info'. Wallet_screen accepts refreshTick (added to useEffect deps to re-fetch) and setWalletLoading (syncs local loading state up). Removed old inline refresh button and header flex wrapper from Wallet_screen.
+
+---

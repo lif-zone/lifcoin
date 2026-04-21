@@ -51,6 +51,8 @@ function BrightWallet(){
   const [cacheVer, setCacheVer] = useState(0);
   const [devTools, setDevTools] = useState(
     ()=>localStorage.getItem('dev_tools_enabled')=='1');
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [walletLoading, setWalletLoading] = useState(false);
   useEffect(()=>{
     setWallets(wallets_get());
   }, [networks]);
@@ -99,6 +101,11 @@ function BrightWallet(){
         {screen=='home' &&
           <button onClick={()=>setScreen('settings')}>⚙ Settings</button>
         }
+        {screen=='wallet_info' &&
+          <button onClick={()=>setRefreshTick(t=>t+1)} disabled={walletLoading} title="Refresh" style={{fontSize: 16}}>
+            {walletLoading ? '⏳' : '↻'}
+          </button>
+        }
       </div>
       {screen=='home' && (
         <Home_screen
@@ -130,6 +137,8 @@ function BrightWallet(){
           onKvAdd={()=>setScreen('wallet_kv_add')}
           onKvRaw={()=>setScreen('wallet_kv_raw')}
           onSettings={()=>setScreen('wallet_settings')}
+          refreshTick={refreshTick}
+          setWalletLoading={setWalletLoading}
         />
       )}
       {screen=='wallet_send' && activeWallet && (
@@ -430,7 +439,8 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
 
 // Wallet Detail Screen
 function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
-  onSelectKey, onSend, onReceive, onKvAdd, onKvRaw, onSettings})
+  onSelectKey, onSend, onReceive, onKvAdd, onKvRaw, onSettings,
+  refreshTick, setWalletLoading})
 {
   const conf = wallet.conf;
   const [balance, setBalance] = useState(wallet.c.balance ?? null);
@@ -445,6 +455,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
     setOwnedKeys(wallet.c.ownedKeys);
     setAllAddrs(wallet.c.addrs);
   };
+  useEffect(()=>{ setWalletLoading?.(loading); }, [loading]);
 
   useEffect(()=>{
     if (!bip39.validateMnemonic(wallet.ls.mnemonic))
@@ -460,7 +471,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
         setLoading(false);
       }
     })();
-  }, [wallet.ls.id, wallet.ls.network]);
+  }, [wallet.ls.id, wallet.ls.network, refreshTick]);
 
   const symbol = conf.symbol;
   const label = wallet.ls.name;
@@ -528,14 +539,6 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
             ))}
           </ul>
         )}
-        <button style={{marginTop: 10}} onClick={async()=>{
-          setLoading(true);
-          try { wallet_apply(await wallet_fetch(wallet, true)); }
-          catch(e){ console.error('Refresh error:', e); }
-          finally { setLoading(false); }
-        }}>
-          Refresh
-        </button>
       </div>
     </div>
   );
