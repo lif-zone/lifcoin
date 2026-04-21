@@ -547,7 +547,7 @@ function psbt_input_get_value(psbt, vin){
   throw new Error(`Input ${vin} missing value info (witnessUtxo or nonWitnessUtxo)`);
 }
 
-function tx_fund(wallet, p, in_sign, fee){
+function tx_fund({wallet, p, in_sign=[], fee}){
   const {c, conf, network} = wallet;
   const _sum_out = Number(
     p.txOutputs.reduce((sum, output)=>sum+output.value, 0n));
@@ -607,50 +607,39 @@ function tx_fund(wallet, p, in_sign, fee){
   return {utxos: in_sign, tx, pstb: p, fee, _fee: sum_in-sum_out};
 }
 
-/*
-function tx_fee_calc(wallet, tx_fn){
-  let ret = tx_fn();
-  if (ret.err)
-    return ret;
-  let fee = fee_calc(wallet.c.feeRate, ret.tx);
-    if (ret.err)
-      return ret;
-    fee = ret.fee;
-}*/
+function tx_fee_calc(tx_fn, arg){
+  let {wallet, fee} = arg;
+  let tx = tx_fn({...arg, fee: 1});
+  if (tx.err)
+    return tx;
+  fee = fee_calc(wallet.c.feeRate, tx.tx);
+  return tx_fn({...arg, fee});
+}
 
-function _tx_send({wallet, saddr_to, value, fee}){
+export function tx_send({wallet, saddr_to, value, fee}){
+  if (!fee)
+    return tx_fee_calc(tx_send, arguments[0]);
   const {network} = wallet;
   const p = tx_psbt(network);
   p.addOutput({address: saddr_to, value: BigInt(value)});
-  return tx_fund(wallet, p, [], fee);
+  return tx_fund({wallet, p, fee});
 }
 
-export function tx_send(wallet, saddr_to, value, fee){
-  const {c} = wallet;
-  if (!fee){
-    let tx = _tx_send({wallet, saddr_to, value, fee: 1});
-    if (tx.err)
-      return tx;
-    fee = fee_calc(c.feeRate, tx.tx);
-  }
-  return _tx_send({wallet, saddr_to, value, fee});
-}
-
-export function kv_tx_add(wallet, key, val, fee){
-  const {c, network} = wallet;
+export function kv_tx_add({wallet, key, val, fee}){
   if (!fee)
-    fee = fee_calc(c.feeRate, kv_tx_add(wallet, key, val, 1).tx);
+    return tx_fee_calc(kv_tx_add, arguments[0]);
+  const {c, network} = wallet;
   const p = tx_psbt(network);
   p.addOutput({script: kv_script(key, val), value: 0n});
   p.addOutput({address: c.changeAddrInfo.address, value: 1n});
   // XXX dont reuse same changeAddrInfo for change - inc next change addr
-  return tx_fund(wallet, p, [], fee);
+  return tx_fund({wallet, p, fee});
 }
 
-export function kv_tx_send(wallet, kv_d, saddr_to, fee){
-  const {c, network} = wallet;
+export function kv_tx_send({wallet, kv_d, saddr_to, fee}){
   if (!fee)
-    fee = fee_calc(c.feeRate, kv_tx_send(wallet, kv_d, saddr_to, 1).tx);
+    return tx_fee_calc(kv_tx_send, arguments[0]);
+  const {c, network} = wallet;
   const p = tx_psbt(network);
   const vout = kv_d._tx._vtx.vout[kv_d.vout];
   const value = Math.round(vout.value*1e8);
@@ -665,13 +654,13 @@ export function kv_tx_send(wallet, kv_d, saddr_to, fee){
       script: bitcoin.address.toOutputScript(saddr, network)}});
   in_sign.push({addrInfo: addr});
   p.addOutput({address: saddr_to, value: 1n});
-  return tx_fund(wallet, p, in_sign, fee, c.changeAddrInfo.address);
+  return tx_fund({wallet, p, in_sign, fee});
 }
 
-export function kv_tx_edit(wallet, kv_d, fee){
-  const {c, network} = wallet;
+export function kv_tx_edit({wallet, kv_d, fee}){
   if (!fee)
-    fee = fee_calc(c.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
+    return tx_fee_calc(kv_tx_edit, arguments[0]);
+  const {c, network} = wallet;
   const p = tx_psbt(network);
   const vout = kv_d._tx._vtx.vout[kv_d.vout];
   const value = Math.round(vout.value*1e8);
@@ -687,6 +676,6 @@ export function kv_tx_edit(wallet, kv_d, fee){
   in_sign.push({addrInfo: addr});
   p.addOutput({script: kv_script(kv_d.key, kv_d.val), value: 0n});
   p.addOutput({address: c.changeAddrInfo.address, value: 1n});
-  return tx_fund(wallet, p, in_sign, fee, c.changeAddrInfo.address);
+  return tx_fund({wallet, p, in_sign, fee});
 }
 
