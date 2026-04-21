@@ -739,7 +739,7 @@ function Kv_transfer_screen({wallet, kv_d, onSent}){
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         Transferring: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
       </div>
-      <Addr value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
+      <Addr_field value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
       <Fee_field value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleTransfer} disabled={sending||!isValid} style={{marginTop: 8}}>
         {sending ? 'Transferring…' : 'Transfer'}
@@ -918,7 +918,7 @@ function Fee_field({value, onChange, conf}){
   );
 }
 
-function Addr({value, onChange, network, onValid, placeholder='Recipient address'}){
+function Addr_field({value, onChange, network, onValid, placeholder='Recipient address'}){
   const valid = addr_valid(value, network);
   const err = value && !valid ? 'Invalid address' : '';
   useEffect(()=>{ onValid?.(valid); }, [valid]);
@@ -977,7 +977,7 @@ function Send_screen({wallet, onSent}){
   return (
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Send {symbol}</h3>
-      <Addr value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
+      <Addr_field value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
       <input
         type="text"
         placeholder={`Amount (${symbol})`}
