@@ -703,95 +703,6 @@ function Kv_info_screen({kv_d, conf, onViewTx, onTransfer, onEdit}){
   );
 }
 
-// Name Transfer Screen
-function Kv_transfer_screen({wallet, kv_d, onSent}){
-  const {conf, network} = wallet;
-  const {setValid, isValid} = useFormValid();
-  const [toAddress, setToAddress] = useState('');
-  const [sending, setSending] = useState(false);
-  const [fee, setFee] = useState(()=>{
-    const saddr_to = wallet.c.changeAddrInfo.address;
-    return kv_tx_send({wallet, kv_d, saddr_to}).fee;
-  });
-
-  const handleTransfer = async()=>{
-    setSending(true);
-    try {
-      const {fee: _fee, tx, err} = kv_tx_send({wallet, kv_d, saddr_to: toAddress.trim(), fee});
-      if (err)
-        return alert(err);
-      const txid = tx.getId();
-      await tx_broadcast(conf, tx);
-      setFee(_fee);
-      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
-      alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
-      onSent?.();
-    } catch(err){
-      alert(err.message);
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div style={{marginTop: 16, maxWidth: 400}}>
-      <h3>Transfer Name</h3>
-      <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
-        Transferring: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
-      </div>
-      <Addr_field value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
-      <Fee_field value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handleTransfer} disabled={sending||!isValid} style={{marginTop: 8}}>
-        {sending ? 'Transferring…' : 'Transfer'}
-      </button>
-    </div>
-  );
-}
-
-// Name Edit Screen
-function Kv_edit_screen({wallet, kv_d, onSent}){
-  const conf = wallet.conf;
-  const [sending, setSending] = useState(false);
-  const [fee, setFee] = useState(()=>{
-    return kv_tx_edit({wallet, kv_d}).fee;
-  });
-
-  const handleSave = async()=>{
-    setSending(true);
-    try {
-      const {fee: _fee, tx, err} = kv_tx_edit({wallet, kv_d, fee});
-      if (err)
-        return alert(err);
-      const txid = tx.getId();
-      await tx_broadcast(conf, tx);
-      setFee(_fee);
-      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
-      alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
-      onSent?.();
-    } catch(err){
-      alert(err.message);
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div style={{marginTop: 16, maxWidth: 400}}>
-      <h3>Edit Domain Name</h3>
-      <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
-        Name: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
-      </div>
-      <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
-        New value: <span style={{fontFamily: 'monospace'}}>{kv_d.val}</span>
-      </div>
-      <Fee_field value={fee} onChange={setFee} conf={conf} />
-      <button onClick={handleSave} disabled={sending} style={{marginTop: 12}}>
-        {sending ? 'Saving…' : 'Save'}
-      </button>
-    </div>
-  );
-}
-
 // Tx Detail Screen
 function Tx_info_screen({tx, conf, walletAddrs, walletName}){
   const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
@@ -1174,6 +1085,95 @@ function Kv_raw_screen({wallet, onSent}){
       <Fee_field value={fee} onChange={setFee} conf={conf} />
       <button onClick={handle_add} disabled={sending||nameStatus=='taken'||valError} style={{marginTop: 12}}>
         {sending ? 'Sending…' : 'Send'}
+      </button>
+    </div>
+  );
+}
+
+// KV Name Transfer Screen
+function Kv_transfer_screen({wallet, kv_d, onSent}){
+  const {conf, network} = wallet;
+  const {setValid, isValid} = useFormValid();
+  const [toAddress, setToAddress] = useState('');
+  const [sending, setSending] = useState(false);
+  const [fee, setFee] = useState(()=>{
+    const saddr_to = wallet.c.changeAddrInfo.address;
+    return kv_tx_send({wallet, kv_d, saddr_to}).fee;
+  });
+
+  const handleTransfer = async()=>{
+    setSending(true);
+    try {
+      const {fee: _fee, tx, err} = kv_tx_send({wallet, kv_d, saddr_to: toAddress.trim(), fee});
+      if (err)
+        return alert(err);
+      const txid = tx.getId();
+      await tx_broadcast(conf, tx);
+      setFee(_fee);
+      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
+      alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
+      onSent?.();
+    } catch(err){
+      alert(err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{marginTop: 16, maxWidth: 400}}>
+      <h3>Transfer Name</h3>
+      <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
+        Transferring: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
+      </div>
+      <Addr_field value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
+      <Fee_field value={fee} onChange={setFee} conf={conf} />
+      <button onClick={handleTransfer} disabled={sending||!isValid} style={{marginTop: 8}}>
+        {sending ? 'Transferring…' : 'Transfer'}
+      </button>
+    </div>
+  );
+}
+
+// KV Name Edit Screen
+function Kv_edit_screen({wallet, kv_d, onSent}){
+  const conf = wallet.conf;
+  const [sending, setSending] = useState(false);
+  const [fee, setFee] = useState(()=>{
+    return kv_tx_edit({wallet, kv_d}).fee;
+  });
+
+  const handleSave = async()=>{
+    setSending(true);
+    try {
+      const {fee: _fee, tx, err} = kv_tx_edit({wallet, kv_d, fee});
+      if (err)
+        return alert(err);
+      const txid = tx.getId();
+      await tx_broadcast(conf, tx);
+      setFee(_fee);
+      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
+      alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
+      onSent?.();
+    } catch(err){
+      alert(err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{marginTop: 16, maxWidth: 400}}>
+      <h3>Edit Domain Name</h3>
+      <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
+        Name: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
+      </div>
+      <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
+        New value: <span style={{fontFamily: 'monospace'}}>{kv_d.val}</span>
+      </div>
+      <Fee_field value={fee} onChange={setFee} conf={conf} />
+      <button onClick={handleSave} disabled={sending} style={{marginTop: 12}}>
+        {sending ? 'Saving…' : 'Save'}
       </button>
     </div>
   );
