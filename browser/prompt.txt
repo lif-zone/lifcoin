@@ -864,3 +864,15 @@ USER: Make a generic useFormValid hook so components report valid/invalid state 
 CLAUDE: Added useFormValid() hook: holds {key: bool} states map, setValid(key, valid) to update, isValid = all values true. Per screen: one line for the hook, onValid={v=>setValid('addr',v)} per validated field, button uses !isValid. Updated Send_screen and Kv_transfer_screen to use it.
 
 ---
+
+USER: In Send_screen() move the amount <input> to a new Amount_field component. UI shows BTC/LIF with decimal, returns sat to caller.
+
+CLAUDE: Added Amount_field component. Holds display string internally, parses to sat on change, calls onChange(sat) and onValid(sat>0). Shows red border/error when non-empty and invalid. Send_screen now stores amountSat as integer sat (not string), removed the isNaN guard (isValid covers it via Amount_field), uses onValid={v=>setValid('amount',v)}.
+
+---
+
+USER: Add optional min prop to Amount_field. If amount < min, field is invalid. Call with min=1.
+
+CLAUDE: Added min=0 default prop to Amount_field. valid = sat > 0 && sat >= min. Send_screen passes min={1}.
+
+---

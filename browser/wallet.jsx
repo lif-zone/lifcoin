@@ -936,27 +936,48 @@ function Addr_field({value, onChange, network, onValid, placeholder='Recipient a
   );
 }
 
+function Amount_field({value, onChange, symbol, onValid, min=0}){
+  const [str, setStr] = useState('');
+  const sat = Math.round(parseFloat(str)*1e8);
+  const valid = sat >= min;
+  useEffect(()=>{ onValid?.(valid); }, [valid]);
+  const commit = v=>{
+    setStr(v);
+    onChange(Math.round(parseFloat(v)*1e8) || 0);
+  };
+  return (
+    <div>
+      <input
+        type="text"
+        placeholder={`Amount (${symbol})`}
+        value={str}
+        onChange={e=>commit(e.target.value)}
+        style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box',
+          ...(!valid && str && {borderColor: 'red'})}}
+      />
+      {!valid && str && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>Invalid amount</div>}
+    </div>
+  );
+}
+
 // Send Screen
 function Send_screen({wallet, onSent}){
   const {conf, network, c: {utxos=[], changeAddrInfo}} = wallet;
   const {setValid, isValid} = useFormValid();
   const [toAddress, setToAddress] = useState('');
-  const [amountSat, setAmountSat] = useState('');
+  const [amountSat, setAmountSat] = useState(0);
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(0);
   useEffect(()=>{
-    const value = Math.round(parseFloat(amountSat)*1e8) || 1;
+    const value = amountSat || 1;
     const saddr_to = toAddress || changeAddrInfo.address;
     setFee(tx_send({wallet, saddr_to, value}).fee||0);
   }, [amountSat, utxos]);
   const handleSend = async()=>{
-    const amountValue = Math.round(parseFloat(amountSat)*1e8);
-    if (isNaN(amountValue) || amountValue<=0)
-      return alert('Invalid amount');
     setSending(true);
     try {
       const {err, fee: _fee, tx} =
-        tx_send({wallet, saddr_to: toAddress, value: amountValue, fee});
+        tx_send({wallet, saddr_to: toAddress, value: amountSat, fee});
       if (err)
         throw Error(err);
       const txid = tx.getId();
@@ -965,7 +986,7 @@ function Send_screen({wallet, onSent}){
       const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
       alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
       setToAddress('');
-      setAmountSat('');
+      setAmountSat(0);
       onSent?.();
     } catch(err){
       alert(err.message);
@@ -978,13 +999,7 @@ function Send_screen({wallet, onSent}){
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Send {symbol}</h3>
       <Addr_field value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
-      <input
-        type="text"
-        placeholder={`Amount (${symbol})`}
-        value={amountSat}
-        onChange={e=>setAmountSat(e.target.value)}
-        style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box'}}
-      />
+      <Amount_field value={amountSat} onChange={setAmountSat} symbol={symbol} onValid={v=>setValid('amount',v)} min={1} />
       <Fee_field value={fee} onChange={setFee} conf={conf} />
       <button onClick={handleSend} disabled={sending||!isValid} style={{marginTop: 8}}>
         {sending ? 'Sending…' : 'Send'}
