@@ -607,19 +607,39 @@ function tx_fund(wallet, p, in_sign, fee){
   return {utxos: in_sign, tx, pstb: p, fee, _fee: sum_in-sum_out};
 }
 
-export function tx_send(wallet, saddr_to, value, fee){
-  const {c, network} = wallet;
-  if (!fee)
-    fee = fee_calc(wallet.c.feeRate, tx_send(wallet, saddr_to, value, 1).tx);
+/*
+function tx_fee_calc(wallet, tx_fn){
+  let ret = tx_fn();
+  if (ret.err)
+    return ret;
+  let fee = fee_calc(wallet.c.feeRate, ret.tx);
+    if (ret.err)
+      return ret;
+    fee = ret.fee;
+}*/
+
+function _tx_send({wallet, saddr_to, value, fee}){
+  const {network} = wallet;
   const p = tx_psbt(network);
   p.addOutput({address: saddr_to, value: BigInt(value)});
   return tx_fund(wallet, p, [], fee);
 }
 
+export function tx_send(wallet, saddr_to, value, fee){
+  const {c} = wallet;
+  if (!fee){
+    let tx = _tx_send({wallet, saddr_to, value, fee: 1});
+    if (tx.err)
+      return tx;
+    fee = fee_calc(c.feeRate, tx.tx);
+  }
+  return _tx_send({wallet, saddr_to, value, fee});
+}
+
 export function kv_tx_add(wallet, key, val, fee){
   const {c, network} = wallet;
   if (!fee)
-    fee = fee_calc(wallet.c.feeRate, kv_tx_add(wallet, key, val, 1).tx);
+    fee = fee_calc(c.feeRate, kv_tx_add(wallet, key, val, 1).tx);
   const p = tx_psbt(network);
   p.addOutput({script: kv_script(key, val), value: 0n});
   p.addOutput({address: c.changeAddrInfo.address, value: 1n});
@@ -630,7 +650,7 @@ export function kv_tx_add(wallet, key, val, fee){
 export function kv_tx_send(wallet, kv_d, saddr_to, fee){
   const {c, network} = wallet;
   if (!fee)
-    fee = fee_calc(wallet.c.feeRate, kv_tx_send(wallet, kv_d, saddr_to, 1).tx);
+    fee = fee_calc(c.feeRate, kv_tx_send(wallet, kv_d, saddr_to, 1).tx);
   const p = tx_psbt(network);
   const vout = kv_d._tx._vtx.vout[kv_d.vout];
   const value = Math.round(vout.value*1e8);
@@ -651,7 +671,7 @@ export function kv_tx_send(wallet, kv_d, saddr_to, fee){
 export function kv_tx_edit(wallet, kv_d, fee){
   const {c, network} = wallet;
   if (!fee)
-    fee = fee_calc(wallet.c.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
+    fee = fee_calc(c.feeRate, kv_tx_edit(wallet, kv_d, 1).tx);
   const p = tx_psbt(network);
   const vout = kv_d._tx._vtx.vout[kv_d.vout];
   const value = Math.round(vout.value*1e8);
