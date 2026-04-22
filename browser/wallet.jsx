@@ -533,21 +533,47 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
           <p>No transactions yet.</p>
         ) : (
           <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
-            {transactions_sorted(transactions).map((tx, i)=>(
-              <li key={i}
-                onClick={()=>onSelectTx({tx, conf, walletAddrs: new Set(allAddrs.map(a=>a.address))})}
-                style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
-                  borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between'}}
-              >
-                <span>
-                  {tx.timestamp
-                    ? new Date(tx.timestamp*1000).toLocaleString()
-                    : <span style={{color: '#f90'}}>unconfirmed</span>
-                  }
-                </span>
-                <Amount sat={tx.amount} symbol={symbol} signed />
-              </li>
-            ))}
+            {transactions_sorted(transactions).map((tx, i)=>{
+              const addrSet = new Set(allAddrs.map(a=>a.address));
+              const kvReceived = conf.lif_kv
+                ? ownedKeys.filter(k=>k.tx==tx.tx_hash)
+                : [];
+              const kvSent = conf.lif_kv
+                ? (tx._vtx?.vout||[]).flatMap(v=>{
+                    const saddr = v.scriptPubKey?.address||v.scriptPubKey?.addresses?.[0];
+                    return (v.lif_kv && !addrSet.has(saddr)) ? v.lif_kv : [];
+                  })
+                : [];
+              return (
+                <li key={i}
+                  onClick={()=>onSelectTx({tx, conf, walletAddrs: addrSet})}
+                  style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
+                    borderBottom: '1px solid #eee'}}
+                >
+                  <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                    <span>
+                      {tx.timestamp
+                        ? new Date(tx.timestamp*1000).toLocaleString()
+                        : <span style={{color: '#f90'}}>unconfirmed</span>
+                      }
+                    </span>
+                    <Amount sat={tx.amount} symbol={symbol} signed />
+                  </div>
+                  {kvReceived.map((k, j)=>(
+                    <div key={j} style={{fontSize: 11, marginTop: 2, fontFamily: 'monospace',
+                      color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>
+                      ↓ {k.key}: {trunc(json(k.val), 40)}
+                    </div>
+                  ))}
+                  {kvSent.map((kv, j)=>(
+                    <div key={'s'+j} style={{fontSize: 11, marginTop: 2, fontFamily: 'monospace',
+                      color: '#c00'}}>
+                      ↑ {kv.key}: {trunc(json(kv.val), 40)}
+                    </div>
+                  ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
