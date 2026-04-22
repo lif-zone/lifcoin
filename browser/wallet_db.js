@@ -36,6 +36,9 @@ export const esleep = ms=>{
   return p;
 };
 
+const HD_SCAN_GAP = 20;
+const DUST_VAL = 1;
+
 // add Lif network, from lif-coin/lib/protocol/networks.js
 let networks_lif = {
   bech32: 'lif',
@@ -49,7 +52,7 @@ let networks_lif = {
   messagePrefix: '\x18Bitcoin Signed Message:\n',
 };
 
-export const nets_list = {
+export const netconf_def = {
   lif: {
     name: 'Lifcoin', // Life Chai
     symbol: 'LIF',
@@ -83,14 +86,60 @@ export const nets_list = {
     test: true,
   },
 };
-function networks_init(){
-  for (let [name, net] of OE(nets_list))
-    net.network.conf = net;
-}
-networks_init();
 
-const HD_SCAN_GAP = 20;
-const DUST_VAL = 1;
+const g_settings = {};
+function settings_load(){
+  g_settings.ls = T(()=>JSON.parse(localStorage.getItem('settings'))) || {};
+  const s = g_settings;
+  const ls = g_settings.ls;
+  ls.lif_server ||= LIF_SERVER_DEF;
+  ls.netconf ||= {};
+  s.netconf = {};
+  for (const [k, nc_def] of OE(netconf_def)){
+    let netconf = s.netconf[k] = {...nc_def};
+    ls.netconf[k] ||= {};
+    OA(netconf, ls.netconf[k]);
+    netconf.network.netconf = netconf;
+  }
+  return g_settings;
+}
+
+export function netconf_get(){
+  return g_settings.netconf;
+}
+
+export function settings_save(){
+  localStorage.setItem('settings', JSON.stringify(g_settings.ls));
+}
+
+export function settings_get(){
+  return g_settings;
+}
+
+export const LIF_SERVER_DEF = 'http://localhost:8432';
+export function lif_server_get(){
+  return g_settings.ls.lif_server;
+}
+export function lif_server_set(val){
+  g_settings.ls.lif_server = val;
+  settings_save();
+}
+
+export function electrum_get(){
+  let servers = {};
+  for (let [k, netconf] of OE(g_settings)){
+    servers[k] = netconf.electrum;
+  }
+  return servers;
+}
+
+export function electrum_set(electrum){
+  const s = g_settings;
+  const {ls} = s;
+  for (let [k, server] of OE(electrum))
+    s.netconf[k].electrum = ls.netconf[k].electrum = server;
+  settings_save();
+}
 
 function Electrum_connect(url){
   let u = URL.parse(url);
@@ -99,110 +148,28 @@ function Electrum_connect(url){
   return new ElectrumClient(u.hostname, port+u.pathname, protocol);
 }
 
-const clients = {};
-function el_connect(conf){
-  const url = conf.electrum;
-  if (clients[url])
-    return clients[url];
-  return clients[url] = (async()=>{
+const g_clients = {};
+function el_connect(netconf){
+  const url = netconf.electrum;
+  if (g_clients[url])
+    return g_clients[url];
+  return g_clients[url] = (async()=>{
     try {
       const el = Electrum_connect(url);
       await el.connect('lif-coin-wallet', '1.4');
       return el;
     } catch(e){
-      delete clients[url];
+      delete g_clients[url];
       throw e;
     }
   })();
 }
 
-export function nets_get(servers){
-  const result = {};
-  for (const net in nets_list){
-    result[net] = {...nets_list[net]};
-    if (servers[net])
-      result[net].electrum = servers[net];
-  }
-  return result;
-}
-
-export function hd_root(mnemonic, network, passphrase=''){
-  return bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic, passphrase), network);
-}
-function wallet_root(wallet){
-  const {ls, c, conf} = wallet;
-  if (c.root)
-    return c.root;
-  return c.root = hd_root(ls.mnemonic, conf.network, ls.passphrase||'');
-}
-
-export function hd_path_def(conf){
-  return `m/84'/${conf.coin_type}'/0'`;
-}
-
-export function hd_addr(root, accountPath, network, chain, index){
-  const child = root.derivePath(`${accountPath}/${chain}/${index}`);
-  const pubkey = child.publicKey;
-  const {address} = bitcoin.payments.p2wpkh({pubkey, network});
-  const keyPair = ecpair.fromPrivateKey(child.privateKey, {network});
-  return {address, keyPair, chain, index};
-}
-
-export function hd_wallet(mnemonic, networkKey, networks, passphrase='',
-  derivPath=null)
-{
-  const conf = networks[networkKey];
-  const network = conf.network;
-  const root = hd_root(mnemonic, network, passphrase);
-  const accountPath = derivPath || hd_path_def(conf);
-  const {address, keyPair} = hd_addr(root, accountPath, network, 0, 0);
-  return {address, keyPair, network, conf, root};
-}
-
-// Scan used addresses on chain (0=external, 1=change) with gap limit of 20.
-// Returns {used: [{address, keyPair, chain, index, hist}], nextIndex}
-export async function hd_scan(conf, root, accountPath, chain){
-  const network = conf.network;
-  const el = await el_connect(conf);
-  const GAP = HD_SCAN_GAP;
-  const used = [];
-  let lastUsed = -1;
-  let start = 0;
-  while (true){
-    const entries = Array.from({length: GAP}, (_, i)=>hd_addr(root,
-      accountPath, network, chain, start+i));
-    const hists = await Promise.all(
-      entries.map(e=>el.blockchain_scripthash_getHistory(
-        addr_sh(e.address, network)))
-    );
-    let anyUsed = false;
-    for (let i=0; i<GAP; i++){
-      if (hists[i].length>0){
-        used.push({...entries[i], hist: hists[i]});
-        lastUsed = entries[i].index;
-        anyUsed = true;
-      }
-    }
-    if (!anyUsed)
-      break;
-    start += GAP;
-  }
-  return {used, nextIndex: lastUsed+1};
-}
-
-// convert address to scripthash (electrum usess scripthash for addresses)
-export function addr_sh(saddr, network){
-  const script = bitcoin.address.toOutputScript(saddr, network);
-  const hash = bitcoin.crypto.sha256(script);
-  return Buffer.from(hash.reverse()).toString('hex');
-}
-
 // id → single wallet object instance (mutated in place)
-const wallets_store = {};
+const g_wallets = {};
 
 export function wallets_load(){
-  let networks = nets_get(settings.servers);
-  for (let id in wallets_store)
+  for (let id in g_wallets)
     _wallet_del(id);
   let wallets_ls = T(()=>JSON.parse(localStorage.getItem('wallets'))) || {};
   for (const [id, ls] of OE(wallets_ls)){
@@ -212,35 +179,35 @@ export function wallets_load(){
     }
     _wallet_add(ls);
   }
-  return wallets_store;
+  return g_wallets;
 }
 
 export function wallets_get(){
-  return wallets_store;
+  return g_wallets;
 }
 
 export function wallets_save(){
   const wallets_ls = {};
-  for (const [id, w] of OE(wallets_store))
+  for (const [id, w] of OE(g_wallets))
     wallets_ls[id] = w.ls;
   localStorage.setItem('wallets', JSON.stringify(wallets_ls));
 }
 
 export function wallet_get(id){
-  return wallets_store[id];
+  return g_wallets[id];
 }
 
 function _wallet_add(w_ls){
-  let networks = nets_get(settings.servers);
+  let netconf = g_settings.netconf;
   let wallet = {
     ls: {...w_ls},
     c: {},
     cs: {},
-    conf: networks[w_ls.network],
+    netconf: netconf[w_ls.network],
   };
-  wallet.network = wallet.conf.network;
+  wallet.network = wallet.netconf.network;
   wallet.ls.name ||= '';
-  wallets_store[wallet.ls.id] = wallet;
+  g_wallets[wallet.ls.id] = wallet;
 }
 
 export function wallet_add(w_ls){
@@ -253,47 +220,12 @@ export function wallet_update(id){
 }
 
 function _wallet_del(id){
-  delete wallets_store[id];
+  delete g_wallets[id];
 }
 
 export function wallet_del(id){
   _wallet_del(id);
   wallets_save();
-}
-
-let settings = {};
-export function settings_load(){
-  settings = T(()=>JSON.parse(localStorage.getItem('settings'))) || {};
-  let s = settings;
-  s.electrum_servers ||= {};
-  s.lif_server ||= LIF_SERVER_DEF;
-  return settings;
-}
-
-export function settings_save(){
-  localStorage.setItem('settings', JSON.stringify(settings));
-  return settings;
-}
-
-export function settings_get(){
-  return settings;
-}
-
-export function servers_get(servers){
-  return settings.electrum_servers;
-}
-export function servers_set(servers){
-  settings.electrum_servers = servers;
-  settings_save();
-}
-
-export const LIF_SERVER_DEF = 'http://localhost:8432';
-export function lif_server_get(){
-  return settings.lif_server;
-}
-export function lif_server_set(val){
-  settings.lif_server = val;
-  settings_save();
 }
 
 // IndexedDB Cache
@@ -317,7 +249,7 @@ export async function db_put(id, data){
 }
 export async function cache_clear(){
   try { await db.clear('cache'); } catch{}
-  for (const w of wallets_store){
+  for (const w of g_wallets){
     w.c = {};
     w.cs = {};
   }
@@ -328,7 +260,7 @@ const cache_ver = '2';
 // mnemonic). Idempotent: does nothing if wallet already has
 // data (wallet.c.addrs defined).
 async function wallet_cs_load(wallet){
-  const {c, cs, conf, network} = wallet;
+  const {c, cs, netconf, network} = wallet;
   if (cs.addrs)
     return;
   const _cs = await db_get('walletData:'+wallet.ls.id);
@@ -339,7 +271,7 @@ async function wallet_cs_load(wallet){
   OA(cs, _cs);
   OA(c, _cs);
   const root = wallet_root(wallet);
-  const ap = wallet.derivPath || hd_path_def(conf);
+  const ap = wallet.derivPath || hd_path_def(netconf);
   c.addrs = cs.addrs.map(a=>({...a, ...hd_addr(root, ap,
     network, a.chain, a.index)}));
   c.changeAddrInfo = cs.changeAddrInfo
@@ -357,18 +289,18 @@ export async function wallet_db_init(){
   await db_init();
   settings_load();
   wallets_load();
-  for (const w of OV(wallets_store))
+  for (const w of OV(g_wallets))
     await wallet_cs_load(w);
 }
 
 async function _wallet_fetch(wallet){
-  const {conf, network, ls, c, cs} = wallet;
-  const el = await el_connect(conf);
+  const {netconf, network, ls, c, cs} = wallet;
+  const el = await el_connect(netconf);
   const root = wallet_root(wallet);
-  const ap = ls.derivPath || hd_path_def(conf);
+  const ap = ls.derivPath || hd_path_def(netconf);
   const [extRes, chgRes] = await Promise.all([
-    hd_scan(conf, root, ap, 0),
-    hd_scan(conf, root, ap, 1),
+    hd_scan(netconf, root, ap, 0),
+    hd_scan(netconf, root, ap, 1),
   ]);
   const addrs = c.addrs = [...extRes.used, ...chgRes.used];
   cs.addrs = c.addrs.map(({address, chain, index, hist})=>(
@@ -400,7 +332,7 @@ async function _wallet_fetch(wallet){
     ({tx_hash, tx_pos, value, address, chain, index}));
   c.balance = bals.reduce((s, b)=>s+b.confirmed+b.unconfirmed, 0);
   cs.balance = c.balance;
-  c.feeRate = await el_estimatefee(conf);
+  c.feeRate = await el_estimatefee(netconf);
   cs.feeRate = c.feeRate;
   // Transactions
   const txByHash = new Map();
@@ -461,7 +393,7 @@ async function _wallet_fetch(wallet){
       return {...tx, timestamp: tx.height>0 ? tsMap[tx.height] : null,
         amount: received-spent, fee, _vtx: {...vtx, vin: enrichedVin}};
     });
-    if (conf.lif_kv){
+    if (netconf.lif_kv){
       const keyMap = new Map();
       for (const etx of c.transactions){
         const vouts = etx._vtx?.vout||[];
@@ -504,10 +436,81 @@ export async function wallet_fetch(wallet, force){
   return wait.return(await _wallet_fetch(wallet));
 }
 
-export async function el_estimatefee(conf){
-  const fallback = conf.fee_def;
+export function hd_root(mnemonic, network, passphrase=''){
+  return bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic, passphrase), network);
+}
+function wallet_root(wallet){
+  const {ls, c, netconf} = wallet;
+  if (c.root)
+    return c.root;
+  return c.root = hd_root(ls.mnemonic, netconf.network, ls.passphrase||'');
+}
+
+export function hd_path_def(netconf){
+  return `m/84'/${netconf.coin_type}'/0'`;
+}
+
+export function hd_addr(root, accountPath, network, chain, index){
+  const child = root.derivePath(`${accountPath}/${chain}/${index}`);
+  const pubkey = child.publicKey;
+  const {address} = bitcoin.payments.p2wpkh({pubkey, network});
+  const keyPair = ecpair.fromPrivateKey(child.privateKey, {network});
+  return {address, keyPair, chain, index};
+}
+
+export function hd_wallet(mnemonic, networkKey, networks, passphrase='',
+  derivPath=null)
+{
+  const netconf = networks[networkKey];
+  const network = netconf.network;
+  const root = hd_root(mnemonic, network, passphrase);
+  const accountPath = derivPath || hd_path_def(netconf);
+  const {address, keyPair} = hd_addr(root, accountPath, network, 0, 0);
+  return {address, keyPair, network, netconf, root};
+}
+
+// Scan used addresses on chain (0=external, 1=change) with gap limit of 20.
+// Returns {used: [{address, keyPair, chain, index, hist}], nextIndex}
+export async function hd_scan(netconf, root, accountPath, chain){
+  const network = netconf.network;
+  const el = await el_connect(netconf);
+  const GAP = HD_SCAN_GAP;
+  const used = [];
+  let lastUsed = -1;
+  let start = 0;
+  while (true){
+    const entries = Array.from({length: GAP}, (_, i)=>hd_addr(root,
+      accountPath, network, chain, start+i));
+    const hists = await Promise.all(
+      entries.map(e=>el.blockchain_scripthash_getHistory(
+        addr_sh(e.address, network)))
+    );
+    let anyUsed = false;
+    for (let i=0; i<GAP; i++){
+      if (hists[i].length>0){
+        used.push({...entries[i], hist: hists[i]});
+        lastUsed = entries[i].index;
+        anyUsed = true;
+      }
+    }
+    if (!anyUsed)
+      break;
+    start += GAP;
+  }
+  return {used, nextIndex: lastUsed+1};
+}
+
+// convert address to scripthash (electrum usess scripthash for addresses)
+export function addr_sh(saddr, network){
+  const script = bitcoin.address.toOutputScript(saddr, network);
+  const hash = bitcoin.crypto.sha256(script);
+  return Buffer.from(hash.reverse()).toString('hex');
+}
+
+export async function el_estimatefee(netconf){
+  const fallback = netconf.fee_def;
   try {
-    const el = await el_connect(conf);
+    const el = await el_connect(netconf);
     const rate = await el.request('blockchain.estimatefee', [6]);
     if (rate>0)
       return Math.round(rate*1e8);
@@ -525,21 +528,21 @@ function kv_script(key, val){
   ]);
 }
 
-export async function tx_broadcast(conf, tx){
-  const el = await el_connect(conf);
+export async function tx_broadcast(netconf, tx){
+  const el = await el_connect(netconf);
   let txid = await el.blockchain_transaction_broadcast(tx.toHex());
   if (txid!=tx.getId())
     console.error(`mistmatch txid ${txid} ${tx.getId()}`);
 }
 
-export async function el_list_unspent(conf, saddr){
-  const el = await el_connect(conf);
+export async function el_list_unspent(netconf, saddr){
+  const el = await el_connect(netconf);
   return el.blockchain_scripthash_listunspent(
-    addr_sh(saddr, conf.network));
+    addr_sh(saddr, netconf.network));
 }
 
-export async function kv_get(conf, key){
-  const el = await el_connect(conf);
+export async function kv_get(netconf, key){
+  const el = await el_connect(netconf);
   return el.request('blockchain.lif_kv.get', [key]);
 }
 
@@ -568,8 +571,8 @@ export function addr_valid(addr, network){
 
 function tx_psbt(network){
   const p = new bitcoin.Psbt({network});
-  if (network.conf.fee_max)
-    p.setMaximumFeeRate(network.conf.fee_max/1000);
+  if (network.netconf.fee_max)
+    p.setMaximumFeeRate(network.netconf.fee_max/1000);
   return p;
 }
 
@@ -596,15 +599,15 @@ export function wallet_bal(wallet){
 }
 
 function tx_fund({wallet, p, in_sign=[], fee}){
-  const {c, conf, network} = wallet;
+  const {c, netconf, network} = wallet;
   const _sum_out = Number(
     p.txOutputs.reduce((sum, output)=>sum+output.value, 0n));
   const needed = _sum_out+fee;
   let sum_in = 0;
   for (let i=0; i<p.inputCount; i++)
     sum_in += Number(psbt_input_get_value(p, i));
-  if (conf.fee_max)
-    p.setMaximumFeeRate(conf.fee_max/1000);
+  if (netconf.fee_max)
+    p.setMaximumFeeRate(netconf.fee_max/1000);
   const sum_out = _sum_out+fee;
   // sort from big to small
   // filter out 0 value (which are probably lif kv coins) and

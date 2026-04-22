@@ -3,8 +3,8 @@ import React, {useState, useEffect, useMemo, useRef, createContext, useContext, 
 import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
-import {nets_list, servers_get, servers_set, wallet_db_init,
-  nets_get, wallet_fetch, OV, OA, OE, esleep,
+import {netconf_get, electrum_set, electrum_get, wallet_db_init, netconf_def,
+  wallet_fetch, OV, OA, OE, esleep,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
@@ -76,8 +76,8 @@ const newCardStyle = {
 
 // Main App
 function BrightWallet(){
-  const [servers, setServers] = useState(()=>servers_get());
-  const networks = useMemo(()=>nets_get(servers), [servers]);
+  const [servers, setServers] = useState(()=>electrum_get());
+  const netconf = netconf_get();
   const [wallets, setWallets] = useState(()=>wallets_get());
   const [screen, setScreen] = useState('home');
   const [activeWalletId, setActiveWalletId] = useState(null);
@@ -91,7 +91,7 @@ function BrightWallet(){
   const [homeRefreshTick, setHomeRefreshTick] = useState(0);
   useEffect(()=>{
     setWallets(wallets_get());
-  }, [networks]);
+  }, [netconf]);
   const addWallet = (w_ls)=>{
     wallet_add(w_ls);
     setWallets(wallets_get());
@@ -156,7 +156,7 @@ function BrightWallet(){
       )}
       {screen=='wallet_add' && (
         <Wallet_add_screen
-          networks={networks}
+          netconf={netconf}
           wallets={wallets}
           devTools={devTools}
           onAdd={(w_ls)=>{ addWallet(w_ls); goHome(); }}
@@ -189,7 +189,7 @@ function BrightWallet(){
       {screen=='wallet_receive' && wallet && (
         <Receive_screen
           address={wallet.c.receiveAddress}
-          symbol={wallet.conf.symbol}
+          symbol={wallet.netconf.symbol}
         />
       )}
       {screen=='wallet_kv_add' && wallet && (
@@ -214,17 +214,17 @@ function BrightWallet(){
       {screen=='tx_info' && selectedTxData && wallet && (
         <Tx_info_screen
           tx={selectedTxData.tx}
-          conf={selectedTxData.conf}
+          netconf={selectedTxData.netconf}
           walletAddrs={selectedTxData.walletAddrs}
-          walletName={wallet.ls.name || (wallet.mode=='hd' ? 'HD Wallet' : 'Wallet')}
+          walletName={wallet.ls.name || 'Wallet'}
         />
       )}
       {screen=='kv_info' && selectedKeyData && wallet && (
         <Kv_info_screen
           kv_d={selectedKeyData}
-          conf={wallet.conf}
+          netconf={wallet.netconf}
           devTools={devTools}
-          onViewTx={(tx)=>{ setSelectedTxData({tx, conf: wallet.conf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx_info'); }}
+          onViewTx={(tx)=>{ setSelectedTxData({tx, netconf: wallet.netconf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx_info'); }}
           onTransfer={()=>setScreen('kv_send')}
           onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _val_orig: d.val, val: newVal})); setScreen('kv_edit'); }}
         />
@@ -247,9 +247,9 @@ function BrightWallet(){
       {screen=='settings' && (
         <Settings_screen
           servers={servers}
-          networks={networks}
+          netconf={netconf}
           devTools={devTools}
-          onSave={(s)=>{ setServers(s); servers_set(s); }}
+          onSave={(s)=>{ setServers(s); electrum_set(s); }}
           onDevToolsToggle={(v)=>{ setDevTools(v); localStorage.setItem('dev_tools_enabled', v ? '1' : '0'); }}
           onDevTools={()=>setScreen('dev_tools')}
           onBack={goHome}
@@ -290,7 +290,7 @@ function Home_screen({wallets, onSelect, onAddNew}){
 
 // Wallet Card (summary box on home screen)
 function Wallet_card({wallet, onClick}){
-  const conf = wallet.conf;
+  const netconf = wallet.netconf;
   const [balance, setBalance] = useState(wallet.c.balance ?? null);
   const [txCount, setTxCount] = useState(wallet.c.transactions?.length ?? null);
   const [keysOwned, setKeysOwned] = useState(wallet.c.ownedKeys?.length ?? 0);
@@ -316,7 +316,7 @@ function Wallet_card({wallet, onClick}){
         setConnErr(true);
       }
     })();
-  }, [wallet.ls.id, wallet.ls.network, conf.electrum]);
+  }, [wallet.ls.id, wallet.ls.network, netconf.electrum]);
 
   if (!derived){
     return (
@@ -326,7 +326,7 @@ function Wallet_card({wallet, onClick}){
     );
   }
 
-  const symbol = conf.symbol;
+  const symbol = netconf.symbol;
   const label = wallet.ls.name;
   return (
     <div style={cardStyle} onClick={onClick}>
@@ -358,11 +358,11 @@ function Wallet_card({wallet, onClick}){
 }
 
 // Add Wallet Screen
-function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
+function Wallet_add_screen({netconf, wallets, devTools, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('lif');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [derivPath, setDerivPath] = useState(
-    ()=>hd_path_def(networks['lif']));
+    ()=>hd_path_def(netconf['lif']));
   const [mnemonicInput, setMnemonicInput] = useState(bip39.generateMnemonic());
   const defaultName = (()=>{
     let max = 0;
@@ -386,7 +386,7 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
     const pp = usePassphrase ? passphrase : '';
     const dp = showAdvanced ? derivPath.trim() : null;
     try {
-      hd_wallet(mnemonic, networkKey, networks, pp, dp);
+      hd_wallet(mnemonic, networkKey, netconf, pp, dp);
     } catch(e){
       return void setError('Failed to derive wallet: '+e.message);
     }
@@ -413,16 +413,16 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
       <div style={{marginTop: 12}}>
         <label>Coin:</label>
         <div style={{marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4}}>
-          {OE(networks).filter(([key])=>devTools||!nets_list[key]?.test).map(([key, conf])=>(
+          {OE(netconf).filter(([key])=>devTools||!netconf[key].test).map(([key, netconf])=>(
             <label key={key} style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
               <input
                 type="radio"
                 name="network"
                 value={key}
                 checked={networkKey==key}
-                onChange={()=>{ setNetworkKey(key); setDerivPath(hd_path_def(networks[key])); }}
+                onChange={()=>{ setNetworkKey(key); setDerivPath(hd_path_def(netconf[key])); }}
               />
-              {conf.symbol} ({conf.name})
+              {netconf.symbol} ({netconf.name})
             </label>
           ))}
         </div>
@@ -505,7 +505,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
   refreshTick, setWalletLoading})
 {
   const modal = useModal();
-  const conf = wallet.conf;
+  const netconf = wallet.netconf;
   const [balance, setBalance] = useState(wallet.c.balance ?? null);
   const [transactions, setTransactions] = useState(wallet.c.transactions ?? []);
   const [ownedKeys, setOwnedKeys] = useState(wallet.c.ownedKeys ?? []);
@@ -536,7 +536,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
     })();
   }, [wallet.ls.id, wallet.ls.network, refreshTick]);
 
-  const symbol = conf.symbol;
+  const symbol = netconf.symbol;
   const label = wallet.ls.name;
   return (
     <div>
@@ -546,7 +546,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
       </div>
       {connErr && (
         <p style={{color: '#c00', marginTop: 8}}>
-          Failed to connect to Electrum server ({conf.electrum})
+          Failed to connect to Electrum server ({netconf.electrum})
         </p>
       )}
       <div style={{marginTop: 6}}>
@@ -559,8 +559,8 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
       <div style={{display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center'}}>
         <button onClick={onReceive} disabled={!allAddrs.length}>Receive</button>
         <button onClick={onSend} disabled={!allAddrs.length}>Send</button>
-        {conf.lif_kv && <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain Name</button>}
-        {conf.lif_kv && devTools && <button onClick={onKvAddRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
+        {netconf.lif_kv && <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain Name</button>}
+        {netconf.lif_kv && devTools && <button onClick={onKvAddRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
         {devTools && transactions.some(tx=>!tx.timestamp) && (
           <button onClick={async()=>{
             try {
@@ -598,10 +598,10 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
           <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
             {transactions_sorted(transactions).map((tx, i)=>{
               const addrSet = new Set(allAddrs.map(a=>a.address));
-              const kvReceived = conf.lif_kv
+              const kvReceived = netconf.lif_kv
                 ? ownedKeys.filter(k=>k.tx==tx.tx_hash)
                 : [];
-              const kvSent = conf.lif_kv
+              const kvSent = netconf.lif_kv
                 ? (tx._vtx?.vout||[]).flatMap(v=>{
                     const saddr = v.scriptPubKey?.address||v.scriptPubKey?.addresses?.[0];
                     return (v.lif_kv && !addrSet.has(saddr)) ? v.lif_kv : [];
@@ -609,7 +609,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
                 : [];
               return (
                 <li key={i}
-                  onClick={()=>onSelectTx({tx, conf, walletAddrs: addrSet})}
+                  onClick={()=>onSelectTx({tx, netconf, walletAddrs: addrSet})}
                   style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
                     borderBottom: '1px solid #eee'}}
                 >
@@ -642,11 +642,11 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
 
 // Wallet Settings Subscreen
 function Wallet_settings_subscreen({wallet, onUpdate, onDelete}){
-  const conf = wallet.conf;
+  const netconf = wallet.netconf;
   const [revealed, setRevealed] = useState(false);
   const [name, setName] = useState(wallet.ls.name);
   const hasPassphrase = !!wallet.ls.passphrase;
-  const derivPath = wallet.ls.derivPath || hd_path_def(conf);
+  const derivPath = wallet.ls.derivPath || hd_path_def(netconf);
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Wallet Settings</h3>
@@ -663,7 +663,7 @@ function Wallet_settings_subscreen({wallet, onUpdate, onDelete}){
         <tbody>
           <tr>
             <td style={{padding: '5px 12px 5px 0', color: '#666', whiteSpace: 'nowrap'}}>Network</td>
-            <td style={{padding: '5px 0'}}>{conf.name}</td>
+            <td style={{padding: '5px 0'}}>{netconf.name}</td>
           </tr>
           <tr>
             <td style={{padding: '5px 12px 5px 0', color: '#666', whiteSpace: 'nowrap'}}>Derivation path</td>
@@ -757,7 +757,7 @@ function Receive_screen({address, symbol}){
 }
 
 // Key Detail Screen
-function Kv_info_screen({kv_d, conf, devTools, onViewTx, onTransfer, onEdit}){
+function Kv_info_screen({kv_d, netconf, devTools, onViewTx, onTransfer, onEdit}){
   const tx = kv_d._tx;
   const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
@@ -822,11 +822,11 @@ function Kv_info_screen({kv_d, conf, devTools, onViewTx, onTransfer, onEdit}){
 }
 
 // Tx Detail Screen
-function Tx_info_screen({tx, conf, walletAddrs, walletName}){
+function Tx_info_screen({tx, netconf, walletAddrs, walletName}){
   const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
   const positive = tx.amount>=0;
-  const symbol = conf.symbol;
+  const symbol = netconf.symbol;
   const voutAddr = (vout)=>vout.scriptPubKey?.address
     || vout.scriptPubKey?.addresses?.[0] || '?';
   return (
@@ -845,8 +845,8 @@ function Tx_info_screen({tx, conf, walletAddrs, walletName}){
         </div>
       }
       <div style={{marginTop: 8}}><strong>TXID: </strong>
-        {conf.explorer_tx && (
-          <a href={conf.explorer_tx+tx.tx_hash} target="_blank" rel="noreferrer">
+        {netconf.explorer_tx && (
+          <a href={netconf.explorer_tx+tx.tx_hash} target="_blank" rel="noreferrer">
             View on block explorer
           </a>
         )}
@@ -927,8 +927,8 @@ function Amount({sat, symbol, signed}){
   );
 }
 
-function Fee_field({value, onChange, conf}){
-  const symbol = conf?.symbol;
+function Fee_field({value, onChange, netconf}){
+  const symbol = netconf.symbol;
   const [editing, setEditing] = useState(false);
   const [str, setStr] = useState((value/1e8).toFixed(8));
   useEffect(()=>{
@@ -1062,7 +1062,7 @@ function Amount_field({value, onChange, symbol, onValid, min=0}){
 // Send Screen
 function Send_screen({wallet, onSent}){
   const modal = useModal();
-  const {conf, network, c: {utxos=[], changeAddrInfo}} = wallet;
+  const {netconf, network, c: {utxos=[], changeAddrInfo}} = wallet;
   const {setValid, isValid} = useFormValid();
   const [toAddress, setToAddress] = useState('');
   const [amountSat, setAmountSat] = useState(0);
@@ -1084,9 +1084,9 @@ function Send_screen({wallet, onSent}){
       if (err)
         throw Error(err);
       const txid = tx.getId();
-      await tx_broadcast(conf, tx);
+      await tx_broadcast(netconf, tx);
       setFee(_fee);
-      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
+      const explorerLink = netconf.explorer_tx ? `\n${netconf.explorer_tx}${txid}` : '';
       await modal.alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
       setToAddress('');
       setAmountSat(0);
@@ -1097,7 +1097,7 @@ function Send_screen({wallet, onSent}){
       setSending(false);
     }
   };
-  const symbol = conf.symbol;
+  const symbol = netconf.symbol;
   return (
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Send {symbol}</h3>
@@ -1105,7 +1105,7 @@ function Send_screen({wallet, onSent}){
       {!balOk && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>Insufficient balance</div>}
       <Addr_field value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
       <Amount_field value={amountSat} onChange={setAmountSat} symbol={symbol} onValid={v=>setValid('amount',v)} min={1} />
-      <Fee_field value={fee} onChange={setFee} conf={conf} />
+      <Fee_field value={fee} onChange={setFee} netconf={netconf} />
       <button onClick={handleSend} disabled={sending||!isValid} style={{marginTop: 8}}>
         {sending ? 'Sending…' : 'Send'}
       </button>
@@ -1116,7 +1116,7 @@ function Send_screen({wallet, onSent}){
 // DNS Domain registration screen (simplified: key=dns/<name>, val={site:...})
 function Kv_add_screen({wallet, onSent}){
   const modal = useModal();
-  const {conf} = wallet;
+  const {netconf} = wallet;
   const {setValid, isValid} = useFormValid();
   const [name, setName] = useState('');
   const [site, setSite] = useState('');
@@ -1141,7 +1141,7 @@ function Kv_add_screen({wallet, onSent}){
       setNameStatus('checking');
       await esleep(500);
       try {
-        const kv = await kv_get(conf, key);
+        const kv = await kv_get(netconf, key);
         setNameStatus(kv ? 'taken' : 'available');
       } catch(e){
         setNameStatus('error');
@@ -1156,7 +1156,7 @@ function Kv_add_screen({wallet, onSent}){
     setSending(true);
     try {
       const {fee: _fee, tx} = kv_tx_add({wallet, key: kv_key(), val: kv_val(), fee});
-      await tx_broadcast(conf, tx);
+      await tx_broadcast(netconf, tx);
       setFee(_fee);
       await modal.alert(`Domain registration sent!\nTXID: ${tx.getId()}`);
       setName('');
@@ -1171,7 +1171,7 @@ function Kv_add_screen({wallet, onSent}){
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Register Domain</h3>
-      <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={conf.symbol} /></div>
+      <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={netconf.symbol} /></div>
       {!balOk && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>Insufficient balance</div>}
       <div style={{marginTop: 12}}>
         <label>Domain name:</label>
@@ -1196,7 +1196,7 @@ function Kv_add_screen({wallet, onSent}){
             fontSize: 13, boxSizing: 'border-box'}}
         />
       </div>
-      <Fee_field value={fee} onChange={setFee} conf={conf} />
+      <Fee_field value={fee} onChange={setFee} netconf={netconf} />
       <button onClick={handle_add} disabled={sending||!isValid||nameStatus=='taken'} style={{marginTop: 12}}>
         {sending ? 'Registering…' : 'Register'}
       </button>
@@ -1207,7 +1207,7 @@ function Kv_add_screen({wallet, onSent}){
 // Raw KV add screen (dev tools)
 function Kv_add_raw_screen({wallet, onSent}){
   const modal = useModal();
-  const {conf} = wallet;
+  const {netconf} = wallet;
   const [kv_key, set_kv_key] = useState('');
   const [kv_val, set_kv_val] = useState('');
   const [sending, setSending] = useState(false);
@@ -1227,7 +1227,7 @@ function Kv_add_raw_screen({wallet, onSent}){
       setNameStatus('checking');
       await esleep(500);
       try {
-        const kv = await kv_get(conf, key);
+        const kv = await kv_get(netconf, key);
         setNameStatus(kv ? 'taken' : 'available');
       } catch(e){
         setNameStatus('error');
@@ -1244,7 +1244,7 @@ function Kv_add_raw_screen({wallet, onSent}){
       const {fee: _fee, tx, err} = kv_tx_add({wallet, key: kv_key.trim(), val: kv_val.trim(), fee});
       if (err)
         await modal.alert(err);
-      await tx_broadcast(conf, tx);
+      await tx_broadcast(netconf, tx);
       setFee(_fee);
       await modal.alert(`Key/value sent!\nTXID: ${tx.getId()}`);
       set_kv_key('');
@@ -1284,7 +1284,7 @@ function Kv_add_raw_screen({wallet, onSent}){
         />
         {valError && <div style={{fontSize: 12, color: '#c00', marginTop: 3}}>Invalid JSON</div>}
       </div>
-      <Fee_field value={fee} onChange={setFee} conf={conf} />
+      <Fee_field value={fee} onChange={setFee} netconf={netconf} />
       <button onClick={handle_add} disabled={sending||nameStatus=='taken'||valError} style={{marginTop: 12}}>
         {sending ? 'Sending…' : 'Send'}
       </button>
@@ -1295,7 +1295,7 @@ function Kv_add_raw_screen({wallet, onSent}){
 // KV Name Transfer Screen
 function Kv_send_screen({wallet, kv_d, devTools, onSent}){
   const modal = useModal();
-  const {conf, network} = wallet;
+  const {netconf, network} = wallet;
   const {setValid, isValid} = useFormValid();
   const [toAddress, setToAddress] = useState('');
   const [sending, setSending] = useState(false);
@@ -1314,10 +1314,10 @@ function Kv_send_screen({wallet, kv_d, devTools, onSent}){
       if (err)
         return await modal.alert(err);
       const txid = tx.getId();
-      await tx_broadcast(conf, tx);
+      await tx_broadcast(netconf, tx);
       setFee(_fee);
       if (devTools)
-        await modal.alert(<>Name transferred!<br/>TXID: {txid}{conf.explorer_tx && <><br/><a href={conf.explorer_tx+txid} target="_blank" rel="noopener noreferrer">View in block explorer</a></>}</>);
+        await modal.alert(<>Name transferred!<br/>TXID: {txid}{netconf.explorer_tx && <><br/><a href={netconf.explorer_tx+txid} target="_blank" rel="noopener noreferrer">View in block explorer</a></>}</>);
       else
         await modal.alert('Name transferred!');
       onSent?.();
@@ -1331,13 +1331,13 @@ function Kv_send_screen({wallet, kv_d, devTools, onSent}){
   return (
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Transfer Name</h3>
-      <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={conf.symbol} /></div>
+      <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={netconf.symbol} /></div>
       {!balOk && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>Insufficient balance</div>}
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         Transferring: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
       </div>
       <Addr_field value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
-      <Fee_field value={fee} onChange={setFee} conf={conf} />
+      <Fee_field value={fee} onChange={setFee} netconf={netconf} />
       <button onClick={handleTransfer} disabled={sending||!isValid} style={{marginTop: 8}}>
         {sending ? 'Transferring…' : 'Transfer'}
       </button>
@@ -1348,7 +1348,7 @@ function Kv_send_screen({wallet, kv_d, devTools, onSent}){
 // KV Name Edit Screen
 function Kv_edit_screen({wallet, kv_d, onSent}){
   const modal = useModal();
-  const conf = wallet.conf;
+  const netconf = wallet.netconf;
   const {setValid, isValid} = useFormValid();
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
@@ -1365,9 +1365,9 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
       if (err)
         return await modal.alert(err);
       const txid = tx.getId();
-      await tx_broadcast(conf, tx);
+      await tx_broadcast(netconf, tx);
       setFee(_fee);
-      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
+      const explorerLink = netconf.explorer_tx ? `\n${netconf.explorer_tx}${txid}` : '';
       await modal.alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
     } catch(err){
@@ -1380,7 +1380,7 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
   return (
     <div style={{marginTop: 16, maxWidth: 400}}>
       <h3>Edit Domain Name</h3>
-      <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={conf.symbol} /></div>
+      <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={netconf.symbol} /></div>
       {!balOk && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>Insufficient balance</div>}
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         Name: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
@@ -1388,7 +1388,7 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         New value: <span style={{fontFamily: 'monospace'}}>{kv_d.val}</span>
       </div>
-      <Fee_field value={fee} onChange={setFee} conf={conf} />
+      <Fee_field value={fee} onChange={setFee} netconf={netconf} />
       <button onClick={handleSave} disabled={sending||!isValid} style={{marginTop: 12}}>
         {sending ? 'Saving…' : 'Save'}
       </button>
@@ -1397,19 +1397,19 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
 }
 
 // Settings Screen
-function Settings_screen({servers, networks, devTools, onSave, onDevToolsToggle,
+function Settings_screen({servers, netconf, devTools, onSave, onDevToolsToggle,
   onDevTools, onBack})
 {
   const modal = useModal();
   const [values, setValues] = useState(()=>{
     const v = {};
-    for (const key in networks)
-      v[key] = servers[key] || networks[key].electrum;
+    for (const key in netconf)
+      v[key] = servers[key] || netconf[key].electrum;
     return v;
   });
   const handleSave = async()=>{
     const newServers = {};
-    for (const key in networks){
+    for (const key in netconf){
       const val = values[key]?.trim();
       if (val)
         newServers[key] = val;
@@ -1418,7 +1418,7 @@ function Settings_screen({servers, networks, devTools, onSave, onDevToolsToggle,
     await modal.alert('Settings saved');
   };
   const handleReset = (key)=>{
-    setValues(v=>({...v, [key]: nets_list[key]?.electrum || ''}));
+    setValues(v=>({...v, [key]: netconf_def[key].electrum}));
   };
   return (
     <div style={{maxWidth: 520}}>
@@ -1427,14 +1427,14 @@ function Settings_screen({servers, networks, devTools, onSave, onDevToolsToggle,
       <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
         Configure the ElectrumX server URL for each network.
       </p>
-      {OE(networks).filter(([key])=>devTools||!nets_list[key]?.test).map(([key, conf])=>(
+      {OE(netconf).filter(([key])=>devTools||!netconf[key]?.test).map(([key, nc])=>(
         <div key={key} style={{marginTop: 14}}>
-          <label style={{fontWeight: 'bold'}}>{conf.name}:</label>
+          <label style={{fontWeight: 'bold'}}>{nc.name}:</label>
           <div style={{display: 'flex', gap: 6, marginTop: 4}}>
             <input
               value={values[key] || ''}
               onChange={e=>setValues(v=>({...v, [key]: e.target.value}))}
-              placeholder={nets_list[key]?.electrum}
+              placeholder={netconf[key].electrum}
               style={{flex: 1, fontFamily: 'monospace', fontSize: 12, boxSizing: 'border-box'}}
             />
             <button onClick={()=>handleReset(key)} title="Reset to default">↺</button>
