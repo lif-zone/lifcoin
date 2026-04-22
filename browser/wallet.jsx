@@ -561,14 +561,14 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
                   </div>
                   {kvReceived.map((k, j)=>(
                     <div key={j} style={{fontSize: 11, marginTop: 2, fontFamily: 'monospace',
-                      color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>
-                      ↓ {k.key}: {trunc(json(k.val), 40)}
+                      color: k._kstatus=='confirmed' ? 'green' : k._kstatus=='receiving' ? '#f90' : '#c00'}}>
+                      {k.key} {trunc(json(k.val), 40)}
                     </div>
                   ))}
                   {kvSent.map((kv, j)=>(
                     <div key={'s'+j} style={{fontSize: 11, marginTop: 2, fontFamily: 'monospace',
                       color: '#c00'}}>
-                      ↑ {kv.key}: {trunc(json(kv.val), 40)}
+                      {kv.key} {trunc(json(kv.val), 40)}
                     </div>
                   ))}
                 </li>
