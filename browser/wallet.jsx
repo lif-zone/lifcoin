@@ -9,6 +9,7 @@ import {nets_list, servers_save, servers_load, wallet_db_init,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
+  LIF_SERVER_DEF, lif_server_load, lif_server_save,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -1456,14 +1457,6 @@ function Settings_screen({servers, networks, devTools, onSave, onDevToolsToggle,
       </div>
     </div>
   );
-}
-
-const LIF_SERVER_DEF = 'http://localhost:8432';
-function lif_server_load(){
-  return localStorage.getItem('lif_server') || LIF_SERVER_DEF;
-}
-function lif_server_save(val){
-  localStorage.setItem('lif_server', val);
 }
 
 // Developer Tools Screen

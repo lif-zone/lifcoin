@@ -708,3 +708,12 @@ export function kv_is_dns(key){
     return;
   return dns;
 }
+
+export const LIF_SERVER_DEF = 'http://localhost:8432';
+export function lif_server_load(){
+  return localStorage.getItem('lif_server') || LIF_SERVER_DEF;
+}
+export function lif_server_save(val){
+  localStorage.setItem('lif_server', val);
+}
+
