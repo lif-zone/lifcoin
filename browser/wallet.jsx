@@ -232,6 +232,7 @@ function BrightWallet(){
         <Kv_send_screen
           wallet={wallet}
           kv_d={selectedKeyData}
+          devTools={devTools}
           onSent={()=>setScreen('wallet_info')}
         />
       )}
@@ -970,7 +971,7 @@ function Addr_field({value, onChange, network, onValid, placeholder='Recipient a
     setScanning(false);
   };
   const startScan = async()=>{
-    if (!('BarcodeDetector' in window))
+    if (!window.BarcodeDetector)
       return await modal.alert('QR scanning not supported in this browser');
     try {
       const stream = await navigator.mediaDevices.getUserMedia(
@@ -984,7 +985,7 @@ function Addr_field({value, onChange, network, onValid, placeholder='Recipient a
   useEffect(()=>{
     if (!scanning || !videoRef.current) return;
     videoRef.current.srcObject = streamRef.current;
-    const detector = new BarcodeDetector({formats: ['qr_code']});
+    const detector = new window.BarcodeDetector({formats: ['qr_code']});
     let rafId;
     const scan = async()=>{
       try {
@@ -1291,7 +1292,7 @@ function Kv_add_raw_screen({wallet, onSent}){
 }
 
 // KV Name Transfer Screen
-function Kv_send_screen({wallet, kv_d, onSent}){
+function Kv_send_screen({wallet, kv_d, devTools, onSent}){
   const modal = useModal();
   const {conf, network} = wallet;
   const {setValid, isValid} = useFormValid();
@@ -1314,8 +1315,10 @@ function Kv_send_screen({wallet, kv_d, onSent}){
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(_fee);
-      const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
-      await modal.alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
+      if (devTools)
+        await modal.alert(<>Name transferred!<br/>TXID: {txid}{conf.explorer_tx && <><br/><a href={conf.explorer_tx+txid} target="_blank" rel="noopener noreferrer">View in block explorer</a></>}</>);
+      else
+        await modal.alert('Name transferred!');
       onSent?.();
     } catch(err){
       await modal.alert(err.message);

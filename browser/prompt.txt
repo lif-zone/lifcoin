@@ -1056,3 +1056,11 @@ USER: Replace alert()/confirm() with a modal overlay with X button and click-out
 CLAUDE: Added ModalContext/ModalProvider/useModal hook. Modal shows a centered white card over a dark overlay; X button and clicking outside both close it; message uses white-space:pre-wrap. Wrapped app in ModalProvider via App component. Added const modal=useModal() to 8 components and replaced all alert() calls with await modal.alert(). Settings handleSave made async.
 
 ---
+
+---
+
+USER: In the 'Name Transferred' alert message, in regular mode, don't show the TXID and the explorer link. In dev_tools mode, show the TXID and show a link 'View in block explorer' that will link the block explorer URL for that TX.
+
+CLAUDE: Added devTools prop to Kv_send_screen and passed it from BrightWallet. Changed the Name transferred alert to show just "Name transferred!" in regular mode, and in devTools mode show JSX with TXID + clickable "View in block explorer" link using conf.explorer_tx URL.
+
+---
