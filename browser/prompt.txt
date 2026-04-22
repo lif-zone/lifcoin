@@ -1044,3 +1044,15 @@ USER: Move QR icon to the right side of Addr_field.
 CLAUDE: Swapped order — input first (flex:1), QR button after it.
 
 ---
+
+USER: Replace all native alert(...) calls in wallet.jsx with await modal.alert(...), adding const modal = useModal(); to each affected component/function.
+
+CLAUDE: Replaced all 20 native alert() calls across 8 functions/components (Addr_field, Wallet_screen, Send_screen, Kv_add_screen, Kv_add_raw_screen, Kv_send_screen, Kv_edit_screen, Settings_screen) with await modal.alert(). Added const modal = useModal(); as first line in each function body. Changed return alert(...) to return await modal.alert(...) for early-return cases. Made Settings_screen.handleSave async to support await.
+
+---
+
+USER: Replace alert()/confirm() with a modal overlay with X button and click-outside to close.
+
+CLAUDE: Added ModalContext/ModalProvider/useModal hook. Modal shows a centered white card over a dark overlay; X button and clicking outside both close it; message uses white-space:pre-wrap. Wrapped app in ModalProvider via App component. Added const modal=useModal() to 8 components and replaced all alert() calls with await modal.alert(). Settings handleSave made async.
+
+---

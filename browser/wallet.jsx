@@ -1,5 +1,5 @@
 // wallet.jsx - bright wallet - BTC, LIF, multi-wallet support
-import React, {useState, useEffect, useMemo, useRef} from 'react';
+import React, {useState, useEffect, useMemo, useRef, createContext, useContext, useCallback} from 'react';
 import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
@@ -12,6 +12,39 @@ import {nets_list, servers_save, servers_load, wallet_db_init,
 } from './wallet_db.js';
 
 await wallet_db_init();
+
+// Modal
+const ModalContext = createContext(null);
+function ModalProvider({children}){
+  const [modal, setModal] = useState(null);
+  const alert = useCallback(msg=>new Promise(resolve=>{
+    setModal({msg, resolve});
+  }), []);
+  const close = ()=>{ modal?.resolve(); setModal(null); };
+  return (
+    <ModalContext.Provider value={{alert}}>
+      {children}
+      {modal && (
+        <div onClick={close}
+          style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{background: '#fff', borderRadius: 8, padding: 24, maxWidth: 420,
+              width: '90%', position: 'relative', boxShadow: '0 4px 24px rgba(0,0,0,0.2)'}}>
+            <button onClick={close}
+              style={{position: 'absolute', top: 8, right: 10, background: 'none',
+                border: 'none', fontSize: 18, cursor: 'pointer', lineHeight: 1}}>
+              ✕
+            </button>
+            <div style={{whiteSpace: 'pre-wrap', marginTop: 4, marginRight: 16}}>{modal.msg}</div>
+            <button onClick={close} style={{marginTop: 16}}>OK</button>
+          </div>
+        </div>
+      )}
+    </ModalContext.Provider>
+  );
+}
+function useModal(){ return useContext(ModalContext); }
 
 function json(o){
   return JSON.stringify(o);
@@ -469,6 +502,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
   onSelectKey, onSend, onReceive, onKvAdd, onKvAddRaw, onSettings,
   refreshTick, setWalletLoading})
 {
+  const modal = useModal();
   const conf = wallet.conf;
   const [balance, setBalance] = useState(wallet.c.balance ?? null);
   const [transactions, setTransactions] = useState(wallet.c.transactions ?? []);
@@ -532,7 +566,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
               setLoading(true);
               wallet_apply(await wallet_fetch(wallet, true));
             } catch(e){
-              alert(e.message);
+              await modal.alert(e.message);
             } finally {
               setLoading(false);
             }
@@ -777,7 +811,7 @@ function Kv_info_screen({kv_d, conf, devTools, onViewTx, onTransfer, onEdit}){
           {devTools && <button onClick={()=>onViewTx(tx)}>View Transaction</button>}
           <button onClick={onTransfer} disabled={isSpent}
             style={{color: '#c00', border: '1px solid #c00', background: 'transparent'}}>
-            Transfer Domain Nane
+            Transfer Domain Name
           </button>
         </div>
       </>)}
@@ -923,6 +957,7 @@ function Fee_field({value, onChange, conf}){
 }
 
 function Addr_field({value, onChange, network, onValid, placeholder='Recipient address'}){
+  const modal = useModal();
   const valid = addr_valid(value, network);
   const err = value && !valid ? 'Invalid address' : '';
   const [scanning, setScanning] = useState(false);
@@ -936,14 +971,14 @@ function Addr_field({value, onChange, network, onValid, placeholder='Recipient a
   };
   const startScan = async()=>{
     if (!('BarcodeDetector' in window))
-      return alert('QR scanning not supported in this browser');
+      return await modal.alert('QR scanning not supported in this browser');
     try {
       const stream = await navigator.mediaDevices.getUserMedia(
         {video: {facingMode: 'environment'}});
       streamRef.current = stream;
       setScanning(true);
     } catch(e){
-      alert('Camera not available: '+e.message);
+      await modal.alert('Camera not available: '+e.message);
     }
   };
   useEffect(()=>{
@@ -1024,6 +1059,7 @@ function Amount_field({value, onChange, symbol, onValid, min=0}){
 
 // Send Screen
 function Send_screen({wallet, onSent}){
+  const modal = useModal();
   const {conf, network, c: {utxos=[], changeAddrInfo}} = wallet;
   const {setValid, isValid} = useFormValid();
   const [toAddress, setToAddress] = useState('');
@@ -1049,12 +1085,12 @@ function Send_screen({wallet, onSent}){
       await tx_broadcast(conf, tx);
       setFee(_fee);
       const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
-      alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
+      await modal.alert(`Transaction sent!\nTXID: ${txid}${explorerLink}`);
       setToAddress('');
       setAmountSat(0);
       onSent?.();
     } catch(err){
-      alert(err.message);
+      await modal.alert(err.message);
     } finally {
       setSending(false);
     }
@@ -1077,6 +1113,7 @@ function Send_screen({wallet, onSent}){
 
 // DNS Domain registration screen (simplified: key=dns/<name>, val={site:...})
 function Kv_add_screen({wallet, onSent}){
+  const modal = useModal();
   const {conf} = wallet;
   const {setValid, isValid} = useFormValid();
   const [name, setName] = useState('');
@@ -1111,20 +1148,20 @@ function Kv_add_screen({wallet, onSent}){
   }, [name]);
   const handle_add = async()=>{
     if (!name.trim())
-      return alert('Name is required');
+      return await modal.alert('Name is required');
     if (!site.trim())
-      return alert('Site is required');
+      return await modal.alert('Site is required');
     setSending(true);
     try {
       const {fee: _fee, tx} = kv_tx_add({wallet, key: kv_key(), val: kv_val(), fee});
       await tx_broadcast(conf, tx);
       setFee(_fee);
-      alert(`Domain registration sent!\nTXID: ${tx.getId()}`);
+      await modal.alert(`Domain registration sent!\nTXID: ${tx.getId()}`);
       setName('');
       setSite('');
       onSent?.();
     } catch(err){
-      alert(err.message);
+      await modal.alert(err.message);
     } finally {
       setSending(false);
     }
@@ -1167,6 +1204,7 @@ function Kv_add_screen({wallet, onSent}){
 
 // Raw KV add screen (dev tools)
 function Kv_add_raw_screen({wallet, onSent}){
+  const modal = useModal();
   const {conf} = wallet;
   const [kv_key, set_kv_key] = useState('');
   const [kv_val, set_kv_val] = useState('');
@@ -1196,22 +1234,22 @@ function Kv_add_raw_screen({wallet, onSent}){
   }, [kv_key]);
   const handle_add = async()=>{
     if (!kv_key.trim())
-      return alert('Key is required');
+      return await modal.alert('Key is required');
     if (!kv_val.trim())
-      return alert('Value is required');
+      return await modal.alert('Value is required');
     setSending(true);
     try {
       const {fee: _fee, tx, err} = kv_tx_add({wallet, key: kv_key.trim(), val: kv_val.trim(), fee});
       if (err)
-        alert(err);
+        await modal.alert(err);
       await tx_broadcast(conf, tx);
       setFee(_fee);
-      alert(`Key/value sent!\nTXID: ${tx.getId()}`);
+      await modal.alert(`Key/value sent!\nTXID: ${tx.getId()}`);
       set_kv_key('');
       set_kv_val('');
       onSent?.();
     } catch(err){
-      alert(err.message);
+      await modal.alert(err.message);
     } finally {
       setSending(false);
     }
@@ -1254,6 +1292,7 @@ function Kv_add_raw_screen({wallet, onSent}){
 
 // KV Name Transfer Screen
 function Kv_send_screen({wallet, kv_d, onSent}){
+  const modal = useModal();
   const {conf, network} = wallet;
   const {setValid, isValid} = useFormValid();
   const [toAddress, setToAddress] = useState('');
@@ -1271,15 +1310,15 @@ function Kv_send_screen({wallet, kv_d, onSent}){
     try {
       const {fee: _fee, tx, err} = kv_tx_send({wallet, kv_d, saddr_to: toAddress.trim(), fee});
       if (err)
-        return alert(err);
+        return await modal.alert(err);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(_fee);
       const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
-      alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
+      await modal.alert(`Name transferred!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
     } catch(err){
-      alert(err.message);
+      await modal.alert(err.message);
     } finally {
       setSending(false);
     }
@@ -1304,6 +1343,7 @@ function Kv_send_screen({wallet, kv_d, onSent}){
 
 // KV Name Edit Screen
 function Kv_edit_screen({wallet, kv_d, onSent}){
+  const modal = useModal();
   const conf = wallet.conf;
   const {setValid, isValid} = useFormValid();
   const [sending, setSending] = useState(false);
@@ -1319,15 +1359,15 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
     try {
       const {fee: _fee, tx, err} = kv_tx_edit({wallet, kv_d, fee});
       if (err)
-        return alert(err);
+        return await modal.alert(err);
       const txid = tx.getId();
       await tx_broadcast(conf, tx);
       setFee(_fee);
       const explorerLink = conf.explorer_tx ? `\n${conf.explorer_tx}${txid}` : '';
-      alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
+      await modal.alert(`Name updated!\nTXID: ${txid}${explorerLink}`);
       onSent?.();
     } catch(err){
-      alert(err.message);
+      await modal.alert(err.message);
     } finally {
       setSending(false);
     }
@@ -1356,13 +1396,14 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
 function Settings_screen({servers, networks, devTools, onSave, onDevToolsToggle,
   onDevTools, onBack})
 {
+  const modal = useModal();
   const [values, setValues] = useState(()=>{
     const v = {};
     for (const key in networks)
       v[key] = servers[key] || networks[key].electrum;
     return v;
   });
-  const handleSave = ()=>{
+  const handleSave = async()=>{
     const newServers = {};
     for (const key in networks){
       const val = values[key]?.trim();
@@ -1370,7 +1411,7 @@ function Settings_screen({servers, networks, devTools, onSave, onDevToolsToggle,
         newServers[key] = val;
     }
     onSave(newServers);
-    alert('Settings saved');
+    await modal.alert('Settings saved');
   };
   const handleReset = (key)=>{
     setValues(v=>({...v, [key]: nets_list[key]?.electrum || ''}));
@@ -1480,4 +1521,7 @@ function Devtools_screen({onCacheClear, onBack}){
   );
 }
 
-export default BrightWallet;
+function App(){
+  return <ModalProvider><BrightWallet /></ModalProvider>;
+}
+export default App;
