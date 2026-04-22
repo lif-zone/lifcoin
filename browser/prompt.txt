@@ -1032,3 +1032,9 @@ USER: Add QR scan icon inside Addr_field on the left of the input — clicking o
 CLAUDE: Added QR scan button (⬛) to left of input in Addr_field. Uses BarcodeDetector API + getUserMedia. On click: opens camera stream in a fullscreen overlay with a video element. Scans frames via requestAnimationFrame, on QR detection calls onChange(result) and stops camera. Cancel button stops stream. Falls back to alert if BarcodeDetector not supported.
 
 ---
+
+USER: Use browser/qrcode.svg for the QR scan icon in Addr_field.
+
+CLAUDE: Replaced ⬛ text with <img src={import.meta.resolve('./qrcode.svg')} style={{width:20,height:20}} /> inside the button.
+
+---

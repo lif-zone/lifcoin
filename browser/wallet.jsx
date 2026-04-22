@@ -969,7 +969,9 @@ function Addr_field({value, onChange, network, onValid, placeholder='Recipient a
     <div>
       <div style={{display: 'flex', gap: 4, marginTop: 8}}>
         <button onClick={startScan} title="Scan QR code"
-          style={{flexShrink: 0, fontSize: 16, padding: '2px 6px'}}>⬛</button>
+          style={{flexShrink: 0, padding: '2px 4px', lineHeight: 0}}>
+          <img src={import.meta.resolve('./qrcode.svg')} style={{width: 20, height: 20}} />
+        </button>
         <input
           placeholder={placeholder}
           value={value}
