@@ -522,8 +522,15 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
         {conf.lif_kv && devTools && <button onClick={onKvRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
         {devTools && transactions.some(tx=>!tx.timestamp) && (
           <button onClick={async()=>{
-            try { await fetch(lif_server_load()+'/mine', {method: 'POST'}); }
-            catch(e){ alert(e.message); }
+            try {
+              await fetch(lif_server_load()+'/mine', {method: 'POST'});
+              setLoading(true);
+              wallet_apply(await wallet_fetch(wallet, true));
+            } catch(e){
+              alert(e.message);
+            } finally {
+              setLoading(false);
+            }
           }}>Mine block</button>
         )}
         <button onClick={onSettings} style={{marginLeft: 'auto'}}>⚙ Settings</button>

@@ -948,3 +948,9 @@ USER: In devTools mode, in Wallet_screen, when there are unconfirmed transaction
 CLAUDE: Added conditional button: shown when devTools && transactions.some(tx=>!tx.timestamp). Calls lif_server_load()+'/mine' via POST. Shows alert on error.
 
 ---
+
+USER: Refetch wallet data after mining.
+
+CLAUDE: After mine POST succeeds, calls setLoading(true), wallet_apply(await wallet_fetch(wallet, true)), setLoading(false) in finally.
+
+---
