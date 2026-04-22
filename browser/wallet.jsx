@@ -560,15 +560,24 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
                     <Amount sat={tx.amount} symbol={symbol} signed />
                   </div>
                   {kvReceived.map((k, j)=>(
-                    <div key={j} style={{fontSize: 11, marginTop: 2, fontFamily: 'monospace',
-                      color: k._kstatus=='confirmed' ? 'green' : k._kstatus=='receiving' ? '#f90' : '#c00'}}>
-                      {k.key} {trunc(json(k.val), 40)}
+                    <div key={j} style={{display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 2}}>
+                      <span style={{fontFamily: 'monospace', fontSize: 11,
+                        color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>
+                        {k.key}
+                      </span>
+                      <span style={{fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap', maxWidth: 220}}>
+                        {trunc(json(k.val), 40)}
+                      </span>
                     </div>
                   ))}
                   {kvSent.map((kv, j)=>(
-                    <div key={'s'+j} style={{fontSize: 11, marginTop: 2, fontFamily: 'monospace',
-                      color: '#c00'}}>
-                      {kv.key} {trunc(json(kv.val), 40)}
+                    <div key={'s'+j} style={{display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 2}}>
+                      <span style={{fontFamily: 'monospace', fontSize: 11, color: '#c00'}}>{kv.key}</span>
+                      <span style={{fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap', maxWidth: 220}}>
+                        {trunc(json(kv.val), 40)}
+                      </span>
                     </div>
                   ))}
                 </li>

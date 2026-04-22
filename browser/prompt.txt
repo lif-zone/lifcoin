@@ -924,3 +924,9 @@ USER: In Wallet_screen transactions list, show KV lines under each transaction: 
 CLAUDE: Restructured tx list items from flex row to column. Added kvReceived (ownedKeys filtered by tx_hash) with _kstatus coloring, and kvSent (tx._vtx.vout lif_kv entries going to non-wallet addresses, always red). Prefix ↓ for received, ↑ for sent. addrSet computed per row and reused for onSelectTx.
 
 ---
+
+USER: KV lines in Transactions section should look exactly like Names section: key left with color, value right truncated with ellipsis, no overflow.
+
+CLAUDE: Replaced plain div KV lines with flex rows matching Names section exactly: key span left (monospace, colored), value span right (overflow:hidden, textOverflow:ellipsis, whiteSpace:nowrap, maxWidth:220, color:#666).
+
+---
