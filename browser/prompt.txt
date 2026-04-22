@@ -996,3 +996,9 @@ USER: Auto-trim site field in Kv_add_screen.
 CLAUDE: Added .trim() to onChange for site input in Kv_add_screen.
 
 ---
+
+USER: Move Settings button to the right side of the wallet name title line.
+
+CLAUDE: Replaced plain h2 with a flex row (h2 left, ⚙ button right). Removed Settings button from the action buttons row.
+
+---

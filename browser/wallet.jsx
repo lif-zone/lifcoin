@@ -502,7 +502,10 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
   const label = wallet.ls.name;
   return (
     <div>
-      <h2>{label}</h2>
+      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+        <h2 style={{margin: 0}}>{label}</h2>
+        <button onClick={onSettings}>⚙</button>
+      </div>
       {connErr && (
         <p style={{color: '#c00', marginTop: 8}}>
           Failed to connect to Electrum server ({conf.electrum})
@@ -533,7 +536,6 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
             }
           }}>Mine block</button>
         )}
-        <button onClick={onSettings} style={{marginLeft: 'auto'}}>⚙ Settings</button>
       </div>
       <div style={{marginTop: 16}}>
         {ownedKeys.length > 0 && (<>
