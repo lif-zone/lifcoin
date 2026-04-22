@@ -785,17 +785,16 @@ function Tx_info_screen({tx, conf, walletAddrs, walletName}){
           <Amount sat={tx.amount} symbol={symbol} signed />
         </div>
       }
-      <div style={{marginTop: 8}}><strong>TXID:</strong></div>
-      <div style={{fontFamily: 'monospace', wordBreak: 'break-all', fontSize: 13, marginTop: 2}}>
-        {tx.tx_hash}
-      </div>
-      {conf.explorer_tx && (
-        <div style={{marginTop: 8}}>
+      <div style={{marginTop: 8}}><strong>TXID: </strong>
+        {conf.explorer_tx && (
           <a href={conf.explorer_tx+tx.tx_hash} target="_blank" rel="noreferrer">
             View on block explorer
           </a>
-        </div>
-      )}
+        )}
+      </div>
+      <div style={{fontFamily: 'monospace', wordBreak: 'break-all', fontSize: 13, marginTop: 2}}>
+        {tx.tx_hash}
+      </div>
       {tx._vtx && (<>
         <h4 style={{marginTop: 16}}>Inputs</h4>
         {(tx._vtx.vin||[]).map((vin, i)=>{
