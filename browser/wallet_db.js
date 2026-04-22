@@ -91,7 +91,6 @@ networks_init();
 
 const HD_SCAN_GAP = 20;
 const DUST_VAL = 1;
-export const LIF_DOMAINS = ['pub.site', 'lif.site', 'lif.zone'];
 
 function Electrum_connect(url){
   let u = URL.parse(url);
@@ -700,3 +699,12 @@ export function kv_tx_edit({wallet, kv_d, fee}){
   return tx_fund({wallet, p, in_sign, fee});
 }
 
+export const LIF_DOMAINS = ['pub.site', 'lif.site', 'lif.zone'];
+export function kv_is_dns(key){
+  if (!key.startsWith('dns/'))
+    return;
+  let dns = key.slice(4);
+  if (!/^[a-z0-9-_]+$/.test(dns))
+    return;
+  return dns;
+}
