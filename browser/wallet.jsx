@@ -3,7 +3,7 @@ import React, {useState, useEffect, useMemo, useRef, createContext, useContext, 
 import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
-import {settings_get, settings_save, wallet_db_init,
+import {settings_get, settings_save, wallet_db_init, ewait,
   wallet_fetch, OV, OA, OE, esleep,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
@@ -17,11 +17,13 @@ const settings = settings_get();
 
 // Modal
 const ModalContext = createContext(null);
-function ModalProvider({children}){
+function Modal_provider({children}){
   const [modal, setModal] = useState(null);
-  const alert = useCallback(msg=>new Promise(resolve=>{
-    setModal({msg, resolve});
-  }), []);
+  const alert = useCallback(async(msg)=>{
+    let wait = ewait();
+    setModal({msg, resolve: ()=>wait.return()});
+    await wait;
+  }, []);
   const close = ()=>{ modal?.resolve(); setModal(null); };
   return (
     <ModalContext.Provider value={{alert}}>
@@ -1510,6 +1512,6 @@ function Devtools_screen({onCacheClear, onBack}){
 }
 
 function App(){
-  return <ModalProvider><BrightWallet /></ModalProvider>;
+  return <Modal_provider><BrightWallet /></Modal_provider>;
 }
 export default App;
