@@ -269,6 +269,14 @@ export function servers_save(servers){
   localStorage.setItem('electrum_servers', JSON.stringify(servers));
 }
 
+export const LIF_SERVER_DEF = 'http://localhost:8432';
+export function lif_server_load(){
+  return localStorage.getItem('lif_server') || LIF_SERVER_DEF;
+}
+export function lif_server_save(val){
+  localStorage.setItem('lif_server', val);
+}
+
 // IndexedDB Cache
 let db;
 async function db_init(){
@@ -707,13 +715,5 @@ export function kv_is_dns(key){
   if (!/^[a-z0-9-_]+$/.test(dns))
     return;
   return dns;
-}
-
-export const LIF_SERVER_DEF = 'http://localhost:8432';
-export function lif_server_load(){
-  return localStorage.getItem('lif_server') || LIF_SERVER_DEF;
-}
-export function lif_server_save(val){
-  localStorage.setItem('lif_server', val);
 }
 
