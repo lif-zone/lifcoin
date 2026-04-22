@@ -7,7 +7,7 @@ import {nets_list, servers_save, servers_load, wallet_db_init,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
-  cache_clear, wallet_bal,
+  cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -729,6 +729,17 @@ function Kv_info_screen({kv_d, conf, devTools, onViewTx, onTransfer, onEdit}){
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
       <h3>Domain Name <span style={{color: statusColor, fontFamily: 'monospace'}}>{kv_d.key}</span></h3>
+      {(()=>{ const dns = kv_is_dns(kv_d.key); return dns && (
+        <div style={{marginTop: 8}}>
+          {LIF_DOMAINS.map(domain=>(
+            <div key={domain}>
+              <a href={`https://${dns}.${domain}`} target="_blank" rel="noreferrer">
+                https://{dns}.{domain}
+              </a>
+            </div>
+          ))}
+        </div>
+      ); })()}
       <div style={{marginTop: 12}}>
         <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
           <strong>Value:</strong>

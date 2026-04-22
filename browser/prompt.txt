@@ -1014,3 +1014,9 @@ USER: Rename "Transfer" to "Transfer Domain" and style it red like Delete Wallet
 CLAUDE: Renamed button to "Transfer Domain", applied style color:#c00, border:1px solid #c00, background:transparent — matching Delete Wallet button.
 
 ---
+
+USER: In Kv_info_screen, if kv_is_dns(key), show clickable https links for each LIF_DOMAINS entry, between title and Value.
+
+CLAUDE: Imported kv_is_dns, LIF_DOMAINS from wallet_db.js. Added IIFE block before Value section: if kv_is_dns(key) returns dns, renders a div with one <a> link per LIF_DOMAINS entry (https://${dns}.${domain}).
+
+---
