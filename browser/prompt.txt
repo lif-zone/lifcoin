@@ -1020,3 +1020,9 @@ USER: In Kv_info_screen, if kv_is_dns(key), show clickable https links for each 
 CLAUDE: Imported kv_is_dns, LIF_DOMAINS from wallet_db.js. Added IIFE block before Value section: if kv_is_dns(key) returns dns, renders a div with one <a> link per LIF_DOMAINS entry (https://${dns}.${domain}).
 
 ---
+
+USER: Add QR code of the address in Receive_screen.
+
+CLAUDE: Installed qrcode npm package. Added useRef import and QRCode import. Added canvasRef + useEffect calling QRCode.toCanvas on address change. Canvas rendered above the address text, 220px wide.
+
+---

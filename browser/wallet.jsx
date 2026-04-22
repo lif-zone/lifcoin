@@ -1,5 +1,6 @@
 // wallet.jsx - bright wallet - BTC, LIF, multi-wallet support
-import React, {useState, useEffect, useMemo} from 'react';
+import React, {useState, useEffect, useMemo, useRef} from 'react';
+import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import {nets_list, servers_save, servers_load, wallet_db_init,
@@ -678,18 +679,24 @@ function Wallet_settings_subscreen({wallet, onUpdate, onDelete}){
 // Receive Screen
 function Receive_screen({address, symbol}){
   const [copied, setCopied] = useState(false);
+  const canvasRef = useRef(null);
   const handleCopy = async()=>{
     navigator.clipboard.writeText(address);
     setCopied(true);
     await esleep(2000);
     setCopied(false);
   };
+  useEffect(()=>{
+    if (canvasRef.current && address)
+      QRCode.toCanvas(canvasRef.current, address, {width: 220, margin: 2});
+  }, [address]);
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Receive {symbol}</h3>
       <p style={{color: '#666', fontSize: 13, marginTop: 4}}>
         Fresh address — a new one will appear after it receives funds.
       </p>
+      {address && <canvas ref={canvasRef} style={{display: 'block', marginTop: 12}} />}
       <div
         onClick={handleCopy}
         style={{
