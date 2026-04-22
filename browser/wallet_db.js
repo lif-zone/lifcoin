@@ -457,10 +457,10 @@ export function hd_addr(root, accountPath, network, chain, index){
   return {address, keyPair, chain, index};
 }
 
-export function hd_wallet(mnemonic, networkKey, networks, passphrase='',
+export function hd_wallet(mnemonic, networkKey, passphrase='',
   derivPath=null)
 {
-  const netconf = networks[networkKey];
+  const netconf = g_settings.netconf[networkKey];
   const network = netconf.network;
   const root = hd_root(mnemonic, network, passphrase);
   const accountPath = derivPath || hd_path_def(netconf);

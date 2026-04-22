@@ -77,7 +77,6 @@ const newCardStyle = {
 // Main App
 function BrightWallet(){
   const [servers, setServers] = useState(()=>electrum_get());
-  const netconf = netconf_get();
   const [wallets, setWallets] = useState(()=>wallets_get());
   const [screen, setScreen] = useState('home');
   const [activeWalletId, setActiveWalletId] = useState(null);
@@ -91,7 +90,7 @@ function BrightWallet(){
   const [homeRefreshTick, setHomeRefreshTick] = useState(0);
   useEffect(()=>{
     setWallets(wallets_get());
-  }, [netconf]);
+  }, []);
   const addWallet = (w_ls)=>{
     wallet_add(w_ls);
     setWallets(wallets_get());
@@ -156,7 +155,6 @@ function BrightWallet(){
       )}
       {screen=='wallet_add' && (
         <Wallet_add_screen
-          netconf={netconf}
           wallets={wallets}
           devTools={devTools}
           onAdd={(w_ls)=>{ addWallet(w_ls); goHome(); }}
@@ -213,16 +211,14 @@ function BrightWallet(){
       )}
       {screen=='tx_info' && selectedTxData && wallet && (
         <Tx_info_screen
+          wallet={wallet}
           tx={selectedTxData.tx}
-          netconf={selectedTxData.netconf}
           walletAddrs={selectedTxData.walletAddrs}
-          walletName={wallet.ls.name || 'Wallet'}
         />
       )}
       {screen=='kv_info' && selectedKeyData && wallet && (
         <Kv_info_screen
           kv_d={selectedKeyData}
-          netconf={wallet.netconf}
           devTools={devTools}
           onViewTx={(tx)=>{ setSelectedTxData({tx, netconf: wallet.netconf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx_info'); }}
           onTransfer={()=>setScreen('kv_send')}
@@ -247,7 +243,6 @@ function BrightWallet(){
       {screen=='settings' && (
         <Settings_screen
           servers={servers}
-          netconf={netconf}
           devTools={devTools}
           onSave={(s)=>{ setServers(s); electrum_set(s); }}
           onDevToolsToggle={(v)=>{ setDevTools(v); localStorage.setItem('dev_tools_enabled', v ? '1' : '0'); }}
@@ -358,11 +353,12 @@ function Wallet_card({wallet, onClick}){
 }
 
 // Add Wallet Screen
-function Wallet_add_screen({netconf, wallets, devTools, onAdd, onCancel}){
+function Wallet_add_screen({wallets, devTools, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('lif');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const netconfs = netconf_get();
   const [derivPath, setDerivPath] = useState(
-    ()=>hd_path_def(netconf['lif']));
+    ()=>hd_path_def(netconfs['lif']));
   const [mnemonicInput, setMnemonicInput] = useState(bip39.generateMnemonic());
   const defaultName = (()=>{
     let max = 0;
@@ -386,7 +382,7 @@ function Wallet_add_screen({netconf, wallets, devTools, onAdd, onCancel}){
     const pp = usePassphrase ? passphrase : '';
     const dp = showAdvanced ? derivPath.trim() : null;
     try {
-      hd_wallet(mnemonic, networkKey, netconf, pp, dp);
+      hd_wallet(mnemonic, networkKey, pp, dp);
     } catch(e){
       return void setError('Failed to derive wallet: '+e.message);
     }
@@ -413,14 +409,14 @@ function Wallet_add_screen({netconf, wallets, devTools, onAdd, onCancel}){
       <div style={{marginTop: 12}}>
         <label>Coin:</label>
         <div style={{marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4}}>
-          {OE(netconf).filter(([key])=>devTools||!netconf[key].test).map(([key, netconf])=>(
+          {OE(netconfs).filter(([key])=>devTools||!netconfs[key].test).map(([key, netconf])=>(
             <label key={key} style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
               <input
                 type="radio"
                 name="network"
                 value={key}
                 checked={networkKey==key}
-                onChange={()=>{ setNetworkKey(key); setDerivPath(hd_path_def(netconf[key])); }}
+                onChange={()=>{ setNetworkKey(key); setDerivPath(hd_path_def(netconf)); }}
               />
               {netconf.symbol} ({netconf.name})
             </label>
@@ -757,7 +753,7 @@ function Receive_screen({address, symbol}){
 }
 
 // Key Detail Screen
-function Kv_info_screen({kv_d, netconf, devTools, onViewTx, onTransfer, onEdit}){
+function Kv_info_screen({kv_d, devTools, onViewTx, onTransfer, onEdit}){
   const tx = kv_d._tx;
   const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
@@ -822,16 +818,17 @@ function Kv_info_screen({kv_d, netconf, devTools, onViewTx, onTransfer, onEdit})
 }
 
 // Tx Detail Screen
-function Tx_info_screen({tx, netconf, walletAddrs, walletName}){
+function Tx_info_screen({tx, wallet, walletAddrs}){
   const date = tx.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
   const positive = tx.amount>=0;
-  const symbol = netconf.symbol;
+  const {netconf} = wallet;
+  const {symbol} = netconf;
   const voutAddr = (vout)=>vout.scriptPubKey?.address
     || vout.scriptPubKey?.addresses?.[0] || '?';
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
-      <h3>{walletName} transaction</h3>
+      <h3>{wallet.ls.name} transaction</h3>
       <div style={{marginTop: 8}}>
         <strong>Date:</strong> {date || <span style={{color: '#f90'}}>unconfirmed</span>}
       </div>
@@ -1397,19 +1394,20 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
 }
 
 // Settings Screen
-function Settings_screen({servers, netconf, devTools, onSave, onDevToolsToggle,
+function Settings_screen({servers, devTools, onSave, onDevToolsToggle,
   onDevTools, onBack})
 {
   const modal = useModal();
+  const netconfs = netconf_get();
   const [values, setValues] = useState(()=>{
     const v = {};
-    for (const key in netconf)
-      v[key] = servers[key] || netconf[key].electrum;
+    for (const key in netconfs)
+      v[key] = servers[key] || netconfs[key].electrum;
     return v;
   });
   const handleSave = async()=>{
     const newServers = {};
-    for (const key in netconf){
+    for (const key in netconfs){
       const val = values[key]?.trim();
       if (val)
         newServers[key] = val;
@@ -1427,14 +1425,14 @@ function Settings_screen({servers, netconf, devTools, onSave, onDevToolsToggle,
       <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
         Configure the ElectrumX server URL for each network.
       </p>
-      {OE(netconf).filter(([key])=>devTools||!netconf[key]?.test).map(([key, nc])=>(
+      {OE(netconfs).filter(([key])=>devTools||!netconfs[key]?.test).map(([key, nc])=>(
         <div key={key} style={{marginTop: 14}}>
           <label style={{fontWeight: 'bold'}}>{nc.name}:</label>
           <div style={{display: 'flex', gap: 6, marginTop: 4}}>
             <input
               value={values[key] || ''}
               onChange={e=>setValues(v=>({...v, [key]: e.target.value}))}
-              placeholder={netconf[key].electrum}
+              placeholder={netconfs[key].electrum}
               style={{flex: 1, fontFamily: 'monospace', fontSize: 12, boxSizing: 'border-box'}}
             />
             <button onClick={()=>handleReset(key)} title="Reset to default">↺</button>
