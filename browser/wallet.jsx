@@ -441,6 +441,20 @@ function Wallet_add_screen({networks, wallets, devTools, onAdd, onCancel}){
   );
 }
 
+const kv_color = kstatus=>kstatus=='confirmed'?'green':kstatus=='receiving'?'#f90':'#c00';
+
+function Kv_line({kv_key, kv_val, color, fontSize=13, mt=0}){
+  return (
+    <div style={{display: 'flex', gap: 8, marginTop: mt}}>
+      <span style={{fontFamily: 'monospace', fontSize, flexShrink: 0, color}}>{kv_key}</span>
+      <span style={{fontSize, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap', flex: 1, minWidth: 0, textAlign: 'right'}}>
+        {kv_val}
+      </span>
+    </div>
+  );
+}
+
 function transactions_sorted(transactions){
   return [...transactions].sort((a,b)=>!a.timestamp ? -1 :
     !b.timestamp ? 1 :
@@ -515,13 +529,9 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
             {ownedKeys.map((k, i)=>(
               <li key={i}
                 onClick={()=>onSelectKey({...k, _tx: transactions.find(t=>t.tx_hash==k.tx), _walletAddrs: new Set(allAddrs.map(a=>a.address))})}
-                style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
-                  borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', gap: 8}}
+                style={{marginTop: 4, cursor: 'pointer', padding: '4px 0', borderBottom: '1px solid #eee'}}
               >
-                <span style={{fontFamily: 'monospace', flexShrink: 0, color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>{k.key}</span>
-                <span style={{color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, textAlign: 'right'}}>
-                  {json(k.val)}
-                </span>
+                <Kv_line kv_key={k.key} kv_val={json(k.val)} color={kv_color(k._kstatus)} />
               </li>
             ))}
           </ul>
@@ -560,25 +570,12 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
                     <Amount sat={tx.amount} symbol={symbol} signed />
                   </div>
                   {kvReceived.map((k, j)=>(
-                    <div key={j} style={{display: 'flex', gap: 8, marginTop: 2}}>
-                      <span style={{fontFamily: 'monospace', fontSize: 11, flexShrink: 0,
-                        color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>
-                        {k.key}
-                      </span>
-                      <span style={{fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap', flex: 1, minWidth: 0, textAlign: 'right'}}>
-                        {json(k.val)}
-                      </span>
-                    </div>
+                    <Kv_line key={j} kv_key={k.key} kv_val={json(k.val)}
+                      color={kv_color(k._kstatus)} fontSize={11} mt={2} />
                   ))}
                   {kvSent.map((kv, j)=>(
-                    <div key={'s'+j} style={{display: 'flex', gap: 8, marginTop: 2}}>
-                      <span style={{fontFamily: 'monospace', fontSize: 11, flexShrink: 0, color: '#c00'}}>{kv.key}</span>
-                      <span style={{fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap', flex: 1, minWidth: 0, textAlign: 'right'}}>
-                        {json(kv.val)}
-                      </span>
-                    </div>
+                    <Kv_line key={'s'+j} kv_key={kv.key} kv_val={json(kv.val)}
+                      color="#c00" fontSize={11} mt={2} />
                   ))}
                 </li>
               );

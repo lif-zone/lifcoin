@@ -936,3 +936,9 @@ USER: Why do values get truncated even when there's enough space?
 CLAUDE: Replaced maxWidth:220 with flex:1;minWidth:0 on value spans, and flexShrink:0 on key spans. Now value takes all remaining space and only truncates when truly needed.
 
 ---
+
+USER: Extract KV line rendering into a shared component used by both Names section and Transactions section.
+
+CLAUDE: Added kv_color(kstatus) helper and Kv_line({kv_key, kv_val, color, fontSize=13, mt=0}) component. Names section li now contains <Kv_line> instead of inline spans. Transactions kvReceived and kvSent each use <Kv_line fontSize={11} mt={2}>. Rendering logic written once.
+
+---
