@@ -3,7 +3,7 @@ import React, {useState, useEffect, useMemo, useRef, createContext, useContext, 
 import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
-import {netconf_get, electrum_set, electrum_get, wallet_db_init, netconf_def,
+import {settings_get, settings_save, wallet_db_init,
   wallet_fetch, OV, OA, OE, esleep,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
@@ -13,6 +13,7 @@ import {netconf_get, electrum_set, electrum_get, wallet_db_init, netconf_def,
 } from './wallet_db.js';
 
 await wallet_db_init();
+const settings = settings_get();
 
 // Modal
 const ModalContext = createContext(null);
@@ -76,7 +77,6 @@ const newCardStyle = {
 
 // Main App
 function BrightWallet(){
-  const [servers, setServers] = useState(()=>electrum_get());
   const [wallets, setWallets] = useState(()=>wallets_get());
   const [screen, setScreen] = useState('home');
   const [activeWalletId, setActiveWalletId] = useState(null);
@@ -242,9 +242,7 @@ function BrightWallet(){
       )}
       {screen=='settings' && (
         <Settings_screen
-          servers={servers}
           devTools={devTools}
-          onSave={(s)=>{ setServers(s); electrum_set(s); }}
           onDevToolsToggle={(v)=>{ setDevTools(v); localStorage.setItem('dev_tools_enabled', v ? '1' : '0'); }}
           onDevTools={()=>setScreen('dev_tools')}
           onBack={goHome}
@@ -356,7 +354,7 @@ function Wallet_card({wallet, onClick}){
 function Wallet_add_screen({wallets, devTools, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('lif');
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const netconfs = netconf_get();
+  const netconfs = settings.netconf;
   const [derivPath, setDerivPath] = useState(
     ()=>hd_path_def(netconfs['lif']));
   const [mnemonicInput, setMnemonicInput] = useState(bip39.generateMnemonic());
@@ -903,7 +901,7 @@ function useFormValid(){
   const setValid = (key, valid)=>{
     setStates(s=>s[key]===valid ? s : {...s, [key]: valid});
   };
-  const isValid = Object.values(states).every(Boolean);
+  const isValid = OV(states).every(Boolean);
   return {setValid, isValid};
 }
 
@@ -955,9 +953,9 @@ function Fee_field({value, onChange, netconf}){
   );
 }
 
-function Addr_field({value, onChange, network, onValid, placeholder='Recipient address'}){
+function Addr_field({value, onChange, netconf, onValid, placeholder='Recipient address'}){
   const modal = useModal();
-  const valid = addr_valid(value, network);
+  const valid = addr_valid(value, netconf.network);
   const err = value && !valid ? 'Invalid address' : '';
   const [scanning, setScanning] = useState(false);
   const videoRef = useRef(null);
@@ -1100,7 +1098,7 @@ function Send_screen({wallet, onSent}){
       <h3>Send {symbol}</h3>
       <div style={{fontSize: 13, color: '#666'}}>Balance: <Amount sat={bal} symbol={symbol} /></div>
       {!balOk && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>Insufficient balance</div>}
-      <Addr_field value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
+      <Addr_field value={toAddress} onChange={setToAddress} netconf={netconf} onValid={v=>setValid('addr',v)} />
       <Amount_field value={amountSat} onChange={setAmountSat} symbol={symbol} onValid={v=>setValid('amount',v)} min={1} />
       <Fee_field value={fee} onChange={setFee} netconf={netconf} />
       <button onClick={handleSend} disabled={sending||!isValid} style={{marginTop: 8}}>
@@ -1333,7 +1331,7 @@ function Kv_send_screen({wallet, kv_d, devTools, onSent}){
       <div style={{marginTop: 8, color: '#666', fontSize: 13}}>
         Transferring: <span style={{fontFamily: 'monospace'}}>{kv_d.key}</span>
       </div>
-      <Addr_field value={toAddress} onChange={setToAddress} network={network} onValid={v=>setValid('addr',v)} />
+      <Addr_field value={toAddress} onChange={setToAddress} netconf={netconf} onValid={v=>setValid('addr',v)} />
       <Fee_field value={fee} onChange={setFee} netconf={netconf} />
       <button onClick={handleTransfer} disabled={sending||!isValid} style={{marginTop: 8}}>
         {sending ? 'Transferring…' : 'Transfer'}
@@ -1394,29 +1392,27 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
 }
 
 // Settings Screen
-function Settings_screen({servers, devTools, onSave, onDevToolsToggle,
+function Settings_screen({devTools, onDevToolsToggle,
   onDevTools, onBack})
 {
   const modal = useModal();
-  const netconfs = netconf_get();
-  const [values, setValues] = useState(()=>{
-    const v = {};
+  const {ls, netconf: netconfs} = settings;
+  const [electrum, set_electrum] = useState(()=>{
+    const s = {};
     for (const key in netconfs)
-      v[key] = servers[key] || netconfs[key].electrum;
-    return v;
+      s[key] = settings.netconf[key].electrum;
+    return s;
   });
   const handleSave = async()=>{
-    const newServers = {};
     for (const key in netconfs){
-      const val = values[key]?.trim();
-      if (val)
-        newServers[key] = val;
+      const v = electrum[key].trim();
+      ls.netconf[key].electrum = v || settings.netconf_def[key].electrum;
     }
-    onSave(newServers);
+    settings_save();
     await modal.alert('Settings saved');
   };
   const handleReset = (key)=>{
-    setValues(v=>({...v, [key]: netconf_def[key].electrum}));
+    set_electrum(v=>({...v, [key]: settings.netconf_def[key].electrum}));
   };
   return (
     <div style={{maxWidth: 520}}>
@@ -1430,9 +1426,8 @@ function Settings_screen({servers, devTools, onSave, onDevToolsToggle,
           <label style={{fontWeight: 'bold'}}>{nc.name}:</label>
           <div style={{display: 'flex', gap: 6, marginTop: 4}}>
             <input
-              value={values[key] || ''}
-              onChange={e=>setValues(v=>({...v, [key]: e.target.value}))}
-              placeholder={netconfs[key].electrum}
+              value={electrum[key]}
+              onChange={e=>set_electrum(v=>({...v, [key]: e.target.value}))}
               style={{flex: 1, fontFamily: 'monospace', fontSize: 12, boxSizing: 'border-box'}}
             />
             <button onClick={()=>handleReset(key)} title="Reset to default">↺</button>

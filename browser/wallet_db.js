@@ -52,7 +52,7 @@ let networks_lif = {
   messagePrefix: '\x18Bitcoin Signed Message:\n',
 };
 
-export const netconf_def = {
+const netconf_def = {
   lif: {
     name: 'Lifcoin', // Life Chai
     symbol: 'LIF',
@@ -91,10 +91,11 @@ const g_settings = {};
 function settings_load(){
   g_settings.ls = T(()=>JSON.parse(localStorage.getItem('settings'))) || {};
   const s = g_settings;
-  const ls = g_settings.ls;
+  const {ls} = g_settings;
   ls.lif_server ||= LIF_SERVER_DEF;
   ls.netconf ||= {};
   s.netconf = {};
+  s.netconf_def = netconf_def;
   for (const [k, nc_def] of OE(netconf_def)){
     let netconf = s.netconf[k] = {...nc_def};
     ls.netconf[k] ||= {};
@@ -104,11 +105,15 @@ function settings_load(){
   return g_settings;
 }
 
-export function netconf_get(){
+export function netconfs_get(){
   return g_settings.netconf;
 }
 
 export function settings_save(){
+  const s = g_settings;
+  const {ls} = g_settings;
+  for (const [k, nc_def] of OE(netconf_def))
+    s.netconf[k].electrum = ls.netconf[k].electrum;
   localStorage.setItem('settings', JSON.stringify(g_settings.ls));
 }
 
