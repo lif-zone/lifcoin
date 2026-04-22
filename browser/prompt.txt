@@ -954,3 +954,15 @@ USER: Refetch wallet data after mining.
 CLAUDE: After mine POST succeeds, calls setLoading(true), wallet_apply(await wallet_fetch(wallet, true)), setLoading(false) in finally.
 
 ---
+
+USER: In Tx_info_screen, show the fee after outputs.
+
+CLAUDE: Added fee calculation after outputs: totalIn (sum of vin._prevVout.value) - totalOut (sum of vout.value). Shown as <Amount> only when fee>0 (skips coinbase txs with no prevVout data).
+
+---
+
+USER: Show fee in red with minus sign.
+
+CLAUDE: Changed to <Amount sat={-fee} symbol={symbol} signed /> — negative value triggers red color and minus sign via the existing Amount component logic.
+
+---

@@ -826,6 +826,19 @@ function Tx_info_screen({tx, conf, walletAddrs, walletName}){
             </div>
           );
         })}
+        {(()=>{
+          const totalIn = (tx._vtx.vin||[]).reduce((s, vin)=>
+            vin._prevVout ? s+Math.round(vin._prevVout.value*1e8) : s, 0);
+          const totalOut = (tx._vtx.vout||[]).reduce((s, vout)=>
+            s+Math.round(vout.value*1e8), 0);
+          const fee = totalIn - totalOut;
+          if (fee<=0) return null;
+          return (
+            <div style={{marginTop: 8}}>
+              <strong>Fee:</strong> <Amount sat={-fee} symbol={symbol} signed />
+            </div>
+          );
+        })()}
       </>)}
     </div>
   );
