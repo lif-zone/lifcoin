@@ -720,7 +720,7 @@ function Kv_info_screen({kv_d, conf, onViewTx, onTransfer, onEdit}){
   const statusColor = kv_d._kstatus=='confirmed' ? 'green' :
     kv_d._kstatus=='receiving' ? '#f90' : '#c00';
   const statusLabel = kv_d._kstatus=='confirmed' ? 'Confirmed' :
-    kv_d._kstatus=='receiving' ? 'Unconfirmed' : 'Spent';
+    kv_d._kstatus=='receiving' ? 'Unconfirmed' : 'Transfered';
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState('');
   const startEdit = ()=>{ setEditVal(json(kv_d.val)); setEditing(true); };
@@ -751,9 +751,8 @@ function Kv_info_screen({kv_d, conf, onViewTx, onTransfer, onEdit}){
       </div>
       {tx && (<>
         <div style={{marginTop: 12}}>
-          <strong>Date:</strong>{' '}
-          {date || <span style={{color: '#f90'}}>unconfirmed</span>}
-          {' '}<span style={{color: statusColor, fontSize: 13}}>({statusLabel})</span>
+          {date && <strong>Date: {date} </strong>}
+          <span style={{color: statusColor, fontSize: 13}}>{statusLabel}</span>
         </div>
         <div style={{marginTop: 8, display: 'flex', gap: 8}}>
           <button onClick={()=>onViewTx(tx)}>View Transaction</button>
