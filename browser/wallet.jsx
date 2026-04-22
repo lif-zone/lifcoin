@@ -72,7 +72,7 @@ function BrightWallet(){
     setScreen('home');
     setActiveWalletId(null);
   };
-  const activeWallet = wallet_get(activeWalletId);
+  const wallet = wallet_get(activeWalletId);
   const goHome = ()=>setScreen('home');
   const goBack = ()=>{
     if (screen=='kv_send' || screen=='kv_edit')
@@ -128,12 +128,12 @@ function BrightWallet(){
           onCancel={goHome}
         />
       )}
-      {screen=='wallet_info' && activeWallet && (
+      {screen=='wallet_info' && wallet && (
         <Wallet_screen
-          wallet={activeWallet}
+          wallet={wallet}
           devTools={devTools}
-          onDelete={()=>deleteWallet(activeWallet.ls.id)}
-          onUpdate={(changes)=>updateWallet(activeWallet.ls.id, changes)}
+          onDelete={()=>deleteWallet(wallet.ls.id)}
+          onUpdate={(changes)=>updateWallet(wallet.ls.id, changes)}
           onSelectTx={(data)=>{ setSelectedTxData(data); setScreen('tx_info'); }}
           onSelectKey={(data)=>{ setSelectedKeyData(data); setScreen('kv_info'); }}
           onSend={()=>setScreen('wallet_send')}
@@ -145,64 +145,64 @@ function BrightWallet(){
           setWalletLoading={setWalletLoading}
         />
       )}
-      {screen=='wallet_send' && activeWallet && (
+      {screen=='wallet_send' && wallet && (
         <Send_screen
-          wallet={activeWallet}
+          wallet={wallet}
           onSent={()=>setScreen('wallet_info')}
         />
       )}
-      {screen=='wallet_receive' && activeWallet && (
+      {screen=='wallet_receive' && wallet && (
         <Receive_screen
-          address={activeWallet.c.receiveAddress}
-          symbol={activeWallet.conf.symbol}
+          address={wallet.c.receiveAddress}
+          symbol={wallet.conf.symbol}
         />
       )}
-      {screen=='wallet_kv_add' && activeWallet && (
+      {screen=='wallet_kv_add' && wallet && (
         <Kv_add_screen
-          wallet={activeWallet}
+          wallet={wallet}
           onSent={()=>setScreen('wallet_info')}
         />
       )}
-      {screen=='wallet_kv_raw' && activeWallet && (
+      {screen=='wallet_kv_raw' && wallet && (
         <Kv_raw_screen
-          wallet={activeWallet}
+          wallet={wallet}
           onSent={()=>setScreen('wallet_info')}
         />
       )}
-      {screen=='wallet_settings' && activeWallet && (
+      {screen=='wallet_settings' && wallet && (
         <Wallet_settings_subscreen
-          wallet={activeWallet}
-          onUpdate={(changes)=>updateWallet(activeWallet.ls.id, changes)}
-          onDelete={()=>deleteWallet(activeWallet.ls.id)}
+          wallet={wallet}
+          onUpdate={(changes)=>updateWallet(wallet.ls.id, changes)}
+          onDelete={()=>deleteWallet(wallet.ls.id)}
         />
       )}
-      {screen=='tx_info' && selectedTxData && activeWallet && (
+      {screen=='tx_info' && selectedTxData && wallet && (
         <Tx_info_screen
           tx={selectedTxData.tx}
           conf={selectedTxData.conf}
           walletAddrs={selectedTxData.walletAddrs}
-          walletName={activeWallet.ls.name || (activeWallet.mode=='hd' ? 'HD Wallet' : 'Wallet')}
+          walletName={wallet.ls.name || (wallet.mode=='hd' ? 'HD Wallet' : 'Wallet')}
         />
       )}
-      {screen=='kv_info' && selectedKeyData && activeWallet && (
+      {screen=='kv_info' && selectedKeyData && wallet && (
         <Kv_info_screen
           kv_d={selectedKeyData}
-          conf={activeWallet.conf}
-          onViewTx={(tx)=>{ setSelectedTxData({tx, conf: activeWallet.conf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx_info'); }}
+          conf={wallet.conf}
+          onViewTx={(tx)=>{ setSelectedTxData({tx, conf: wallet.conf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx_info'); }}
           onTransfer={()=>setScreen('kv_send')}
           onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _val_orig: d.val, val: newVal})); setScreen('kv_edit'); }}
         />
       )}
-      {screen=='kv_send' && selectedKeyData && activeWallet && (
+      {screen=='kv_send' && selectedKeyData && wallet && (
         <Kv_send_screen
-          wallet={activeWallet}
+          wallet={wallet}
           kv_d={selectedKeyData}
           onSent={()=>setScreen('wallet_info')}
         />
       )}
-      {screen=='kv_edit' && selectedKeyData && activeWallet && (
+      {screen=='kv_edit' && selectedKeyData && wallet && (
         <Kv_edit_screen
-          wallet={activeWallet}
+          wallet={wallet}
           kv_d={selectedKeyData}
           onSent={()=>setScreen('wallet_info')}
         />
@@ -833,19 +833,11 @@ function Tx_info_screen({tx, conf, walletAddrs, walletName}){
             </div>
           );
         })}
-        {(()=>{
-          const totalIn = (tx._vtx.vin||[]).reduce((s, vin)=>
-            vin._prevVout ? s+Math.round(vin._prevVout.value*1e8) : s, 0);
-          const totalOut = (tx._vtx.vout||[]).reduce((s, vout)=>
-            s+Math.round(vout.value*1e8), 0);
-          const fee = totalIn - totalOut;
-          if (fee<=0) return null;
-          return (
-            <div style={{marginTop: 8}}>
-              <strong>Fee:</strong> <Amount sat={-fee} symbol={symbol} signed />
-            </div>
-          );
-        })()}
+        {tx.fee>0 && (
+          <div style={{marginTop: 8}}>
+            <strong>Fee:</strong> <Amount sat={-tx.fee} symbol={symbol} signed />
+          </div>
+        )}
       </>)}
     </div>
   );

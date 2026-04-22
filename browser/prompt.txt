@@ -972,3 +972,9 @@ USER: In Tx_info_screen, show KV values under relevant inputs/outputs.
 CLAUDE: Wrapped each input/output in a div. Added Kv_line rows for vin._prevVout.lif_kv (inputs) and vout.lif_kv (outputs). KV lines inherit the same color as their parent line (red for ours in inputs, green for ours in outputs, inherit otherwise).
 
 ---
+
+USER: Move tx fee calculation to wallet_db.js as tx.fee field.
+
+CLAUDE: Added fee calculation in wallet_db.js where transactions are built: totalIn-totalOut from enrichedVin/_prevVout and vtx.vout, stored as tx.fee (null for coinbase). Tx_info_screen now just reads tx.fee directly.
+
+---

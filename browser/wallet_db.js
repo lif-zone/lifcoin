@@ -425,8 +425,13 @@ async function _wallet_fetch(wallet){
         return as.some(a=>addr_set.has(a)) ?
           sum+Math.round(vin._prevVout.value*1e8) : sum;
       }, 0);
+      const totalIn = enrichedVin.reduce((s, vin)=>
+        vin._prevVout ? s+Math.round(vin._prevVout.value*1e8) : s, 0);
+      const totalOut = (vtx.vout||[]).reduce((s, vout)=>
+        s+Math.round(vout.value*1e8), 0);
+      const fee = totalIn > 0 ? totalIn-totalOut : null;
       return {...tx, timestamp: tx.height>0 ? tsMap[tx.height] : null,
-        amount: received-spent, _vtx: {...vtx, vin: enrichedVin}};
+        amount: received-spent, fee, _vtx: {...vtx, vin: enrichedVin}};
     });
     if (conf.lif_kv){
       const keyMap = new Map();
