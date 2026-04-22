@@ -40,7 +40,7 @@ make wallet.jsx support multiple wallets
   dust)
 + add refresh button on main page, and on wallet page to force fetch again
 + unconfirmed tx first in wallet, not last
-* show in wallet tx list txs with lif_kv: that they have lif kv in them,
++ show in wallet tx list txs with lif_kv: that they have lif kv in them,
   both in the tx list, and in tx detail list
 - add Mine button in TX page when there is unconfirmed TXs for that wallet,
   and when in Devtools mode
@@ -52,6 +52,8 @@ make wallet.jsx support multiple wallets
 
 Low priority:
 -------------
++ show in wallet tx list ALL txs with lif_kv. today it shows only the last
+  tx per value.
 - add support for websocket subscription on new transactions, and updating
   accordingly.
 - add support for kv_lif with only key and no val (missing 'val'):
