@@ -1071,7 +1071,7 @@ function Kv_add_screen({wallet, onSent}){
         <input
           placeholder="e.g. lif:git/myproject"
           value={site}
-          onChange={e=>setSite(e.target.value)}
+          onChange={e=>setSite(e.target.value.trim())}
           style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
             fontSize: 13, boxSizing: 'border-box'}}
         />

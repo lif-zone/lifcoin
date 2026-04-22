@@ -990,3 +990,9 @@ USER: Auto-trim KV key/domain name in Kv_add_screen and Kv_add_raw_screen.
 CLAUDE: Added .trim() to onChange for name input in Kv_add_screen and kv_key input in Kv_add_raw_screen.
 
 ---
+
+USER: Auto-trim site field in Kv_add_screen.
+
+CLAUDE: Added .trim() to onChange for site input in Kv_add_screen.
+
+---
