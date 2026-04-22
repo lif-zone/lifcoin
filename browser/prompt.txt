@@ -966,3 +966,9 @@ USER: Show fee in red with minus sign.
 CLAUDE: Changed to <Amount sat={-fee} symbol={symbol} signed /> — negative value triggers red color and minus sign via the existing Amount component logic.
 
 ---
+
+USER: In Tx_info_screen, show KV values under relevant inputs/outputs.
+
+CLAUDE: Wrapped each input/output in a div. Added Kv_line rows for vin._prevVout.lif_kv (inputs) and vout.lif_kv (outputs). KV lines inherit the same color as their parent line (red for ours in inputs, green for ours in outputs, inherit otherwise).
+
+---

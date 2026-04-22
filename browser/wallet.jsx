@@ -802,14 +802,17 @@ function Tx_info_screen({tx, conf, walletAddrs, walletName}){
           if (!vin.txid)
             return <div key={i} style={{fontSize: 12, color: '#888'}}>Coinbase</div>;
           const addr = vin._prevVout ? voutAddr(vin._prevVout) : '?';
-          const value = vin._prevVout ? Math.round(vin._prevVout.value*1e8)
-            : null;
+          const value = vin._prevVout ? Math.round(vin._prevVout.value*1e8) : null;
           const ours = walletAddrs.has(addr);
+          const color = ours ? '#c00' : 'inherit';
           return (
-            <div key={i} style={{fontFamily: 'monospace', fontSize: 12, marginTop: 3,
-              color: ours ? '#c00' : 'inherit'}}
-            >
-              {addr}{value!==null && <> <Amount sat={-value} symbol={symbol} signed /></>}{ours && ' ← yours'}
+            <div key={i} style={{marginTop: 3}}>
+              <div style={{fontFamily: 'monospace', fontSize: 12, color}}>
+                {addr}{value!==null && <> <Amount sat={-value} symbol={symbol} signed /></>}{ours && ' ← yours'}
+              </div>
+              {(vin._prevVout?.lif_kv||[]).map((kv, j)=>(
+                <Kv_line key={j} kv_key={kv.key} kv_val={json(kv.val)} color={color} fontSize={11} mt={2} />
+              ))}
             </div>
           );
         })}
@@ -818,11 +821,15 @@ function Tx_info_screen({tx, conf, walletAddrs, walletName}){
           const addr = voutAddr(vout);
           const value = Math.round(vout.value*1e8);
           const ours = walletAddrs.has(addr);
+          const color = ours ? 'green' : 'inherit';
           return (
-            <div key={i} style={{fontFamily: 'monospace', fontSize: 12, marginTop: 3,
-              color: ours ? 'green' : 'inherit'}}
-            >
-              {addr}: <Amount sat={value} symbol={symbol} signed />{ours && ' ← yours'}
+            <div key={i} style={{marginTop: 3}}>
+              <div style={{fontFamily: 'monospace', fontSize: 12, color}}>
+                {addr} <Amount sat={value} symbol={symbol} signed />{ours && ' ← yours'}
+              </div>
+              {(vout.lif_kv||[]).map((kv, j)=>(
+                <Kv_line key={j} kv_key={kv.key} kv_val={json(kv.val)} color={color} fontSize={11} mt={2} />
+              ))}
             </div>
           );
         })}
