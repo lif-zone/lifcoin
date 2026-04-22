@@ -925,17 +925,73 @@ function Fee_field({value, onChange, conf}){
 function Addr_field({value, onChange, network, onValid, placeholder='Recipient address'}){
   const valid = addr_valid(value, network);
   const err = value && !valid ? 'Invalid address' : '';
+  const [scanning, setScanning] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
   useEffect(()=>{ onValid?.(valid); }, [valid]);
+  const stopScan = ()=>{
+    streamRef.current?.getTracks().forEach(t=>t.stop());
+    streamRef.current = null;
+    setScanning(false);
+  };
+  const startScan = async()=>{
+    if (!('BarcodeDetector' in window))
+      return alert('QR scanning not supported in this browser');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(
+        {video: {facingMode: 'environment'}});
+      streamRef.current = stream;
+      setScanning(true);
+    } catch(e){
+      alert('Camera not available: '+e.message);
+    }
+  };
+  useEffect(()=>{
+    if (!scanning || !videoRef.current) return;
+    videoRef.current.srcObject = streamRef.current;
+    const detector = new BarcodeDetector({formats: ['qr_code']});
+    let rafId;
+    const scan = async()=>{
+      try {
+        const codes = await detector.detect(videoRef.current);
+        if (codes.length){
+          onChange(codes[0].rawValue.trim());
+          stopScan();
+          return;
+        }
+      } catch(e){ /* ignore */ }
+      rafId = requestAnimationFrame(scan);
+    };
+    videoRef.current.onplay = ()=>{ rafId = requestAnimationFrame(scan); };
+    return ()=>{ cancelAnimationFrame(rafId); };
+  }, [scanning]);
   return (
     <div>
-      <input
-        placeholder={placeholder}
-        value={value}
-        onChange={e=>onChange(e.target.value.trim())}
-        style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box',
-          ...(err && {borderColor: 'red'})}}
-      />
+      <div style={{display: 'flex', gap: 4, marginTop: 8}}>
+        <button onClick={startScan} title="Scan QR code"
+          style={{flexShrink: 0, fontSize: 16, padding: '2px 6px'}}>⬛</button>
+        <input
+          placeholder={placeholder}
+          value={value}
+          onChange={e=>onChange(e.target.value.trim())}
+          style={{flex: 1, boxSizing: 'border-box', ...(err && {borderColor: 'red'})}}
+        />
+      </div>
       {err && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>{err}</div>}
+      {scanning && (
+        <div style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+          zIndex: 1000, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 16}}>
+          <video ref={videoRef} autoPlay playsInline
+            style={{width: 300, height: 300, objectFit: 'cover', borderRadius: 8,
+              border: '2px solid white'}} />
+          <button onClick={stopScan}
+            style={{color: 'white', background: 'transparent',
+              border: '1px solid white', padding: '6px 20px'}}>
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }

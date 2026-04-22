@@ -1026,3 +1026,9 @@ USER: Add QR code of the address in Receive_screen.
 CLAUDE: Installed qrcode npm package. Added useRef import and QRCode import. Added canvasRef + useEffect calling QRCode.toCanvas on address change. Canvas rendered above the address text, 220px wide.
 
 ---
+
+USER: Add QR scan icon inside Addr_field on the left of the input — clicking opens camera to scan address.
+
+CLAUDE: Added QR scan button (⬛) to left of input in Addr_field. Uses BarcodeDetector API + getUserMedia. On click: opens camera stream in a fullscreen overlay with a video element. Scans frames via requestAnimationFrame, on QR detection calls onChange(result) and stops camera. Cancel button stops stream. Falls back to alert if BarcodeDetector not supported.
+
+---
