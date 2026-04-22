@@ -80,7 +80,7 @@ function BrightWallet(){
     else if (screen=='tx_info' || screen=='kv_info')
       setScreen('wallet_info');
     else if (screen=='wallet_send' || screen=='wallet_receive' ||
-      screen=='wallet_kv_add' || screen=='wallet_kv_raw' || screen=='wallet_settings')
+      screen=='wallet_kv_add' || screen=='wallet_kv_add_raw' || screen=='wallet_settings')
       setScreen('wallet_info');
     else if (screen=='dev_tools')
       setScreen('settings');
@@ -139,7 +139,7 @@ function BrightWallet(){
           onSend={()=>setScreen('wallet_send')}
           onReceive={()=>setScreen('wallet_receive')}
           onKvAdd={()=>setScreen('wallet_kv_add')}
-          onKvRaw={()=>setScreen('wallet_kv_raw')}
+          onKvRaw={()=>setScreen('wallet_kv_add_raw')}
           onSettings={()=>setScreen('wallet_settings')}
           refreshTick={refreshTick}
           setWalletLoading={setWalletLoading}
@@ -163,7 +163,7 @@ function BrightWallet(){
           onSent={()=>setScreen('wallet_info')}
         />
       )}
-      {screen=='wallet_kv_raw' && wallet && (
+      {screen=='wallet_kv_add_raw' && wallet && (
         <Kv_raw_screen
           wallet={wallet}
           onSent={()=>setScreen('wallet_info')}
