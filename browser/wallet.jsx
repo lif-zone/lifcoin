@@ -34,7 +34,8 @@ function Modal_provider({children}){
             zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
           <div onClick={e=>e.stopPropagation()}
             style={{background: '#fff', borderRadius: 8, padding: 24, maxWidth: 420,
-              width: '90%', position: 'relative', boxShadow: '0 4px 24px rgba(0,0,0,0.2)'}}>
+              width: '90%', position: 'relative', boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+              border: '3px solid #ccc'}}>
             <button onClick={close}
               style={{position: 'absolute', top: 8, right: 10, background: 'none',
                 border: 'none', fontSize: 18, cursor: 'pointer', lineHeight: 1}}>
