@@ -728,7 +728,6 @@ function Receive_screen({address, symbol}){
       <p style={{color: '#666', fontSize: 13, marginTop: 4}}>
         Fresh address — a new one will appear after it receives funds.
       </p>
-      {address && <canvas ref={canvasRef} style={{display: 'block', marginTop: 12}} />}
       <div
         onClick={handleCopy}
         style={{
@@ -748,6 +747,7 @@ function Receive_screen({address, symbol}){
       {copied && (
         <div style={{marginTop: 8, color: 'green', fontSize: 13}}>Copied to clipboard</div>
       )}
+      {address && <canvas ref={canvasRef} style={{display: 'block', marginTop: 12}} />}
     </div>
   );
 }
