@@ -83,8 +83,8 @@ function BrightWallet(){
   const [selectedTxData, setSelectedTxData] = useState(null);
   const [selectedKeyData, setSelectedKeyData] = useState(null);
   const [cacheVer, setCacheVer] = useState(0);
-  const [devTools, setDevTools] = useState(
-    ()=>localStorage.getItem('dev_tools_enabled')=='1');
+  const [devtools, set_devtools] = useState(
+    ()=>settings.ls.devtools=='1');
   const [refreshTick, setRefreshTick] = useState(0);
   const [walletLoading, setWalletLoading] = useState(false);
   const [homeRefreshTick, setHomeRefreshTick] = useState(0);
@@ -116,7 +116,7 @@ function BrightWallet(){
     else if (screen=='wallet_send' || screen=='wallet_receive' ||
       screen=='wallet_kv_add' || screen=='wallet_kv_add_raw' || screen=='wallet_settings')
       setScreen('wallet_info');
-    else if (screen=='dev_tools')
+    else if (screen=='devtools')
       setScreen('settings');
     else
       goHome();
@@ -156,7 +156,6 @@ function BrightWallet(){
       {screen=='wallet_add' && (
         <Wallet_add_screen
           wallets={wallets}
-          devTools={devTools}
           onAdd={(w_ls)=>{ addWallet(w_ls); goHome(); }}
           onCancel={goHome}
         />
@@ -164,7 +163,6 @@ function BrightWallet(){
       {screen=='wallet_info' && wallet && (
         <Wallet_screen
           wallet={wallet}
-          devTools={devTools}
           onDelete={()=>deleteWallet(wallet.ls.id)}
           onUpdate={(changes)=>updateWallet(wallet.ls.id, changes)}
           onSelectTx={(data)=>{ setSelectedTxData(data); setScreen('tx_info'); }}
@@ -219,7 +217,6 @@ function BrightWallet(){
       {screen=='kv_info' && selectedKeyData && wallet && (
         <Kv_info_screen
           kv_d={selectedKeyData}
-          devTools={devTools}
           onViewTx={(tx)=>{ setSelectedTxData({tx, netconf: wallet.netconf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx_info'); }}
           onTransfer={()=>setScreen('kv_send')}
           onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _val_orig: d.val, val: newVal})); setScreen('kv_edit'); }}
@@ -229,7 +226,6 @@ function BrightWallet(){
         <Kv_send_screen
           wallet={wallet}
           kv_d={selectedKeyData}
-          devTools={devTools}
           onSent={()=>setScreen('wallet_info')}
         />
       )}
@@ -242,13 +238,11 @@ function BrightWallet(){
       )}
       {screen=='settings' && (
         <Settings_screen
-          devTools={devTools}
-          onDevToolsToggle={(v)=>{ setDevTools(v); localStorage.setItem('dev_tools_enabled', v ? '1' : '0'); }}
-          onDevTools={()=>setScreen('dev_tools')}
+          onDevtools={()=>setScreen('devtools')}
           onBack={goHome}
         />
       )}
-      {screen=='dev_tools' && (
+      {screen=='devtools' && (
         <Devtools_screen
           onCacheClear={async()=>{ await cache_clear(); setCacheVer(v=>v+1); }}
           onBack={()=>setScreen('settings')}
@@ -351,7 +345,7 @@ function Wallet_card({wallet, onClick}){
 }
 
 // Add Wallet Screen
-function Wallet_add_screen({wallets, devTools, onAdd, onCancel}){
+function Wallet_add_screen({wallets, onAdd, onCancel}){
   const [networkKey, setNetworkKey] = useState('lif');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const netconfs = settings.netconf;
@@ -407,7 +401,7 @@ function Wallet_add_screen({wallets, devTools, onAdd, onCancel}){
       <div style={{marginTop: 12}}>
         <label>Coin:</label>
         <div style={{marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4}}>
-          {OE(netconfs).filter(([key])=>devTools||!netconfs[key].test).map(([key, netconf])=>(
+          {OE(netconfs).filter(([key])=>settings.devtools||!netconfs[key].test).map(([key, netconf])=>(
             <label key={key} style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
               <input
                 type="radio"
@@ -494,7 +488,7 @@ function transactions_sorted(transactions){
 }
 
 // Wallet Detail Screen
-function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
+function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx,
   onSelectKey, onSend, onReceive, onKvAdd, onKvAddRaw, onSettings,
   refreshTick, setWalletLoading})
 {
@@ -554,8 +548,8 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
         <button onClick={onReceive} disabled={!allAddrs.length}>Receive</button>
         <button onClick={onSend} disabled={!allAddrs.length}>Send</button>
         {netconf.lif_kv && <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain Name</button>}
-        {netconf.lif_kv && devTools && <button onClick={onKvAddRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
-        {devTools && transactions.some(tx=>!tx.timestamp) && (
+        {netconf.lif_kv && settings.devtools && <button onClick={onKvAddRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
+        {settings.devtools && transactions.some(tx=>!tx.timestamp) && (
           <button onClick={async()=>{
             try {
               await fetch(lif_server_get()+'/mine', {method: 'POST'});
@@ -751,7 +745,7 @@ function Receive_screen({address, symbol}){
 }
 
 // Key Detail Screen
-function Kv_info_screen({kv_d, devTools, onViewTx, onTransfer, onEdit}){
+function Kv_info_screen({kv_d, onViewTx, onTransfer, onEdit}){
   const tx = kv_d._tx;
   const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
@@ -804,7 +798,7 @@ function Kv_info_screen({kv_d, devTools, onViewTx, onTransfer, onEdit}){
           <span style={{color: statusColor, fontSize: 13}}>{statusLabel}</span>
         </div>
         <div style={{marginTop: 8, display: 'flex', gap: 8}}>
-          {devTools && <button onClick={()=>onViewTx(tx)}>View Transaction</button>}
+          {settings.devtools && <button onClick={()=>onViewTx(tx)}>View Transaction</button>}
           <button onClick={onTransfer} disabled={isSpent}
             style={{color: '#c00', border: '1px solid #c00', background: 'transparent'}}>
             Transfer Domain Name
@@ -1199,7 +1193,7 @@ function Kv_add_screen({wallet, onSent}){
   );
 }
 
-// Raw KV add screen (dev tools)
+// Raw KV add screen (devtools)
 function Kv_add_raw_screen({wallet, onSent}){
   const modal = useModal();
   const {netconf} = wallet;
@@ -1288,7 +1282,7 @@ function Kv_add_raw_screen({wallet, onSent}){
 }
 
 // KV Name Transfer Screen
-function Kv_send_screen({wallet, kv_d, devTools, onSent}){
+function Kv_send_screen({wallet, kv_d, onSent}){
   const modal = useModal();
   const {netconf, network} = wallet;
   const {setValid, isValid} = useFormValid();
@@ -1311,7 +1305,7 @@ function Kv_send_screen({wallet, kv_d, devTools, onSent}){
       const txid = tx.getId();
       await tx_broadcast(netconf, tx);
       setFee(_fee);
-      if (devTools)
+      if (settings.devtools)
         await modal.alert(<>Name transferred!<br/>TXID: {txid}{netconf.explorer_tx && <><br/><a href={netconf.explorer_tx+txid} target="_blank" rel="noopener noreferrer">View in block explorer</a></>}</>);
       else
         await modal.alert('Name transferred!');
@@ -1392,8 +1386,7 @@ function Kv_edit_screen({wallet, kv_d, onSent}){
 }
 
 // Settings Screen
-function Settings_screen({devTools, onDevToolsToggle,
-  onDevTools, onBack})
+function Settings_screen({onDevtools, onBack})
 {
   const modal = useModal();
   const {ls, netconf: netconfs} = settings;
@@ -1414,6 +1407,12 @@ function Settings_screen({devTools, onDevToolsToggle,
   const handleReset = (key)=>{
     set_electrum(v=>({...v, [key]: settings.netconf_def[key].electrum}));
   };
+  const [devtools, set_devtools] = useState(()=>!!settings.ls.devtools);
+  const onDevToolsToggle = (v)=>{
+    set_devtools(v);
+    settings.ls.devtools = +!!v;
+    settings_save();
+  };
   return (
     <div style={{maxWidth: 520}}>
       <h2>Settings</h2>
@@ -1421,7 +1420,7 @@ function Settings_screen({devTools, onDevToolsToggle,
       <p style={{fontSize: 13, color: '#666', marginTop: 4}}>
         Configure the ElectrumX server URL for each network.
       </p>
-      {OE(netconfs).filter(([key])=>devTools||!netconfs[key]?.test).map(([key, nc])=>(
+      {OE(netconfs).filter(([key])=>devtools||!netconfs[key]?.test).map(([key, nc])=>(
         <div key={key} style={{marginTop: 14}}>
           <label style={{fontWeight: 'bold'}}>{nc.name}:</label>
           <div style={{display: 'flex', gap: 6, marginTop: 4}}>
@@ -1439,13 +1438,13 @@ function Settings_screen({devTools, onDevToolsToggle,
         <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
           <input
             type="checkbox"
-            checked={devTools}
+            checked={devtools}
             onChange={e=>onDevToolsToggle(e.target.checked)}
           />
           Enable Developer Tools
         </label>
-        {devTools && (
-          <button onClick={onDevTools} style={{marginTop: 10}}>Developer Tools</button>
+        {devtools && (
+          <button onClick={onDevtools} style={{marginTop: 10}}>Developer Tools</button>
         )}
       </div>
     </div>
