@@ -127,9 +127,8 @@ export function lif_server_set(val){
 
 export function electrum_get(){
   let servers = {};
-  for (let [k, netconf] of OE(g_settings)){
+  for (let [k, netconf] of OE(g_settings))
     servers[k] = netconf.electrum;
-  }
   return servers;
 }
 
