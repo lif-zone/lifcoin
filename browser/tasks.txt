@@ -49,6 +49,8 @@ make wallet.jsx support multiple wallets
 - open new users in github, and re-import the projects, but with different
   login names/emails
 - make lif/git source to bring most up-to-date versions
+- add qr for send (read camera QR)/receive (generate QR)
+- replace alert() windows, with JS.
 
 Low priority:
 -------------

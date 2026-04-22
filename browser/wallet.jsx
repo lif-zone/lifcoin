@@ -139,7 +139,7 @@ function BrightWallet(){
           onSend={()=>setScreen('wallet_send')}
           onReceive={()=>setScreen('wallet_receive')}
           onKvAdd={()=>setScreen('wallet_kv_add')}
-          onKvRaw={()=>setScreen('wallet_kv_add_raw')}
+          onKvAddRaw={()=>setScreen('wallet_kv_add_raw')}
           onSettings={()=>setScreen('wallet_settings')}
           refreshTick={refreshTick}
           setWalletLoading={setWalletLoading}
@@ -164,7 +164,7 @@ function BrightWallet(){
         />
       )}
       {screen=='wallet_kv_add_raw' && wallet && (
-        <Kv_raw_screen
+        <Kv_add_raw_screen
           wallet={wallet}
           onSent={()=>setScreen('wallet_info')}
         />
@@ -464,7 +464,7 @@ function transactions_sorted(transactions){
 
 // Wallet Detail Screen
 function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
-  onSelectKey, onSend, onReceive, onKvAdd, onKvRaw, onSettings,
+  onSelectKey, onSend, onReceive, onKvAdd, onKvAddRaw, onSettings,
   refreshTick, setWalletLoading})
 {
   const conf = wallet.conf;
@@ -519,7 +519,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
         <button onClick={onReceive} disabled={!allAddrs.length}>Receive</button>
         <button onClick={onSend} disabled={!allAddrs.length}>Send</button>
         {conf.lif_kv && <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain</button>}
-        {conf.lif_kv && devTools && <button onClick={onKvRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
+        {conf.lif_kv && devTools && <button onClick={onKvAddRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
         {devTools && transactions.some(tx=>!tx.timestamp) && (
           <button onClick={async()=>{
             try {
@@ -908,7 +908,7 @@ function Addr_field({value, onChange, network, onValid, placeholder='Recipient a
       <input
         placeholder={placeholder}
         value={value}
-        onChange={e=>onChange(e.target.value)}
+        onChange={e=>onChange(e.target.value.trim())}
         style={{display: 'block', width: '100%', marginTop: 8, boxSizing: 'border-box',
           ...(err && {borderColor: 'red'})}}
       />
@@ -1058,7 +1058,7 @@ function Kv_add_screen({wallet, onSent}){
         <input
           placeholder="e.g. jungo"
           value={name}
-          onChange={e=>setName(e.target.value)}
+          onChange={e=>setName(e.target.value.trim())}
           style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
             fontSize: 13, boxSizing: 'border-box'}}
         />
@@ -1085,7 +1085,7 @@ function Kv_add_screen({wallet, onSent}){
 }
 
 // Raw KV add screen (dev tools)
-function Kv_raw_screen({wallet, onSent}){
+function Kv_add_raw_screen({wallet, onSent}){
   const {conf} = wallet;
   const [kv_key, set_kv_key] = useState('');
   const [kv_val, set_kv_val] = useState('');
@@ -1143,7 +1143,7 @@ function Kv_raw_screen({wallet, onSent}){
         <input
           placeholder="e.g. dns/jungo"
           value={kv_key}
-          onChange={e=>set_kv_key(e.target.value)}
+          onChange={e=>set_kv_key(e.target.value.trim())}
           style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
             fontSize: 13, boxSizing: 'border-box'}}
         />

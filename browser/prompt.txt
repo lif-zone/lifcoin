@@ -978,3 +978,15 @@ USER: Move tx fee calculation to wallet_db.js as tx.fee field.
 CLAUDE: Added fee calculation in wallet_db.js where transactions are built: totalIn-totalOut from enrichedVin/_prevVout and vtx.vout, stored as tx.fee (null for coinbase). Tx_info_screen now just reads tx.fee directly.
 
 ---
+
+USER: Addr_field should auto-trim whitespace, not callers.
+
+CLAUDE: Added .trim() in Addr_field's onChange so callers always receive a trimmed value.
+
+---
+
+USER: Auto-trim KV key/domain name in Kv_add_screen and Kv_add_raw_screen.
+
+CLAUDE: Added .trim() to onChange for name input in Kv_add_screen and kv_key input in Kv_add_raw_screen.
+
+---
