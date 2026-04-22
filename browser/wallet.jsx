@@ -518,8 +518,8 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
                 style={{fontSize: 13, marginTop: 4, cursor: 'pointer', padding: '4px 0',
                   borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', gap: 8}}
               >
-                <span style={{fontFamily: 'monospace', color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>{k.key}</span>
-                <span style={{color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220}}>
+                <span style={{fontFamily: 'monospace', flexShrink: 0, color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>{k.key}</span>
+                <span style={{color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, textAlign: 'right'}}>
                   {json(k.val)}
                 </span>
               </li>
@@ -560,22 +560,22 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
                     <Amount sat={tx.amount} symbol={symbol} signed />
                   </div>
                   {kvReceived.map((k, j)=>(
-                    <div key={j} style={{display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 2}}>
-                      <span style={{fontFamily: 'monospace', fontSize: 11,
+                    <div key={j} style={{display: 'flex', gap: 8, marginTop: 2}}>
+                      <span style={{fontFamily: 'monospace', fontSize: 11, flexShrink: 0,
                         color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>
                         {k.key}
                       </span>
                       <span style={{fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap', maxWidth: 220}}>
+                        whiteSpace: 'nowrap', flex: 1, minWidth: 0, textAlign: 'right'}}>
                         {json(k.val)}
                       </span>
                     </div>
                   ))}
                   {kvSent.map((kv, j)=>(
-                    <div key={'s'+j} style={{display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 2}}>
-                      <span style={{fontFamily: 'monospace', fontSize: 11, color: '#c00'}}>{kv.key}</span>
+                    <div key={'s'+j} style={{display: 'flex', gap: 8, marginTop: 2}}>
+                      <span style={{fontFamily: 'monospace', fontSize: 11, flexShrink: 0, color: '#c00'}}>{kv.key}</span>
                       <span style={{fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap', maxWidth: 220}}>
+                        whiteSpace: 'nowrap', flex: 1, minWidth: 0, textAlign: 'right'}}>
                         {json(kv.val)}
                       </span>
                     </div>

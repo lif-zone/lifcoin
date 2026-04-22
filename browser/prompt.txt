@@ -930,3 +930,9 @@ USER: KV lines in Transactions section should look exactly like Names section: k
 CLAUDE: Replaced plain div KV lines with flex rows matching Names section exactly: key span left (monospace, colored), value span right (overflow:hidden, textOverflow:ellipsis, whiteSpace:nowrap, maxWidth:220, color:#666).
 
 ---
+
+USER: Why do values get truncated even when there's enough space?
+
+CLAUDE: Replaced maxWidth:220 with flex:1;minWidth:0 on value spans, and flexShrink:0 on key spans. Now value takes all remaining space and only truncates when truly needed.
+
+---
