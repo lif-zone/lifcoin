@@ -520,7 +520,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
               >
                 <span style={{fontFamily: 'monospace', color: k._kstatus=='confirmed'?'green':k._kstatus=='receiving'?'#f90':'#c00'}}>{k.key}</span>
                 <span style={{color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220}}>
-                  {trunc(json(k.val), 40)}
+                  {json(k.val)}
                 </span>
               </li>
             ))}
@@ -567,7 +567,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
                       </span>
                       <span style={{fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap', maxWidth: 220}}>
-                        {trunc(json(k.val), 40)}
+                        {json(k.val)}
                       </span>
                     </div>
                   ))}
@@ -576,7 +576,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
                       <span style={{fontFamily: 'monospace', fontSize: 11, color: '#c00'}}>{kv.key}</span>
                       <span style={{fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap', maxWidth: 220}}>
-                        {trunc(json(kv.val), 40)}
+                        {json(kv.val)}
                       </span>
                     </div>
                   ))}
