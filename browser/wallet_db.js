@@ -91,6 +91,7 @@ networks_init();
 
 const HD_SCAN_GAP = 20;
 const DUST_VAL = 1;
+export const LIF_DOMAINS = ['pub.site', 'lif.site', 'lif.zone'];
 
 function Electrum_connect(url){
   let u = URL.parse(url);

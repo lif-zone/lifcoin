@@ -522,7 +522,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
       <div style={{display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center'}}>
         <button onClick={onReceive} disabled={!allAddrs.length}>Receive</button>
         <button onClick={onSend} disabled={!allAddrs.length}>Send</button>
-        {conf.lif_kv && <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain</button>}
+        {conf.lif_kv && <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain Name</button>}
         {conf.lif_kv && devTools && <button onClick={onKvAddRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
         {devTools && transactions.some(tx=>!tx.timestamp) && (
           <button onClick={async()=>{
@@ -539,8 +539,8 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
         )}
       </div>
       <div style={{marginTop: 16}}>
-        {ownedKeys.length > 0 && (<>
-          <h3>Names</h3>
+        {ownedKeys.length && (<>
+          <h3>Domain Names</h3>
           <ul style={{marginTop: 8, paddingLeft: 0, listStyle: 'none'}}>
             {ownedKeys.map((k, i)=>(
               <li key={i}
@@ -728,7 +728,7 @@ function Kv_info_screen({kv_d, conf, devTools, onViewTx, onTransfer, onEdit}){
   const isSpent = kv_d._kstatus=='spent';
   return (
     <div style={{marginTop: 16, maxWidth: 600}}>
-      <h3>Name <span style={{color: statusColor, fontFamily: 'monospace'}}>{kv_d.key}</span></h3>
+      <h3>Domain Name <span style={{color: statusColor, fontFamily: 'monospace'}}>{kv_d.key}</span></h3>
       <div style={{marginTop: 12}}>
         <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
           <strong>Value:</strong>
@@ -757,7 +757,10 @@ function Kv_info_screen({kv_d, conf, devTools, onViewTx, onTransfer, onEdit}){
         </div>
         <div style={{marginTop: 8, display: 'flex', gap: 8}}>
           {devTools && <button onClick={()=>onViewTx(tx)}>View Transaction</button>}
-          <button onClick={onTransfer} disabled={isSpent}>Transfer</button>
+          <button onClick={onTransfer} disabled={isSpent}
+            style={{color: '#c00', border: '1px solid #c00', background: 'transparent'}}>
+            Transfer Domain Nane
+          </button>
         </div>
       </>)}
     </div>

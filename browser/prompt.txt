@@ -1008,3 +1008,9 @@ USER: In Kv_info_screen, show "View Transaction" button only in devTools mode.
 CLAUDE: Added devTools prop to Kv_info_screen, passed from BrightWallet. Wrapped View Transaction button with {devTools && ...}.
 
 ---
+
+USER: Rename "Transfer" to "Transfer Domain" and style it red like Delete Wallet button.
+
+CLAUDE: Renamed button to "Transfer Domain", applied style color:#c00, border:1px solid #c00, background:transparent — matching Delete Wallet button.
+
+---
