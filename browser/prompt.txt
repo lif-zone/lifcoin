@@ -942,3 +942,9 @@ USER: Extract KV line rendering into a shared component used by both Names secti
 CLAUDE: Added kv_color(kstatus) helper and Kv_line({kv_key, kv_val, color, fontSize=13, mt=0}) component. Names section li now contains <Kv_line> instead of inline spans. Transactions kvReceived and kvSent each use <Kv_line fontSize={11} mt={2}>. Rendering logic written once.
 
 ---
+
+USER: In devTools mode, in Wallet_screen, when there are unconfirmed transactions, show a "Mine block" button before Settings.
+
+CLAUDE: Added conditional button: shown when devTools && transactions.some(tx=>!tx.timestamp). Calls lif_server_load()+'/mine' via POST. Shows alert on error.
+
+---

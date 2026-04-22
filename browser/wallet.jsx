@@ -520,6 +520,12 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
         <button onClick={onSend} disabled={!allAddrs.length}>Send</button>
         {conf.lif_kv && <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain</button>}
         {conf.lif_kv && devTools && <button onClick={onKvRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
+        {devTools && transactions.some(tx=>!tx.timestamp) && (
+          <button onClick={async()=>{
+            try { await fetch(lif_server_load()+'/mine', {method: 'POST'}); }
+            catch(e){ alert(e.message); }
+          }}>Mine block</button>
+        )}
         <button onClick={onSettings} style={{marginLeft: 'auto'}}>⚙ Settings</button>
       </div>
       <div style={{marginTop: 16}}>
