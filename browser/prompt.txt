@@ -1038,3 +1038,9 @@ USER: Use browser/qrcode.svg for the QR scan icon in Addr_field.
 CLAUDE: Replaced ⬛ text with <img src={import.meta.resolve('./qrcode.svg')} style={{width:20,height:20}} /> inside the button.
 
 ---
+
+USER: Move QR icon to the right side of Addr_field.
+
+CLAUDE: Swapped order — input first (flex:1), QR button after it.
+
+---

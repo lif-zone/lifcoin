@@ -968,16 +968,16 @@ function Addr_field({value, onChange, network, onValid, placeholder='Recipient a
   return (
     <div>
       <div style={{display: 'flex', gap: 4, marginTop: 8}}>
-        <button onClick={startScan} title="Scan QR code"
-          style={{flexShrink: 0, padding: '2px 4px', lineHeight: 0}}>
-          <img src={import.meta.resolve('./qrcode.svg')} style={{width: 20, height: 20}} />
-        </button>
         <input
           placeholder={placeholder}
           value={value}
           onChange={e=>onChange(e.target.value.trim())}
           style={{flex: 1, boxSizing: 'border-box', ...(err && {borderColor: 'red'})}}
         />
+        <button onClick={startScan} title="Scan QR code"
+          style={{flexShrink: 0, padding: '2px 4px', lineHeight: 0}}>
+          <img src={import.meta.resolve('./qrcode.svg')} style={{width: 20, height: 20}} />
+        </button>
       </div>
       {err && <div style={{color: 'red', fontSize: 12, marginTop: 2}}>{err}</div>}
       {scanning && (
