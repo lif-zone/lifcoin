@@ -188,6 +188,7 @@ function BrightWallet(){
         <Kv_info_screen
           kv_d={selectedKeyData}
           conf={wallet.conf}
+          devTools={devTools}
           onViewTx={(tx)=>{ setSelectedTxData({tx, conf: wallet.conf, walletAddrs: selectedKeyData._walletAddrs}); setScreen('tx_info'); }}
           onTransfer={()=>setScreen('kv_send')}
           onEdit={(newVal)=>{ setSelectedKeyData(d=>({...d, _val_orig: d.val, val: newVal})); setScreen('kv_edit'); }}
@@ -713,7 +714,7 @@ function Receive_screen({address, symbol}){
 }
 
 // Key Detail Screen
-function Kv_info_screen({kv_d, conf, onViewTx, onTransfer, onEdit}){
+function Kv_info_screen({kv_d, conf, devTools, onViewTx, onTransfer, onEdit}){
   const tx = kv_d._tx;
   const date = tx?.timestamp ? new Date(tx.timestamp*1000).toLocaleString()
     : null;
@@ -755,7 +756,7 @@ function Kv_info_screen({kv_d, conf, onViewTx, onTransfer, onEdit}){
           <span style={{color: statusColor, fontSize: 13}}>{statusLabel}</span>
         </div>
         <div style={{marginTop: 8, display: 'flex', gap: 8}}>
-          <button onClick={()=>onViewTx(tx)}>View Transaction</button>
+          {devTools && <button onClick={()=>onViewTx(tx)}>View Transaction</button>}
           <button onClick={onTransfer} disabled={isSpent}>Transfer</button>
         </div>
       </>)}

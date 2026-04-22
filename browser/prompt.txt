@@ -1002,3 +1002,9 @@ USER: Move Settings button to the right side of the wallet name title line.
 CLAUDE: Replaced plain h2 with a flex row (h2 left, ⚙ button right). Removed Settings button from the action buttons row.
 
 ---
+
+USER: In Kv_info_screen, show "View Transaction" button only in devTools mode.
+
+CLAUDE: Added devTools prop to Kv_info_screen, passed from BrightWallet. Wrapped View Transaction button with {devTools && ...}.
+
+---
