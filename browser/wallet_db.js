@@ -201,7 +201,7 @@ export function addr_sh(saddr, network){
 const wallets_store = {};
 
 export function wallets_load(){
-  let networks = nets_get(servers_load());
+  let networks = nets_get(settings.servers);
   for (let id in wallets_store)
     _wallet_del(id);
   let wallets_ls = T(()=>JSON.parse(localStorage.getItem('wallets'))) || {};
@@ -231,7 +231,7 @@ export function wallet_get(id){
 }
 
 function _wallet_add(w_ls){
-  let networks = nets_get(servers_load());
+  let networks = nets_get(settings.servers);
   let wallet = {
     ls: {...w_ls},
     c: {},
@@ -261,20 +261,39 @@ export function wallet_del(id){
   wallets_save();
 }
 
-export function servers_load(){
-  return T(()=>JSON.parse(localStorage.getItem('electrum_servers'))) || {};
+let settings = {};
+export function settings_load(){
+  settings = T(()=>JSON.parse(localStorage.getItem('settings'))) || {};
+  let s = settings;
+  s.electrum_servers ||= {};
+  s.lif_server ||= LIF_SERVER_DEF;
+  return settings;
 }
 
-export function servers_save(servers){
-  localStorage.setItem('electrum_servers', JSON.stringify(servers));
+export function settings_save(){
+  localStorage.setItem('settings', JSON.stringify(settings));
+  return settings;
+}
+
+export function settings_get(){
+  return settings;
+}
+
+export function servers_get(servers){
+  return settings.electrum_servers;
+}
+export function servers_set(servers){
+  settings.electrum_servers = servers;
+  settings_save();
 }
 
 export const LIF_SERVER_DEF = 'http://localhost:8432';
-export function lif_server_load(){
-  return localStorage.getItem('lif_server') || LIF_SERVER_DEF;
+export function lif_server_get(){
+  return settings.lif_server;
 }
-export function lif_server_save(val){
-  localStorage.setItem('lif_server', val);
+export function lif_server_set(val){
+  settings.lif_server = val;
+  settings_save();
 }
 
 // IndexedDB Cache
@@ -336,6 +355,7 @@ async function wallet_cs_load(wallet){
 // Preload all wallets from IndexedDB into memory at module startup
 export async function wallet_db_init(){
   await db_init();
+  settings_load();
   wallets_load();
   for (const w of OV(wallets_store))
     await wallet_cs_load(w);

@@ -3,13 +3,13 @@ import React, {useState, useEffect, useMemo, useRef, createContext, useContext, 
 import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
-import {nets_list, servers_save, servers_load, wallet_db_init,
+import {nets_list, servers_get, servers_set, wallet_db_init,
   nets_get, wallet_fetch, OV, OA, OE, esleep,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
-  LIF_SERVER_DEF, lif_server_load, lif_server_save,
+  LIF_SERVER_DEF, lif_server_get, lif_server_set,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -76,7 +76,7 @@ const newCardStyle = {
 
 // Main App
 function BrightWallet(){
-  const [servers, setServers] = useState(()=>servers_load());
+  const [servers, setServers] = useState(()=>servers_get());
   const networks = useMemo(()=>nets_get(servers), [servers]);
   const [wallets, setWallets] = useState(()=>wallets_get());
   const [screen, setScreen] = useState('home');
@@ -249,7 +249,7 @@ function BrightWallet(){
           servers={servers}
           networks={networks}
           devTools={devTools}
-          onSave={(s)=>{ setServers(s); servers_save(s); }}
+          onSave={(s)=>{ setServers(s); servers_set(s); }}
           onDevToolsToggle={(v)=>{ setDevTools(v); localStorage.setItem('dev_tools_enabled', v ? '1' : '0'); }}
           onDevTools={()=>setScreen('dev_tools')}
           onBack={goHome}
@@ -564,7 +564,7 @@ function Wallet_screen({wallet, devTools, onDelete, onUpdate, onSelectTx,
         {devTools && transactions.some(tx=>!tx.timestamp) && (
           <button onClick={async()=>{
             try {
-              await fetch(lif_server_load()+'/mine', {method: 'POST'});
+              await fetch(lif_server_get()+'/mine', {method: 'POST'});
               setLoading(true);
               wallet_apply(await wallet_fetch(wallet, true));
             } catch(e){
@@ -1461,12 +1461,12 @@ function Settings_screen({servers, networks, devTools, onSave, onDevToolsToggle,
 
 // Developer Tools Screen
 function Devtools_screen({onCacheClear, onBack}){
-  const [lifServer, setLifServer] = useState(lif_server_load);
+  const [lifServer, setLifServer] = useState(lif_server_get);
   const [lifnode_cmd, set_lifnode_cmd] = useState(null);
   const [lifnode_res, set_lifnode_res] = useState(null);
   const handleServerChange = (val)=>{
     setLifServer(val);
-    lif_server_save(val);
+    lif_server_set(val);
   };
   const handle_lifnode_post = async(uri)=>{
     const url = `${lifServer}${uri}`;
