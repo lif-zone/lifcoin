@@ -8,6 +8,8 @@ import {ECPairFactory} from 'ecpair';
 const ecpair = ECPairFactory(ecc);
 import ElectrumClient from '@aguycalled/electrum-client-js';
 import {openDB} from 'idb';
+import sha256lif from './sha256lif.js';
+import {sha256} from '@noble/hashes/sha256';
 
 // from lif-kernel/util.js
 // throw Error -> undefined
@@ -34,6 +36,13 @@ export const esleep = ms=>{
   let p = ewait();
   setTimeout(()=>p.return(), ms);
   return p;
+};
+let assert = (ok, ...msg)=>{
+  if (ok)
+    return;
+  console.error('assert FAIL:', ...msg);
+  debugger; // eslint-disable-line no-debugger
+  throw Error('assert FAIL');
 };
 
 const HD_SCAN_GAP = 20;
@@ -63,6 +72,7 @@ const netconf_def = {
     fee_def: 5000000, // 1MB = 50LIF
     fee_max: 10000000,
     lif_kv: true,
+    pow: 'sha256lif',
   },
   btc: {
     name: 'Bitcoin',
@@ -752,10 +762,87 @@ export function kv_is_dns(key){
   return dns;
 }
 
+function hash256_pow(netconf, buf){
+  if (netconf.pow=='sha256lif')
+    return sha256lif.digest(sha256.digest(buf));
+  if (netconf.pow=='sha256' || !netconf.pow)
+    return sha256.digest(sha256.digest(buf));
+  throw Error('invalid pow');
+}
+
+function target_rcmp(a, b){
+  assert(a.length===b.length);
+  for (let i = a.length-1; i>=0; i--){
+    if (a[i] < b[i])
+      return -1;
+    if (a[i] > b[i])
+      return 1;
+  }
+  return 0;
+}
+
+function target_from_compact(compact){
+  compact = BigInt(compact);
+  if (!compact)
+    return 0n;
+  const exponent = compact >>> 24n;
+  const negative = (compact >>> 23n) & 1n;
+  let mantissa = compact & 0x7fffffn;
+  let num;
+  if (exponent <= 3n){
+    mantissa >>>= 8n * (3n-exponent);
+    num = mantissa;
+  } else
+    num = mantissa << 8n * (exponent-3n);
+  if (negative)
+    num = -num;
+  return num;
+}
+
+function bigint_to_le(value, bytes){
+  const a = new Uint8Array(bytes);
+  for (let i=0; value>0n && i<32; i++){
+    a[i] = Number(value & 0xFFn);
+    value >>= 8n;
+  }
+  return a;
+}
+
+function target_get(bits){
+  const target = target_from_compact(bits);
+  if (target<0)
+    throw new Error('Target is negative.');
+  if (!target)
+    throw new Error('Target is zero.');
+  return bigint_to_le(target, 32);
+}
+
+function mine_single(netconf, header, target_a, nonce){
+  header.writeUint32LE(nonce, 76);
+  let hash = hash256_pow(netconf, header);
+  if (target_rcmp(hash, target_a)<=0){
+    console.log('mine_single: found nonce', nonce);
+    return {found: nonce};
+  }
+}
+
+function mine(netconf, header, min, max){
+  let now = Math.round(Date.now()/1000);
+  let time = header.readUInt32LE(68);
+  let target_a = target_get(header.readUInt32LE(72));
+  let v;
+  for (let i=min; i<=max; i++){
+    if (v=mine_single(netconf, header, target_a, i))
+      return v;
+  }
+}
+
 export async function el_mine_get_template(netconf, saddr){
-  const header = await el_req(netconf, 'blockchain.mine.get_template',
+  const ret = await el_req(netconf, 'blockchain.mine.get_template',
     [saddr]);
-  console.log(header);
-  return header;
+  const header = Buffer.from(ret.header, 'hex');
+  console.log(ret.header);
+  mine(netconf, header, 0, 1000000);
+  return _header;
 }
 
