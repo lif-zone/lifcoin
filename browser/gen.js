@@ -146,7 +146,7 @@ const mine = require('../lib/mining/mine');
 const common = require('../lib/mining/common');
 function mine_single(header, target, nonce){
   let hash;
-  header.writeUInt32LE(nonce, 76, true);
+  header.writeUInt32LE(nonce, 76);
   //hash = sha256.digest(sha256.digest(header)); // 0.22M/sec
   //hash = _sha256.digest(_sha256.digest(header)); // 0.33M/sec
   //hash = sha256lif.digest(_sha256.digest(header)); // 0.29M/sec
