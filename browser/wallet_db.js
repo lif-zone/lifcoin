@@ -9,7 +9,7 @@ const ecpair = ECPairFactory(ecc);
 import ElectrumClient from '@aguycalled/electrum-client-js';
 import {openDB} from 'idb';
 import sha256lif from './sha256lif.js';
-import {sha256} from '@noble/hashes/sha256';
+const sha256 = bitcoin.crypto.sha256;
 
 // from lif-kernel/util.js
 // throw Error -> undefined
@@ -527,7 +527,7 @@ export async function hd_scan(netconf, root, accountPath, chain){
 // convert address to scripthash (electrum usess scripthash for addresses)
 export function addr_sh(saddr, network){
   const script = bitcoin.address.toOutputScript(saddr, network);
-  const hash = bitcoin.crypto.sha256(script);
+  const hash = sha256(script);
   return Buffer.from(hash.reverse()).toString('hex');
 }
 
@@ -764,9 +764,9 @@ export function kv_is_dns(key){
 
 function hash256_pow(netconf, buf){
   if (netconf.pow=='sha256lif')
-    return sha256lif.digest(sha256.digest(buf));
+    return sha256lif.digest(Buffer.from(sha256(buf)));
   if (netconf.pow=='sha256' || !netconf.pow)
-    return sha256.digest(sha256.digest(buf));
+    return sha256(sha256(buf));
   throw Error('invalid pow');
 }
 
@@ -785,12 +785,12 @@ function target_from_compact(compact){
   compact = BigInt(compact);
   if (!compact)
     return 0n;
-  const exponent = compact >>> 24n;
-  const negative = (compact >>> 23n) & 1n;
+  const exponent = compact >> 24n;
+  const negative = (compact >> 23n) & 1n;
   let mantissa = compact & 0x7fffffn;
   let num;
   if (exponent <= 3n){
-    mantissa >>>= 8n * (3n-exponent);
+    mantissa >>= 8n * (3n-exponent);
     num = mantissa;
   } else
     num = mantissa << 8n * (exponent-3n);
@@ -842,7 +842,7 @@ export async function el_mine_get_template(netconf, saddr){
     [saddr]);
   const header = Buffer.from(ret.header, 'hex');
   console.log(ret.header);
-  mine(netconf, header, 0, 1000000);
-  return _header;
+  let nonce = mine(netconf, header, 0, 1000000);
+  return {...ret, nonce};
 }
 
