@@ -163,10 +163,20 @@ function el_connect(netconf){
       await el.connect('lif-coin-wallet', '1.4');
       return el;
     } catch(e){
+      console.error(e);
       delete g_clients[url];
       throw e;
     }
   })();
+}
+
+async function el_req(netconf, req, args){
+  const el = await el_connect(netconf);
+  try {
+    return await el.request(req, args);
+  } catch(e){
+    console.error(e);
+  }
 }
 
 // id → single wallet object instance (mutated in place)
@@ -514,8 +524,7 @@ export function addr_sh(saddr, network){
 export async function el_estimatefee(netconf){
   const fallback = netconf.fee_def;
   try {
-    const el = await el_connect(netconf);
-    const rate = await el.request('blockchain.estimatefee', [6]);
+    const rate = await el_req(netconf,'blockchain.estimatefee', [6]);
     if (rate>0)
       return Math.round(rate*1e8);
   } catch(e){}
@@ -541,13 +550,12 @@ export async function tx_broadcast(netconf, tx){
 
 export async function el_list_unspent(netconf, saddr){
   const el = await el_connect(netconf);
-  return el.blockchain_scripthash_listunspent(
+  return await el.blockchain_scripthash_listunspent(
     addr_sh(saddr, netconf.network));
 }
 
 export async function kv_get(netconf, key){
-  const el = await el_connect(netconf);
-  return el.request('blockchain.lif_kv.get', [key]);
+  return await el_req(netconf, 'blockchain.lif_kv.get', [key]);
 }
 
 export function fee_calc(rateSatPerKb, tx){
@@ -743,4 +751,12 @@ export function kv_is_dns(key){
     return;
   return dns;
 }
+
+export async function el_mine_get_template(netconf, saddr){
+  const header = await el_req(netconf, 'blockchain.mine.get_template',
+    [saddr]);
+  console.log(header);
+  return header;
+}
+
 

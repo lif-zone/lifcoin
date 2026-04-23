@@ -47,7 +47,7 @@ make wallet.jsx support multiple wallets
 + add qr for receive address
 + add qr for send address
 + replace alert() windows, with JS.
-- add Mine button on LIF wallets, to collect funds.
+* add Mine button on LIF wallets, to collect funds.
   - add JSON RPC getblocktemplate
 - open new users in github, and re-import the projects, but with different
   login names/emails
