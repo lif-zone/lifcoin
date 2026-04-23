@@ -10,40 +10,8 @@ import ElectrumClient from '@aguycalled/electrum-client-js';
 import {openDB} from 'idb';
 import sha256lif from './sha256lif.js';
 const sha256 = bitcoin.crypto.sha256;
-
-// from lif-kernel/util.js
-// throw Error -> undefined
-export function T(fn, throw_val){
-  try {
-    return fn();
-  } catch(err){ return throw_val; }
-}
-export const OE = o=>o ? Object.entries(o) : [];
-export const OV = o=>o ? Object.values(o) : [];
-export const OA = Object.assign;
-export const ewait = ()=>{
-  let _return, _throw;
-  let promise = new Promise((resolve, reject)=>{
-    _return = ret=>{ resolve(ret); return ret; };
-    _throw = err=>{ reject(err); return err; };
-  });
-  promise.return = _return;
-  promise.throw = _throw;
-  promise.catch(err=>{}); // catch un-waited wait() objects. avoid Uncaught in promise
-  return promise;
-};
-export const esleep = ms=>{
-  let p = ewait();
-  setTimeout(()=>p.return(), ms);
-  return p;
-};
-let assert = (ok, ...msg)=>{
-  if (ok)
-    return;
-  console.error('assert FAIL:', ...msg);
-  debugger; // eslint-disable-line no-debugger
-  throw Error('assert FAIL');
-};
+import {T, OE, OV, OA, ewait, esleep, assert, ipc_postmessage}
+  from './util.js';
 
 const HD_SCAN_GAP = 20;
 const DUST_VAL = 1;
@@ -822,7 +790,7 @@ function mine_single(netconf, header, target_a, nonce){
   let hash = hash256_pow(netconf, header);
   if (target_rcmp(hash, target_a)<=0){
     console.log('mine_single: found nonce', nonce);
-    return {found: nonce};
+    return {found: true, nonce};
   }
 }
 
@@ -837,12 +805,26 @@ function mine(netconf, header, min, max){
   }
 }
 
+async function mine_worker(){
+  let mine_worker = new Worker(import.meta.resolve('./mine_worker.js'),
+    {type: 'module'});
+  let wait = ewait();
+  mine_worker.addEventListener("message", event=>{
+    if (event.data.mine_inited)
+      return wait.return();
+    if (event.data.pong)
+    console.error('mine_worker unknown message', event.data, event);
+  });
+  mine_worker.postMessage({ping: true});
+
+}
+
 export async function el_mine_get_template(netconf, saddr){
   const ret = await el_req(netconf, 'blockchain.mine.get_template',
     [saddr]);
   const header = Buffer.from(ret.header, 'hex');
   console.log(ret.header);
-  let nonce = mine(netconf, header, 0, 1000000);
-  return {...ret, nonce};
+  let found = mine(netconf, header, 0, 1000000);
+  return {...ret, found};
 }
 
