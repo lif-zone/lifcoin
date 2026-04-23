@@ -759,4 +759,3 @@ export async function el_mine_get_template(netconf, saddr){
   return header;
 }
 
-

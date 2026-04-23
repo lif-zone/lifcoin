@@ -9,7 +9,7 @@ import {settings_get, settings_save, wallet_db_init, ewait,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
-  LIF_SERVER_DEF, lif_server_get, lif_server_set,
+  LIF_SERVER_DEF, lif_server_get, lif_server_set, el_mine_get_template,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -86,8 +86,6 @@ function BrightWallet(){
   const [selectedTxData, setSelectedTxData] = useState(null);
   const [selectedKeyData, setSelectedKeyData] = useState(null);
   const [cacheVer, setCacheVer] = useState(0);
-  const [devtools, set_devtools] = useState(
-    ()=>settings.ls.devtools=='1');
   const [refreshTick, setRefreshTick] = useState(0);
   const [walletLoading, setWalletLoading] = useState(false);
   const [homeRefreshTick, setHomeRefreshTick] = useState(0);
@@ -404,7 +402,7 @@ function Wallet_add_screen({wallets, onAdd, onCancel}){
       <div style={{marginTop: 12}}>
         <label>Coin:</label>
         <div style={{marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4}}>
-          {OE(netconfs).filter(([key])=>settings.devtools||!netconfs[key].test).map(([key, netconf])=>(
+          {OE(netconfs).filter(([key])=>settings.ls.devtools||!netconfs[key].test).map(([key, netconf])=>(
             <label key={key} style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
               <input
                 type="radio"
@@ -551,8 +549,8 @@ function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx,
         <button onClick={onReceive} disabled={!allAddrs.length}>Receive</button>
         <button onClick={onSend} disabled={!allAddrs.length}>Send</button>
         {netconf.lif_kv && <button onClick={onKvAdd} disabled={!allAddrs.length}>Get Domain Name</button>}
-        {netconf.lif_kv && settings.devtools && <button onClick={onKvAddRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
-        {settings.devtools && transactions.some(tx=>!tx.timestamp) && (
+        {netconf.lif_kv && settings.ls.devtools && <button onClick={onKvAddRaw} disabled={!allAddrs.length}>Get Key/Val</button>}
+        {settings.ls.devtools && transactions.some(tx=>!tx.timestamp) && (
           <button onClick={async()=>{
             try {
               await fetch(lif_server_get()+'/mine', {method: 'POST'});
@@ -690,6 +688,13 @@ function Wallet_settings_subscreen({wallet, onUpdate, onDelete}){
           />
         </div>
       )}
+      {settings.ls.devtools && (
+        <div style={{marginTop: 16}}>
+          <button onClick={()=>el_mine_get_template(netconf, wallet.c.receiveAddress)}>
+            Get Mine Template
+          </button>
+        </div>
+      )}
       <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 20}}>
         <button
           onClick={onDelete}
@@ -801,7 +806,7 @@ function Kv_info_screen({kv_d, onViewTx, onTransfer, onEdit}){
           <span style={{color: statusColor, fontSize: 13}}>{statusLabel}</span>
         </div>
         <div style={{marginTop: 8, display: 'flex', gap: 8}}>
-          {settings.devtools && <button onClick={()=>onViewTx(tx)}>View Transaction</button>}
+          {settings.ls.devtools && <button onClick={()=>onViewTx(tx)}>View Transaction</button>}
           <button onClick={onTransfer} disabled={isSpent}
             style={{color: '#c00', border: '1px solid #c00', background: 'transparent'}}>
             Transfer Domain Name
@@ -1308,7 +1313,7 @@ function Kv_send_screen({wallet, kv_d, onSent}){
       const txid = tx.getId();
       await tx_broadcast(netconf, tx);
       setFee(_fee);
-      if (settings.devtools)
+      if (settings.ls.devtools)
         await modal.alert(<>Name transferred!<br/>TXID: {txid}{netconf.explorer_tx && <><br/><a href={netconf.explorer_tx+txid} target="_blank" rel="noopener noreferrer">View in block explorer</a></>}</>);
       else
         await modal.alert('Name transferred!');
