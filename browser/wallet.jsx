@@ -18,7 +18,7 @@ await wallet_db_init();
 const settings = settings_get();
 
 // Modal
-const ModalContext = createContext(null);
+const Modal_context = createContext(null);
 function Modal_provider({children}){
   const [modal, setModal] = useState(null);
   const alert = useCallback(async(msg)=>{
@@ -28,7 +28,7 @@ function Modal_provider({children}){
   }, []);
   const close = ()=>{ modal?.resolve(); setModal(null); };
   return (
-    <ModalContext.Provider value={{alert}}>
+    <Modal_context.Provider value={{alert}}>
       {children}
       {modal && (
         <div onClick={close}
@@ -48,10 +48,10 @@ function Modal_provider({children}){
           </div>
         </div>
       )}
-    </ModalContext.Provider>
+    </Modal_context.Provider>
   );
 }
-function useModal(){ return useContext(ModalContext); }
+function useModal(){ return useContext(Modal_context); }
 
 function json(o){
   return JSON.stringify(o);
