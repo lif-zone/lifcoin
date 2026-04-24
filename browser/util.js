@@ -76,7 +76,7 @@ eslow.print = ()=>{
     p.print();
 };
 if (D||1)
-  globalThis.eslow = eslow;
+  globalThis.$eslow = eslow;
 
 export class ipc_postmessage {
   req = {};
