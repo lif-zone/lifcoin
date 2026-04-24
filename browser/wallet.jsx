@@ -3,7 +3,11 @@ import React, {useState, useEffect, useMemo, useRef, createContext, useContext, 
 import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
+/*
 import {OE, OV, OA, ewait, esleep, ipc_postmessage} from './util.js';
+*/
+import util from './util.js';
+const {OE, OV, OA, ewait, esleep, ipc_postmessage} = util;
 import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,

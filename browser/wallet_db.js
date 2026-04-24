@@ -10,8 +10,12 @@ import ElectrumClient from '@aguycalled/electrum-client-js';
 import {openDB} from 'idb';
 import sha256lif from './sha256lif.js';
 const sha256 = bitcoin.crypto.sha256;
+import util from './util.js';
+const {T, OE, OV, OA, ewait, esleep, assert, ipc_postmessage} = util;
+/*
 import {T, OE, OV, OA, ewait, esleep, assert, ipc_postmessage}
   from './util.js';
+*/
 
 const HD_SCAN_GAP = 20;
 const DUST_VAL = 1;

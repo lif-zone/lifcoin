@@ -1,15 +1,14 @@
-// from lif-kernel/util.js
-// throw Error -> undefined
-let D = 0;
-export function T(fn, throw_val){
-  try {
-    return fn();
-  } catch(err){ return throw_val; }
-}
-export const OE = o=>o ? Object.entries(o) : [];
-export const OV = o=>o ? Object.values(o) : [];
-export const OA = Object.assign;
-export const ewait = ()=>{
+// LICENSE_CODE JPL mini util.js from lif-kernel/util.js
+let util_version = '26.4.23';
+let exports = {};
+exports.dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
+exports.version = util_version;
+let D = 0; // Debug
+
+let is_worker = typeof window=='undefined';
+
+// Promise with return() and throw()
+let ewait = exports.ewait = ()=>{
   let _return, _throw;
   let promise = new Promise((resolve, reject)=>{
     _return = ret=>{ resolve(ret); return ret; };
@@ -20,20 +19,13 @@ export const ewait = ()=>{
   promise.catch(err=>{}); // catch un-waited wait() objects. avoid Uncaught in promise
   return promise;
 };
-export const esleep = ms=>{
+let esleep = exports.esleep = ms=>{
   let p = ewait();
   setTimeout(()=>p.return(), ms);
   return p;
 };
-export const assert = (ok, ...msg)=>{
-  if (ok)
-    return;
-  console.error('assert FAIL:', ...msg);
-  debugger; // eslint-disable-line no-debugger
-  throw Error('assert FAIL');
-};
 
-export const eslow = (ms, arg)=>{
+let eslow = exports.eslow = (ms, arg)=>{
   let enable = 0; // = 1 to enable, or = 0 just to trace active tasks, no print
   eslow.seq ||= 0;
   let seq = eslow.seq++;
@@ -78,7 +70,100 @@ eslow.print = ()=>{
 if (D||1)
   globalThis.$eslow = eslow;
 
-export class ipc_postmessage {
+// shortcuts
+let OE = exports.OE = o=>o ? Object.entries(o) : [];
+let OA = exports.OA = Object.assign;
+let OV = exports.OV = Object.values;
+let json = exports.json = obj=>JSON.stringify(obj);
+let json_cp = exports.json_cp =
+  obj=>JSON.parse(JSON.stringify(obj===undefined ? null : obj));
+// throw Error -> undefined
+let Tf = exports.Tf = (fn, throw_val)=>(function(){
+  try {
+    return fn(...arguments);
+  } catch(err){ return throw_val; }
+});
+let T = exports.T = (fn, throw_val)=>{
+  try {
+    return fn();
+  } catch(err){ return throw_val; }
+};
+
+// undefined -> Throw error
+let TUf = exports.TUf = fn=>(function(){
+  let v = fn(...arguments);
+  if (v===undefined)
+    throw Error('failed '+fn.name);
+  return v;
+});
+let TU = exports.TU = fn=>{
+  let v = fn();
+  if (v===undefined)
+    throw Error('failed '+fn.name);
+  return v;
+};
+
+// assert.js
+let assert = exports.assert = (ok, ...msg)=>{
+  if (ok)
+    return;
+  console.error('assert FAIL:', ...msg);
+  debugger; // eslint-disable-line no-debugger
+  throw Error('assert FAIL');
+};
+let assert_eq = exports.assert_eq = assert.eq = (exp, res)=>{
+  assert(exp===res, 'exp', exp, 'got', res);
+};
+let assert_obj = exports.assert_obj = assert.obj = (exp, res)=>{
+  if (exp===res)
+    return;
+  if (typeof exp=='object'){
+    assert(typeof res=='object', 'exp', exp, 'res', res);
+    for (let i in exp)
+      assert_obj(exp[i], res[i]);
+    for (let i in res)
+      assert_obj(exp[i], res[i]);
+    return;
+  }
+  assert(0, 'exp', exp, 'res', res);
+};
+let assert_obj_f = exports.assert_obj_f = assert.obj_f = (exp, res)=>{
+  if (exp===res)
+    return;
+  if (typeof exp=='object'){
+    assert(typeof res=='object', 'exp', exp, 'res', res);
+    for (let i in exp)
+      assert_obj_f(exp[i], res[i]);
+    return;
+  }
+  assert(0, 'exp', exp, 'res', res);
+};
+let assert_run = assert.run = run=>{
+  try {
+    return run();
+  } catch(e){
+    assert(0, 'run failed: '+e);
+  }
+};
+let assert_run_ab = exports.assert_run_ab = assert.run_ab = (a, b, test)=>{
+  let _a = T(a, {got_throw: 1});
+  let _b = T(b, {got_throw: 1});
+  assert(!!_a.got_throw==!!_b.got_throw,
+    _a.got_throw ? 'a throws, and b does not' : 'b throws, and a does not');
+  let ok = assert_run(()=>test(_a, _b));
+  assert(ok, 'a and b dont match');
+  return {a: _a, b: _b};
+};
+let assert_te = assert.te = fn=>{
+  try {
+    fn();
+  } catch(err){
+    return;
+  }
+  assert(0, 'didnt throw');
+};
+
+class ipc_postmessage {
   req = {};
   cmd_cb = {};
   ports;
@@ -147,5 +232,7 @@ export class ipc_postmessage {
     this.port.close();
   }
 }
+exports.ipc_postmessage = ipc_postmessage;
 
+export default exports;
 
