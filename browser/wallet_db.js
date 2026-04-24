@@ -805,18 +805,26 @@ function mine(netconf, header, min, max){
   }
 }
 
-async function mine_worker(){
-  let mine_worker = new Worker(import.meta.resolve('./mine_worker.js'),
+let mine_worker;
+let mine_ipc;
+async function mine_worker_init(){
+  mine_worker = new Worker(import.meta.resolve('./mine_worker.js'),
     {type: 'module'});
-  let wait = ewait();
-  mine_worker.addEventListener("message", event=>{
-    if (event.data.mine_inited)
-      return wait.return();
-    if (event.data.pong)
-    console.error('mine_worker unknown message', event.data, event);
-  });
-  mine_worker.postMessage({ping: true});
-
+  mine_ipc = new ipc_postmessage();
+  mine_ipc.connect(mine_worker);
+  let v = await mine_ipc.cmd('version');
+  console.log('connected to mine_worker version', v);
+}
+let mine_worker_wait;
+async function mine_worker_get(){
+  if (!mine_worker_wait){
+    mine_worker_wait = ewait();
+    await mine_worker_init();
+    mine_worker_wait.return();
+  }
+  await mine_worker_wait;
+  let res = await mine_ipc.cmd('mine', {header: '112233aabb'});
+  console.log('got res', res);
 }
 
 export async function el_mine_get_template(netconf, saddr){
@@ -825,6 +833,7 @@ export async function el_mine_get_template(netconf, saddr){
   const header = Buffer.from(ret.header, 'hex');
   console.log(ret.header);
   let found = mine(netconf, header, 0, 1000000);
+  await mine_worker_get();
   return {...ret, found};
 }
 
