@@ -1,14 +1,13 @@
 // LICENSE_CODE JPL mini util.js from lif-kernel/util.js
 let util_version = '26.4.23';
-let exports = {};
-exports.dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
-exports.version = util_version;
+export const dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
+export const version = util_version;
 let D = 0; // Debug
 
 let is_worker = typeof window=='undefined';
 
 // Promise with return() and throw()
-let ewait = exports.ewait = ()=>{
+export function ewait(){
   let _return, _throw;
   let promise = new Promise((resolve, reject)=>{
     _return = ret=>{ resolve(ret); return ret; };
@@ -18,15 +17,15 @@ let ewait = exports.ewait = ()=>{
   promise.throw = _throw;
   promise.catch(err=>{}); // catch un-waited wait() objects. avoid Uncaught in promise
   return promise;
-};
-let esleep = exports.esleep = ms=>{
+}
+export function esleep(ms){
   let p = ewait();
   setTimeout(()=>p.return(), ms);
   return p;
-};
+}
 
-let eslow = exports.eslow = (ms, arg)=>{
-  let enable = 0; // = 1 to enable, or = 0 just to trace active tasks, no print
+export function eslow(ms, arg){
+  let enable = 1; // = 1 to enable, or = 0 just to trace active tasks, no print
   eslow.seq ||= 0;
   let seq = eslow.seq++;
   let done, timeout, at_end;
@@ -59,7 +58,7 @@ let eslow = exports.eslow = (ms, arg)=>{
   p.print = ()=>console.log('slow('+seq+') '+(done?'completed ':'')+ms
     +' passed '+((at_end||Date.now())-p.now), ...arg);
   return p;
-};
+}
 
 eslow.set = new Set();
 eslow.print = ()=>{
@@ -71,50 +70,56 @@ if (D||1)
   globalThis.$eslow = eslow;
 
 // shortcuts
-let OE = exports.OE = o=>o ? Object.entries(o) : [];
-let OA = exports.OA = Object.assign;
-let OV = exports.OV = Object.values;
-let json = exports.json = obj=>JSON.stringify(obj);
-let json_cp = exports.json_cp =
-  obj=>JSON.parse(JSON.stringify(obj===undefined ? null : obj));
+export function OE(o){ return o ? Object.entries(o) : []; }
+export const OA = Object.assign;
+export const OV = Object.values;
+export function json(obj){ return JSON.stringify(obj); }
+export function json_cp(obj){
+  return JSON.parse(JSON.stringify(obj===undefined ? null : obj));
+}
 // throw Error -> undefined
-let Tf = exports.Tf = (fn, throw_val)=>(function(){
-  try {
-    return fn(...arguments);
-  } catch(err){ return throw_val; }
-});
-let T = exports.T = (fn, throw_val)=>{
+export function Tf(fn, throw_val){
+  return function(){
+    try {
+      return fn(...arguments);
+    } catch(err){ return throw_val; }
+  };
+}
+export function T(fn, throw_val){
   try {
     return fn();
   } catch(err){ return throw_val; }
-};
+}
 
 // undefined -> Throw error
-let TUf = exports.TUf = fn=>(function(){
-  let v = fn(...arguments);
-  if (v===undefined)
-    throw Error('failed '+fn.name);
-  return v;
-});
-let TU = exports.TU = fn=>{
+export function TUf(fn){
+  return function(){
+    let v = fn(...arguments);
+    if (v===undefined)
+      throw Error('failed '+fn.name);
+    return v;
+  };
+}
+export function TU(fn){
   let v = fn();
   if (v===undefined)
     throw Error('failed '+fn.name);
   return v;
-};
+}
 
 // assert.js
-let assert = exports.assert = (ok, ...msg)=>{
+export function assert(ok, ...msg){
   if (ok)
     return;
   console.error('assert FAIL:', ...msg);
   debugger; // eslint-disable-line no-debugger
   throw Error('assert FAIL');
-};
-let assert_eq = exports.assert_eq = assert.eq = (exp, res)=>{
+}
+export function assert_eq(exp, res){
   assert(exp===res, 'exp', exp, 'got', res);
-};
-let assert_obj = exports.assert_obj = assert.obj = (exp, res)=>{
+}
+assert.eq = assert_eq;
+export function assert_obj(exp, res){
   if (exp===res)
     return;
   if (typeof exp=='object'){
@@ -126,8 +131,9 @@ let assert_obj = exports.assert_obj = assert.obj = (exp, res)=>{
     return;
   }
   assert(0, 'exp', exp, 'res', res);
-};
-let assert_obj_f = exports.assert_obj_f = assert.obj_f = (exp, res)=>{
+}
+assert.obj = assert_obj;
+export function assert_obj_f(exp, res){
   if (exp===res)
     return;
   if (typeof exp=='object'){
@@ -137,15 +143,17 @@ let assert_obj_f = exports.assert_obj_f = assert.obj_f = (exp, res)=>{
     return;
   }
   assert(0, 'exp', exp, 'res', res);
-};
-let assert_run = assert.run = run=>{
+}
+assert.obj_f = assert_obj_f;
+export function assert_run(run){
   try {
     return run();
   } catch(e){
     assert(0, 'run failed: '+e);
   }
-};
-let assert_run_ab = exports.assert_run_ab = assert.run_ab = (a, b, test)=>{
+}
+assert.run = assert_run;
+export function assert_run_ab(a, b, test){
   let _a = T(a, {got_throw: 1});
   let _b = T(b, {got_throw: 1});
   assert(!!_a.got_throw==!!_b.got_throw,
@@ -153,17 +161,19 @@ let assert_run_ab = exports.assert_run_ab = assert.run_ab = (a, b, test)=>{
   let ok = assert_run(()=>test(_a, _b));
   assert(ok, 'a and b dont match');
   return {a: _a, b: _b};
-};
-let assert_te = assert.te = fn=>{
+}
+assert.run_ab = assert_run_ab;
+export function assert_te(fn){
   try {
     fn();
   } catch(err){
     return;
   }
   assert(0, 'didnt throw');
-};
+}
+assert.te = assert_te;
 
-class ipc_postmessage {
+export class ipc_postmessage {
   req = {};
   cmd_cb = {};
   ports;
@@ -232,7 +242,5 @@ class ipc_postmessage {
     this.port.close();
   }
 }
-exports.ipc_postmessage = ipc_postmessage;
 
-export default exports;
 
