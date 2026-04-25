@@ -123,13 +123,6 @@ export function electrum_set(electrum){
   settings_save();
 }
 
-function Electrum_connect(url){
-  let u = URL.parse(url);
-  let protocol = u.protocol.slice(0, -1);
-  let port = u.port || (protocol=='wss' ? '443' : protocol=='ws' ? '80' : '');
-  return new ElectrumClient(u.hostname, port+u.pathname, protocol);
-}
-
 // JSON-RPC Client over WebSocket
 class Json_rpc {
   constructor(url){
@@ -145,7 +138,6 @@ class Json_rpc {
     this.ws = new WebSocket(this.url);
     this.ws_open = ewait();
     this.ws.onopen = ()=>{
-      console.log('WebSocket connected');
       this.ws_open.return(true);
       wait.return(true);
     };
@@ -162,10 +154,11 @@ class Json_rpc {
       console.error('WebSocket error', err);
       wait.throw(err);
       this.ws_open.throw(err);
+      this.error = true;
     };
     this.ws.onclose = ()=>{
-      console.log('WebSocket closed');
       this.ws_open = null;
+      this.error = true;
     };
     return await wait;
   }
@@ -228,8 +221,11 @@ class Electrum_rpc {
   }
   async connect(){
     let rpc;
-    if (rpc = g_electrum[this.url])
-      return rpc;
+    if (rpc = g_electrum[this.url]){
+      if (!rpc.error)
+        return rpc;
+      rpc.close();
+    }
     rpc = g_electrum[this.url] = new Json_rpc(this.url);
     try {
       await rpc.connect();
