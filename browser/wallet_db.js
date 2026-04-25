@@ -130,31 +130,175 @@ function Electrum_connect(url){
   return new ElectrumClient(u.hostname, port+u.pathname, protocol);
 }
 
-const g_clients = {};
-function el_connect(netconf){
-  const url = netconf.electrum;
-  if (g_clients[url])
-    return g_clients[url];
-  return g_clients[url] = (async()=>{
-    try {
-      const el = Electrum_connect(url);
-      await el.connect('lif-coin-wallet', '1.4');
-      return el;
-    } catch(e){
-      console.error(e);
-      delete g_clients[url];
-      throw e;
+// JSON-RPC Client over WebSocket
+class Json_rpc {
+  constructor(url){
+    this.url = url;
+    this.ws = null;
+    this.ws_open = null;
+    this.id = 0;
+    this.pending = {}; // id → {resolve, reject}
+  }
+
+  async connect(){
+    let wait = ewait();
+    this.ws = new WebSocket(this.url);
+    this.ws_open = ewait();
+    this.ws.onopen = ()=>{
+      console.log('WebSocket connected');
+      this.ws_open.return(true);
+      wait.return(true);
+    };
+    this.ws.onmessage = event=>{
+      let msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch(e){
+        return console.error('invalid rpc json', event.data);
+      }
+      this.on_msg(msg);
+    };
+    this.ws.onerror = err=>{
+      console.error('WebSocket error', err);
+      wait.throw(err);
+      this.ws_open.throw(err);
+    };
+    this.ws.onclose = ()=>{
+      console.log('WebSocket closed');
+      this.ws_open = null;
+    };
+    return await wait;
+  }
+
+  on_msg(msg){
+    if (!msg)
+      return console.error('invalid empty rpc msg');
+    if (msg.id!=null){
+      const msg_wait = this.pending[msg.id];
+      if (!msg_wait)
+        return console.error('unexpected rpc msg', msg);
+      delete this.pending[msg.id];
+      if (msg.error)
+        return msg_wait.throw(msg);
+      return msg_wait.return(msg.result);
     }
-  })();
+    if (msg.method)
+      return console.log('rpc server notification:', msg.method, msg.params);
+    console.error('unknowing rpc msg', msg);
+  }
+
+  async call(method, ...params){
+    let msg_wait = ewait();
+    if (!this.ws)
+      throw new Error('WebSocket not inited');
+    if (!await this.ws_open)
+      throw new Error('WebSocket not open');
+    if (this.ws.readyState!==WebSocket.OPEN)
+      throw new Error('WebSocket not connected');
+    const id = ++this.id;
+    const request = {
+      jsonrpc: "2.0",
+      id,
+      method,
+      ...(params.length && {params}),
+    };
+    this.pending[id] = msg_wait;
+    this.ws.send(JSON.stringify(request));
+    let res;
+    try {
+      res = await msg_wait;
+    } catch(msg){
+      console.error('rpc('+method+') error', msg);
+      throw new Error(msg.error);
+    }
+    return res;
+  }
+
+  close(){
+    if (this.ws)
+      this.ws.close();
+  }
 }
 
-async function el_req(netconf, req, args){
-  const el = await el_connect(netconf);
-  try {
-    return await el.request(req, args);
-  } catch(e){
-    console.error(e);
+const g_electrum = {};
+class Electrum_rpc {
+  constructor(netconf){
+    this.netconf = netconf;
+    this.url = netconf.electrum;
   }
+  async connect(){
+    let rpc;
+    if (rpc = g_electrum[this.url])
+      return rpc;
+    rpc = g_electrum[this.url] = new Json_rpc(this.url);
+    try {
+      await rpc.connect();
+    } catch(e){
+      console.error('roc_connect', e);
+      rpc.close();
+      throw e; // return
+    }
+    try {
+      this.server_version = await rpc.call('server.version',
+        'lif-coin-wallet', '1.4');
+      this.server_banner = await rpc.call('server.banner');
+    } catch(e){
+      console.error('server version rpc', e);
+      this.close();
+      throw e; // XXX return
+    }
+    return rpc;
+  }
+  static async connect(netconf){
+    const el = new Electrum_rpc(netconf);
+    await el.connect();
+    return el;
+  }
+  async call(method, ...params){
+    let rpc = await this.connect();
+    return await rpc.call(method, ...params);
+  }
+  close(){
+    const rpc = g_electrum[this.url];
+    if (rpc)
+      rpc.close();
+    delete g_electrum[this.url];
+  }
+  async tx_get(tx_hash, verb){
+    return await this.call('blockchain.transaction.get', tx_hash, verb);
+  }
+  async tx_broadcast(txraw){
+    return await this.call('blockchain.transaction.broadcast', txraw);
+  }
+  async sh_get_balance(sh){
+    return await this.call('blockchain.scripthash.get_balance', sh);
+  }
+  async sh_get_history(sh){
+    return await this.call('blockchain.scripthash.get_history', sh);
+  }
+  async sh_listunspent(sh){
+    return await this.call('blockchain.scripthash.listunspent', sh);
+  }
+  async block_header(height){
+    return await this.call('blockchain.block.header', height);
+  }
+  async estimatefee(nblocks){
+    return await this.call('blockchain.estimatefee', nblocks);
+  }
+  async lif_kv_get(key){
+    return await this.call('blockchain.lif_kv.get', key);
+  }
+  async mine_get_template(saddr){
+    return await this.call('blockchain.mine.get_template', saddr);
+  }
+}
+
+async function el_connect(netconf){
+  return await Electrum_rpc.connect(netconf);
+}
+
+export function _el(netconf){
+  return new Electrum_rpc(netconf);
 }
 
 // id → single wallet object instance (mutated in place)
@@ -287,7 +431,7 @@ export async function wallet_db_init(){
 
 async function _wallet_fetch(wallet){
   const {netconf, network, ls, c, cs} = wallet;
-  const el = await el_connect(netconf);
+  const el = _el(netconf);
   const root = wallet_root(wallet);
   const ap = ls.derivPath || hd_path_def(netconf);
   const [extRes, chgRes] = await Promise.all([
@@ -308,13 +452,11 @@ async function _wallet_fetch(wallet){
   const addr_set = new Set(addrs.map(a=>a.address));
   const [utxo_list, bals] = await Promise.all([
     Promise.all(addrs.map(async(a)=>{
-      const sh = addr_sh(a.address, network);
-      const unspent = await el.blockchain_scripthash_listunspent(sh);
+      const unspent = await el.sh_listunspent(addr_sh(a.address, network));
       return unspent.map(u=>({...u, address: a.address, chain: a.chain, index: a.index}));
     })),
     Promise.all(addrs.map(async(a)=>{
-      let bal = await el.blockchain_scripthash_getBalance(
-        addr_sh(a.address, network));
+      let bal = await el.sh_get_balance(addr_sh(a.address, network));
       return bal;
     })),
   ]);
@@ -339,8 +481,8 @@ async function _wallet_fetch(wallet){
   if (hist.length){
     const heights = [...new Set(hist.filter(t=>t.height>0).map(t=>t.height))];
     const [verboseTxs, ...headers] = await Promise.all([
-      Promise.all(hist.map(t=>el.blockchain_transaction_get(t.tx_hash, true))),
-      ...heights.map(h=>el.blockchain_block_header(h)),
+      Promise.all(hist.map(t=>el.tx_get(t.tx_hash, true))),
+      ...heights.map(h=>el.block_header(h)),
     ]);
     const tsMap = {};
     heights.forEach((h, i)=>{
@@ -349,8 +491,7 @@ async function _wallet_fetch(wallet){
     const histTxIds = new Set(hist.map(t=>t.tx_hash));
     const prevIds = [...new Set(verboseTxs.flatMap(vtx=>(vtx.vin||[]).map(
       vin=>vin.txid).filter(id=>id&&!histTxIds.has(id))))];
-    const prevList = await Promise.all(prevIds.map(
-      id=>el.blockchain_transaction_get(id, true)));
+    const prevList = await Promise.all(prevIds.map(id=>el.tx_get(id, true)));
     const prevMap = {};
     prevIds.forEach((id, i)=>{ prevMap[id]=prevList[i]; });
     verboseTxs.forEach(vtx=>{ prevMap[vtx.txid]=vtx; });
@@ -465,7 +606,7 @@ export function hd_wallet(mnemonic, networkKey, passphrase='',
 // Returns {used: [{address, keyPair, chain, index, hist}], nextIndex}
 export async function hd_scan(netconf, root, accountPath, chain){
   const network = netconf.network;
-  const el = await el_connect(netconf);
+  const el = _el(netconf);
   const GAP = HD_SCAN_GAP;
   const used = [];
   let lastUsed = -1;
@@ -474,8 +615,7 @@ export async function hd_scan(netconf, root, accountPath, chain){
     const entries = Array.from({length: GAP}, (_, i)=>hd_addr(root,
       accountPath, network, chain, start+i));
     const hists = await Promise.all(
-      entries.map(e=>el.blockchain_scripthash_getHistory(
-        addr_sh(e.address, network)))
+      entries.map(e=>el.sh_get_history(addr_sh(e.address, network)))
     );
     let anyUsed = false;
     for (let i=0; i<GAP; i++){
@@ -502,7 +642,7 @@ export function addr_sh(saddr, network){
 export async function el_estimatefee(netconf){
   const fallback = netconf.fee_def;
   try {
-    const rate = await el_req(netconf,'blockchain.estimatefee', [6]);
+    const rate = await _el(netconf).estimatefee(6);
     if (rate>0)
       return Math.round(rate*1e8);
   } catch(e){}
@@ -520,20 +660,9 @@ function kv_script(key, val){
 }
 
 export async function tx_broadcast(netconf, tx){
-  const el = await el_connect(netconf);
-  let txid = await el.blockchain_transaction_broadcast(tx.toHex());
+  let txid = _el(netconf).tx_broadcast(tx.toHex());
   if (txid!=tx.getId())
     console.error(`mistmatch txid ${txid} ${tx.getId()}`);
-}
-
-export async function el_list_unspent(netconf, saddr){
-  const el = await el_connect(netconf);
-  return await el.blockchain_scripthash_listunspent(
-    addr_sh(saddr, netconf.network));
-}
-
-export async function kv_get(netconf, key){
-  return await el_req(netconf, 'blockchain.lif_kv.get', [key]);
 }
 
 export function fee_calc(rateSatPerKb, tx){
@@ -786,7 +915,7 @@ function target_get(bits){
 }
 
 function mine_single(netconf, header, target_a, nonce){
-  header.writeUint32LE(nonce, 76);
+  header.writeUInt32LE(nonce, 76);
   let hash = hash256_pow(netconf, header);
   if (target_rcmp(hash, target_a)<=0){
     console.log('mine_single: found nonce', nonce);
@@ -828,8 +957,7 @@ async function mine_worker_get(){
 }
 
 export async function el_mine_get_template(netconf, saddr){
-  const ret = await el_req(netconf, 'blockchain.mine.get_template',
-    [saddr]);
+  const ret = await _el(netconf).mine_get_template(saddr);
   const header = Buffer.from(ret.header, 'hex');
   console.log(ret.header);
   let found = mine(netconf, header, 0, 1000000);

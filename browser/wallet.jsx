@@ -9,7 +9,7 @@ import {OE, OV, OA, ewait, esleep, ipc_postmessage} from './util.js';
 import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
-  kv_get, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
+  _el, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
   LIF_SERVER_DEF, lif_server_get, lif_server_set, el_mine_get_template,
 } from './wallet_db.js';
@@ -1140,7 +1140,7 @@ function Kv_add_screen({wallet, onSent}){
       setNameStatus('checking');
       await esleep(500);
       try {
-        const kv = await kv_get(netconf, key);
+        const kv = await _el(netconf).kv_get(key);
         setNameStatus(kv ? 'taken' : 'available');
       } catch(e){
         setNameStatus('error');
@@ -1226,7 +1226,7 @@ function Kv_add_raw_screen({wallet, onSent}){
       setNameStatus('checking');
       await esleep(500);
       try {
-        const kv = await kv_get(netconf, key);
+        const kv = await _el(netconf).kv_get(key);
         setNameStatus(kv ? 'taken' : 'available');
       } catch(e){
         setNameStatus('error');
