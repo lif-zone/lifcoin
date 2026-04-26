@@ -10,7 +10,7 @@ function init(){
     console.error('invalid message', event.data, event);
   });
   ipc.add_server_cmd('version', ()=>({version}));
-  ipc.add_server_cmd('mine', ({header})=>{
+  ipc.add_server_cmd('mine', ({header, min, max})=>{
     console.log('mining', header);
   });
 }
