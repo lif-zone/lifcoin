@@ -536,7 +536,7 @@ function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx,
       <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
         <h2 style={{margin: 0}}>{label}</h2>
         {netconf.lif_kv && (
-          <button onClick={()=>mine_get_template(netconf, wallet.c.receiveAddress)}>Mine for free</button>
+          <button onClick={()=>mine_get_template(netconf, wallet.c.receiveAddress)}>Get free LIF - click & mine!</button>
         )}
       </div>
       {connErr && (
