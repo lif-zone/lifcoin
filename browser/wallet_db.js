@@ -72,6 +72,7 @@ function settings_load(){
   const s = g_settings;
   const {ls} = g_settings;
   ls.lif_server ||= LIF_SERVER_DEF;
+  ls.devtools = !! ls.devtools;
   ls.netconf ||= {};
   s.netconf = {};
   s.netconf_def = netconf_def;

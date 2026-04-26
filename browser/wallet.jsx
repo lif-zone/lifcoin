@@ -1462,7 +1462,7 @@ function Settings_screen({onDevtools, onBack})
   const [devtools, set_devtools] = useState(()=>!!settings.ls.devtools);
   const onDevToolsToggle = (v)=>{
     set_devtools(v);
-    settings.ls.devtools = +!!v;
+    settings.ls.devtools = !!v;
     settings_save();
   };
   return (
