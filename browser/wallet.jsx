@@ -141,11 +141,12 @@ function BrightWallet(){
             <button onClick={()=>setHomeRefreshTick(t=>t+1)} title="Refresh" style={{fontSize: 16}}>↻</button>
             <button onClick={()=>setScreen('settings')} title="Settings">⚙</button>
           </>}
-          {screen=='wallet_info' &&
+          {screen=='wallet_info' && <>
             <button onClick={()=>setRefreshTick(t=>t+1)} disabled={walletLoading} title="Refresh" style={{fontSize: 16}}>
               {walletLoading ? '⏳' : '↻'}
             </button>
-          }
+            <button onClick={()=>setScreen('wallet_settings')} title="Settings">⚙</button>
+          </>}
         </div>
       </div>
       {screen=='home' && (
@@ -189,6 +190,7 @@ function BrightWallet(){
         <Receive_screen
           address={wallet.c.receiveAddress}
           symbol={wallet.netconf.symbol}
+          netconf={wallet.netconf}
         />
       )}
       {screen=='wallet_kv_add' && wallet && (
@@ -280,7 +282,7 @@ function Home_screen({wallets, onSelect, onAddNew}){
 
 // Wallet Card (summary box on home screen)
 function Wallet_card({wallet, onClick}){
-  const netconf = wallet.netconf;
+  const {netconf} = wallet;
   const [balance, setBalance] = useState(wallet.c.balance ?? null);
   const [txCount, setTxCount] = useState(wallet.c.transactions?.length ?? null);
   const [keysOwned, setKeysOwned] = useState(wallet.c.ownedKeys?.length ?? 0);
@@ -496,7 +498,7 @@ function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx,
   refreshTick, setWalletLoading})
 {
   const modal = useModal();
-  const netconf = wallet.netconf;
+  const {netconf} = wallet;
   const [balance, setBalance] = useState(wallet.c.balance ?? null);
   const [transactions, setTransactions] = useState(wallet.c.transactions ?? []);
   const [ownedKeys, setOwnedKeys] = useState(wallet.c.ownedKeys ?? []);
@@ -533,7 +535,9 @@ function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx,
     <div>
       <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
         <h2 style={{margin: 0}}>{label}</h2>
-        <button onClick={onSettings}>⚙</button>
+        {netconf.lif_kv && (
+          <button onClick={()=>mine_get_template(netconf, wallet.c.receiveAddress)}>Mine for free</button>
+        )}
       </div>
       {connErr && (
         <p style={{color: '#c00', marginTop: 8}}>
@@ -633,7 +637,7 @@ function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx,
 
 // Wallet Settings Subscreen
 function Wallet_settings_subscreen({wallet, onUpdate, onDelete}){
-  const netconf = wallet.netconf;
+  const {netconf} = wallet;
   const [revealed, setRevealed] = useState(false);
   const [name, setName] = useState(wallet.ls.name);
   const hasPassphrase = !!wallet.ls.passphrase;
@@ -690,13 +694,6 @@ function Wallet_settings_subscreen({wallet, onUpdate, onDelete}){
           />
         </div>
       )}
-      {settings.ls.devtools && (
-        <div style={{marginTop: 16}}>
-          <button onClick={()=>mine_get_template(netconf, wallet.c.receiveAddress)}>
-            Get Mine Template
-          </button>
-        </div>
-      )}
       <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 20}}>
         <button
           onClick={onDelete}
@@ -711,7 +708,7 @@ function Wallet_settings_subscreen({wallet, onUpdate, onDelete}){
 }
 
 // Receive Screen
-function Receive_screen({address, symbol}){
+function Receive_screen({address, symbol, netconf}){
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef(null);
   const handleCopy = async()=>{
@@ -1347,7 +1344,7 @@ function Kv_send_screen({wallet, kv_d, onSent}){
 // KV Name Edit Screen
 function Kv_edit_screen({wallet, kv_d, onSent}){
   const modal = useModal();
-  const netconf = wallet.netconf;
+  const {netconf} = wallet;
   const {setValid, isValid} = useFormValid();
   const [sending, setSending] = useState(false);
   const [fee, setFee] = useState(()=>{
