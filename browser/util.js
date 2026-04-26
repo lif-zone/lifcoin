@@ -196,7 +196,7 @@ export class ipc_postmessage {
       slow.end();
       this.port.postMessage({cmd_res: msg.cmd, id_res: msg.id, res});
     } catch(err){
-      console.error('cmd failed', msg);
+      console.error('cmd failed', msg, err);
       this.port.postMessage({cmd_res: msg.cmd, id_res: msg.id, err: ''+err});
       throw err;
     }
