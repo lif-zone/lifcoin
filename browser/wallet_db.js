@@ -861,7 +861,7 @@ export function kv_is_dns(key){
 
 export async function mine_get_template(netconf, saddr){
   const el = _el(netconf);
-  const ret = await el.mine_get_template(saddr);
+  let ret = await el.mine_get_template(saddr);
   const header = Buffer.from(ret.header, 'hex');
   console.log(ret.header);
   let mine_opt = {pow: netconf.pow, header, min: 0, max: 1000000};
@@ -872,7 +872,7 @@ export async function mine_get_template(netconf, saddr){
     return mine_ret;
   console.log('submitting new block');
   mine_ret.header = mine_ret.header.toString('hex');
-  await el.mine_submit_header(mine_ret);
-  return mine_ret;
+  ret = await el.mine_submit_header(mine_ret.header);
+  return ret;
 }
 
