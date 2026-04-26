@@ -1,14 +1,14 @@
 // LICENSE_CODE JPL mine.js - browser mining api
 import * as bitcoin from 'bitcoinjs-lib';
 import sha256lif from './sha256lif.js';
-const sha256 = bitcoin.crypto.sha256;
+import sha256 from './sha256.js';
 import {ewait, assert, ipc_postmessage} from './util.js';
 
 export function hash256_pow(pow, buf){
   if (pow=='sha256lif')
-    return sha256lif.digest(Buffer.from(sha256(buf)));
+    return sha256lif.digest(sha256.digest(buf));
   if (pow=='sha256' || !pow)
-    return sha256(sha256(buf));
+    return sha256.digest(sha256.digest(buf));
   throw Error('invalid pow');
 }
 
@@ -61,7 +61,7 @@ export function target_get(bits){
 
 export function mine_single(pow, header, target_a, nonce){
   header.writeUInt32LE(nonce, 76);
-  let hash = hash256_pow(pow, header);
+  let hash = hash256_pow(pow, Buffer.from(header));
   if (target_rcmp(hash, target_a)<=0){
     console.log('mine_single: found nonce', nonce);
     return {found: true, nonce};
