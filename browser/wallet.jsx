@@ -11,7 +11,7 @@ import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   _el, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
-  LIF_SERVER_DEF, lif_server_get, lif_server_set, el_mine_get_template,
+  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_get_template,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -692,7 +692,7 @@ function Wallet_settings_subscreen({wallet, onUpdate, onDelete}){
       )}
       {settings.ls.devtools && (
         <div style={{marginTop: 16}}>
-          <button onClick={()=>el_mine_get_template(netconf, wallet.c.receiveAddress)}>
+          <button onClick={()=>mine_get_template(netconf, wallet.c.receiveAddress)}>
             Get Mine Template
           </button>
         </div>

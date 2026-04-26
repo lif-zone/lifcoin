@@ -288,6 +288,9 @@ class Electrum_rpc {
   async mine_get_template(saddr){
     return await this.call('blockchain.mine.get_template', saddr);
   }
+  async mine_submit_header(header){
+    return await this.call('blockchain.mine.submit_header', header);
+  }
 }
 
 async function el_connect(netconf){
@@ -856,13 +859,20 @@ export function kv_is_dns(key){
   return dns;
 }
 
-export async function el_mine_get_template(netconf, saddr){
-  const ret = await _el(netconf).mine_get_template(saddr);
+export async function mine_get_template(netconf, saddr){
+  const el = _el(netconf);
+  const ret = await el.mine_get_template(saddr);
   const header = Buffer.from(ret.header, 'hex');
   console.log(ret.header);
-  let found = mine(netconf, header, 0, 1000000);
-  let mine_res = await mine_worker_get({header, min: 0, max: 1000000});
-  console.log('mine_res', mine_res);
-  return {...ret, found};
+  let mine_opt = {pow: netconf.pow, header, min: 0, max: 1000000};
+  let found = mine(mine_opt);
+  let mine_ret = await mine_worker_get(mine_opt);
+  console.log('mine_res', mine_ret);
+  if (!mine_ret.found)
+    return mine_ret;
+  console.log('submitting new block');
+  mine_ret.header = mine_ret.header.toString('hex');
+  await el.mine_submit_header(mine_ret);
+  return mine_ret;
 }
 

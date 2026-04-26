@@ -4,10 +4,10 @@ import sha256lif from './sha256lif.js';
 const sha256 = bitcoin.crypto.sha256;
 import {ewait, assert, ipc_postmessage} from './util.js';
 
-export function hash256_pow(netconf, buf){
-  if (netconf.pow=='sha256lif')
+export function hash256_pow(pow, buf){
+  if (pow=='sha256lif')
     return sha256lif.digest(Buffer.from(sha256(buf)));
-  if (netconf.pow=='sha256' || !netconf.pow)
+  if (pow=='sha256' || !pow)
     return sha256(sha256(buf));
   throw Error('invalid pow');
 }
@@ -59,23 +59,23 @@ export function target_get(bits){
   return bigint_to_le(target, 32);
 }
 
-export function mine_single(netconf, header, target_a, nonce){
+export function mine_single(pow, header, target_a, nonce){
   header.writeUInt32LE(nonce, 76);
-  let hash = hash256_pow(netconf, header);
+  let hash = hash256_pow(pow, header);
   if (target_rcmp(hash, target_a)<=0){
     console.log('mine_single: found nonce', nonce);
     return {found: true, nonce};
   }
 }
 
-export function mine(netconf, header, min, max){
+export function mine({pow, header, min, max}){
   let now = Math.round(Date.now()/1000);
   let time = header.readUInt32LE(68);
   let target_a = target_get(header.readUInt32LE(72));
   let v;
   for (let i=min; i<=max; i++){
-    if (v=mine_single(netconf, header, target_a, i))
-      return v;
+    if (v=mine_single(pow, header, target_a, i))
+      return {...v, header};
   }
 }
 
@@ -86,7 +86,8 @@ export async function mine_worker_init(){
   if (mine_worker_wait)
     return await mine_worker_wait;
   mine_worker_wait = ewait();
-  mine_worker = new Worker(import.meta.resolve('./mine_worker.js'),
+  console.log('mine_worker_init.js');
+  mine_worker = new Worker(import.meta.resolve('./mine_worker_init.js'),
     {type: 'module'});
   mine_ipc = new ipc_postmessage();
   mine_ipc.connect(mine_worker);
@@ -97,8 +98,13 @@ export async function mine_worker_init(){
 
 export async function mine_worker_get(mine_cmd){
   let mine_ipc = await mine_worker_init();
-  let res = await mine_ipc.cmd('mine', mine_cmd);
-  console.log('got res', res);
+  let opt = {...mine_cmd};
+  opt.header = opt.header.toString('hex');
+  let ret = await mine_ipc.cmd('mine', opt);
+  console.log('got ret', ret);
+  if (ret.header)
+    ret.header = Buffer.from(ret.header, 'hex');
+  return ret;
 }
 
 
