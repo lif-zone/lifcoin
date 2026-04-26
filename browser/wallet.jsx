@@ -117,7 +117,8 @@ function BrightWallet(){
     else if (screen=='tx_info' || screen=='kv_info')
       setScreen('wallet_info');
     else if (screen=='wallet_send' || screen=='wallet_receive' ||
-      screen=='wallet_kv_add' || screen=='wallet_kv_add_raw' || screen=='wallet_settings')
+      screen=='wallet_kv_add' || screen=='wallet_kv_add_raw' || screen=='wallet_settings' ||
+      screen=='wallet_mine')
       setScreen('wallet_info');
     else if (screen=='devtools')
       setScreen('settings');
@@ -176,6 +177,7 @@ function BrightWallet(){
           onKvAdd={()=>setScreen('wallet_kv_add')}
           onKvAddRaw={()=>setScreen('wallet_kv_add_raw')}
           onSettings={()=>setScreen('wallet_settings')}
+          onMine={()=>setScreen('wallet_mine')}
           refreshTick={refreshTick}
           setWalletLoading={setWalletLoading}
         />
@@ -210,6 +212,12 @@ function BrightWallet(){
           wallet={wallet}
           onUpdate={(changes)=>updateWallet(wallet.ls.id, changes)}
           onDelete={()=>deleteWallet(wallet.ls.id)}
+        />
+      )}
+      {screen=='wallet_mine' && wallet && (
+        <Mine_screen
+          netconf={wallet.netconf}
+          address={wallet.c.receiveAddress}
         />
       )}
       {screen=='tx_info' && selectedTxData && wallet && (
@@ -494,7 +502,7 @@ function transactions_sorted(transactions){
 
 // Wallet Detail Screen
 function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx,
-  onSelectKey, onSend, onReceive, onKvAdd, onKvAddRaw, onSettings,
+  onSelectKey, onSend, onReceive, onKvAdd, onKvAddRaw, onSettings, onMine,
   refreshTick, setWalletLoading})
 {
   const modal = useModal();
@@ -536,7 +544,7 @@ function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx,
       <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
         <h2 style={{margin: 0}}>{label}</h2>
         {netconf.lif_kv && (
-          <button onClick={()=>mine_get_template(netconf, wallet.c.receiveAddress)}>Get free LIF - click & mine!</button>
+          <button onClick={onMine}>Get free LIF - click & mine!</button>
         )}
       </div>
       {connErr && (
@@ -747,6 +755,43 @@ function Receive_screen({address, symbol, netconf}){
         <div style={{marginTop: 8, color: 'green', fontSize: 13}}>Copied to clipboard</div>
       )}
       {address && <canvas ref={canvasRef} style={{display: 'block', marginTop: 12}} />}
+    </div>
+  );
+}
+
+// Mine Screen
+function Mine_screen({netconf, address}){
+  const [on, setOn] = useState(false);
+  const [count, setCount] = useState(0);
+  const runningRef = useRef(false);
+  const toggle = ()=>{
+    if (on){
+      runningRef.current = false;
+      setOn(false);
+    } else {
+      runningRef.current = true;
+      setOn(true);
+      (async()=>{
+        while (runningRef.current){
+          const ret = await mine_get_template(netconf, address);
+          if (!runningRef.current)
+            break;
+          if (ret?.height)
+            setCount(c=>c+1);
+        }
+      })();
+    }
+  };
+  useEffect(()=>()=>{ runningRef.current = false; }, []);
+  return (
+    <div style={{marginTop: 16, maxWidth: 480}}>
+      <h3>Mine for free</h3>
+      <button onClick={toggle} style={{fontSize: 16, marginTop: 8}}>
+        {on ? '⏹ Stop mining' : '▶ Start mining'}
+      </button>
+      <div style={{marginTop: 16, fontSize: 14}}>
+        Blocks mined: <strong>{count}</strong>
+      </div>
     </div>
   );
 }
