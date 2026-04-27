@@ -133,7 +133,7 @@ export async function mine_steps({pow, header, time_local, min, max,
   on_update})
 {
   let hps = 10; // initial hashs per second. in reality is around 1M hps
-  let slice_ms = 100;
+  let slice_ms = 1000;
   let total_h = 0;
   let at = min;
   let time_diff = header_get_time(header)-time_local;
@@ -142,7 +142,7 @@ export async function mine_steps({pow, header, time_local, min, max,
   let nhash_win = Number(target_to_nhash_win(
     target_from_compact(header_get_target(header))));
   for (;;){
-    let slice_h = Math.floor(hps*1000/slice_ms+1);
+    let slice_h = Math.max(Math.floor(hps*slice_ms/1000), 1);
     let up = on_update({hps, slice_h, total_h, nhash_win});
     if (up?.stop)
       return {stop: true, total_h};
@@ -158,11 +158,9 @@ export async function mine_steps({pow, header, time_local, min, max,
     if (ret.found)
       return {...ret, total_h};
     let tend = Date.now();
-    let ms = tend-tstart;
+    let ms = Math.max(tend-tstart, 1);
     total_h += slice_h;
-    if (ms<slice_ms)
-      slice_h = Math.round(slice_h * slice_ms/(ms+1));
-    hps = slice_h*1000/slice_ms;
+    hps = Math.round(slice_h*1000/ms);
     at += slice_h;
     if (at>=max){
       console.warn('mine reached nonce end of slice');
