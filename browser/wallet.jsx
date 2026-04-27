@@ -11,7 +11,7 @@ import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   _el, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
-  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_get_template,
+  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_solo,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -774,7 +774,7 @@ function Mine_screen({wallet}){
       (async()=>{
         let address = wallet.c.receiveAddress;
         while (runningRef.current){
-          const ret = await mine_get_template(netconf, address);
+          const ret = await mine_solo(netconf, address);
           if (!runningRef.current)
             break;
           if (ret?.height)

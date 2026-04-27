@@ -860,7 +860,7 @@ export function kv_is_dns(key){
   return dns;
 }
 
-export async function mine_get_template(netconf, saddr){
+export async function mine_solo(netconf, saddr){
   const el = _el(netconf);
   let ret = await el.mine_get_template(saddr);
   const header = Buffer.from(ret.header, 'hex');
