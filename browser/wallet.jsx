@@ -216,8 +216,7 @@ function BrightWallet(){
       )}
       {screen=='wallet_mine' && wallet && (
         <Mine_screen
-          netconf={wallet.netconf}
-          address={wallet.c.receiveAddress}
+          wallet={wallet}
         />
       )}
       {screen=='tx_info' && selectedTxData && wallet && (
@@ -760,7 +759,8 @@ function Receive_screen({address, symbol, netconf}){
 }
 
 // Mine Screen
-function Mine_screen({netconf, address}){
+function Mine_screen({wallet}){
+  const {netconf} = wallet;
   const [on, setOn] = useState(false);
   const [count, setCount] = useState(0);
   const runningRef = useRef(false);
@@ -772,6 +772,7 @@ function Mine_screen({netconf, address}){
       runningRef.current = true;
       setOn(true);
       (async()=>{
+        let address = wallet.c.receiveAddress;
         while (runningRef.current){
           const ret = await mine_get_template(netconf, address);
           if (!runningRef.current)
