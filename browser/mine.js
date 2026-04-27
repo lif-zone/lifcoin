@@ -128,5 +128,12 @@ function test(){
     '0000000000000000000000000000000000000000000000000000ffff00000000');
   t(0x1f00ffff,
     '00000000000000000000000000000000000000000000000000000000ffff0000');
+  t = (header, pow, min, max, v)=>assert.eq(mine(
+    {pow, header: Buffer.from(header, 'hex'), min, max})?.nonce, v);
+  let header = '00000020d7da75d79cff74f6a9896d6445a4abb9d283cfb5df37bdcc8d886bfdd441000085ea5bf430856f0ba4e80515b9fc45bf8ef837a2da8c5b8ab1fadc5f6b7c37d5fabbee69ffff001ff52d0100';
+  t(header, 'sha256lif', 77290, 77310, 77301);
+  t(header, 'sha256lif', 77302, 77310, undefined);
+  t(header, 'sha256', 53830, 53850, 53840);
+  t(header, 'sha256', 53841, 53850, undefined);
 }
 test();
