@@ -53,6 +53,7 @@ make wallet.jsx support multiple wallets
   mining success, and how much will be earned, and how much expected per day
   of mining, and how much expected per month of mining.
   - calculate how many HPS needed to get on avarage a share of sats.
+- fix UI for aruk.localhost:4000 error msg
 - open new users in github, and re-import the projects, but with different
   login names/emails
 - make lif/git source to bring most up-to-date versions
