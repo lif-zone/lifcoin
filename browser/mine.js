@@ -1,5 +1,4 @@
 // LICENSE_CODE JPL mine.js - browser mining api
-import * as bitcoin from 'bitcoinjs-lib';
 import sha256lif from './sha256lif.js';
 import sha256 from './sha256.js';
 import {ewait, assert, ipc_postmessage} from './util.js';
@@ -41,8 +40,12 @@ export function target_from_compact(compact){
   return num;
 }
 
-export function bigint_to_le(value, bytes){
-  const a = new Uint8Array(bytes);
+export function target_to_attempts(target){
+  return (2n ** 256n)/(target + 1n);
+}
+
+export function bigint_to_buf_le(value, bytes){
+  const a = new Buffer(bytes);
   for (let i=0; value>0n && i<32; i++){
     a[i] = Number(value & 0xFFn);
     value >>= 8n;
@@ -56,7 +59,7 @@ export function target_get(bits){
     throw new Error('Target is negative.');
   if (!target)
     throw new Error('Target is zero.');
-  return bigint_to_le(target, 32);
+  return bigint_to_buf_le(target, 32);
 }
 
 export function mine_single(pow, header, target_a, nonce){
@@ -107,4 +110,21 @@ export async function mine_worker_get(mine_cmd){
   return ret;
 }
 
-
+function test(){
+  let t;
+  t = (v, res)=>assert.eq(target_to_attempts(v), res);
+  t(0x00000000ffff0000000000000000000000000000000000000000000000000000n,
+    4295032833n);
+  t = (v, res)=>assert.eq(target_from_compact(v), res);
+  t(0x1d00ffff, 
+    0x00000000ffff0000000000000000000000000000000000000000000000000000n);
+  t = (v, res)=>assert.eq(bigint_to_buf_le(v, 32).toString('hex'), res);
+  t(0x00000000ffff0000000000000000000000000000000000000000000000000000n,
+    '0000000000000000000000000000000000000000000000000000ffff00000000');
+  t = (v, res)=>assert.eq(target_get(v).toString('hex'), res);
+  t(0x1d00ffff, 
+    '0000000000000000000000000000000000000000000000000000ffff00000000');
+  t(0x1f00ffff,
+    '00000000000000000000000000000000000000000000000000000000ffff0000');
+}
+test();

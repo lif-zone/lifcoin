@@ -866,10 +866,6 @@ export async function mine_get_template(netconf, saddr){
   const header = Buffer.from(ret.header, 'hex');
   console.log('starting mining', ret.header);
   let mine_opt = {pow: netconf.pow, header, min: 0, max: 1000000};
-  if (0){
-    // sync mining for testing
-    let found = mine(mine_opt);
-  }
   let mine_ret = await mine_worker_get(mine_opt);
   console.log('mine_res', mine_ret);
   if (!mine_ret.found)
