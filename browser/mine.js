@@ -1,7 +1,7 @@
 // LICENSE_CODE JPL mine.js - browser mining api
 import sha256lif from './sha256lif.js';
 import sha256 from './sha256.js';
-import {ewait, assert, ipc_postmessage} from './util.js';
+import {ewait, esleep, assert, ipc_postmessage} from './util.js';
 
 export function hash256_pow(pow, buf){
   if (pow=='sha256lif')
@@ -40,7 +40,7 @@ export function target_from_compact(compact){
   return num;
 }
 
-export function target_to_attempts(target){
+export function target_to_nhash_win(target){
   return (2n ** 256n)/(target + 1n);
 }
 
@@ -87,8 +87,10 @@ export function mine_single(pow, header, target_a, nonce){
   }
 }
 
+export function date_time(){
+  return Math.floor(Date.now()/1000);
+}
 export function mine({pow, header, min, max}){
-  let now = Math.round(Date.now()/1000);
   let target_a = target_get(header_get_target(header));
   let v;
   for (let i=min; i<=max; i++){
@@ -114,7 +116,7 @@ export async function mine_worker_init(){
   return mine_worker_wait.return(mine_ipc);
 }
 
-export async function mine_worker_get(mine_cmd){
+export async function mine_worker_call(mine_cmd){
   let mine_ipc = await mine_worker_init();
   let opt = {...mine_cmd};
   opt.header = opt.header.toString('hex');
@@ -125,9 +127,51 @@ export async function mine_worker_get(mine_cmd){
   return ret;
 }
 
+export async function mine_steps({pow, header, time_local, min, max,
+  on_update})
+{
+  let hps = 10000; // initial hashs per second. in reality is around 1M hps
+  let slice_ms = 100;
+  let total_h = 0;
+  let at = min;
+  let time_diff = header_get_time(header)-time_local;
+  let time_last = time_local;
+  let _header = Buffer.from(header);
+  let nhash_win = Number(target_to_nhash_win(
+    target_from_compact(header_get_target(header))));
+  for (;;){
+    let slice_h = Math.floor(hps*1000/slice_ms+1);
+    let up = on_update({hps, slice_h, total_h, nhash_win});
+    if (!up || up.stop)
+      return;
+    let time = date_time();
+    if (time!=time_last){
+      header_set_time(_header, time+time_diff);
+      time_last = time;
+      at = min;
+    }
+    let tstart = Date.now();
+    let ret = mine_worker_call({pow, header: _header,
+      min: at, max: at+slice_h});
+    if (ret.found)
+      return ret;
+    let tend = Date.now();
+    let ms = tend-tstart;
+    total_h += slice_h;
+    if (ms<slice_ms)
+      slice_h *= slice_ms/(ms+1);
+    hps = slice_h*1000/slice_ms;
+    at += slice_h;
+    if (at>=max){
+      console.warn('mine reached nonce end of slice');
+      await esleep(slice_ms);
+    }
+  }
+}
+
 function test(){
   let t;
-  t = (v, res)=>assert.eq(target_to_attempts(v), res);
+  t = (v, res)=>assert.eq(target_to_nhash_win(v), res);
   t(0x00000000ffff0000000000000000000000000000000000000000000000000000n,
     4295032833n);
   t(0x0000ffff00000000000000000000000000000000000000000000000000000000n,

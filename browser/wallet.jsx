@@ -11,7 +11,7 @@ import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   _el, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
-  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_solo,
+  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_solo, mine_solo_steps,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -768,20 +768,38 @@ function Mine_screen({wallet}){
     if (on){
       runningRef.current = false;
       setOn(false);
-    } else {
-      runningRef.current = true;
-      setOn(true);
-      (async()=>{
-        let address = wallet.c.receiveAddress;
-        while (runningRef.current){
-          const ret = await mine_solo(netconf, address);
-          if (!runningRef.current)
-            break;
-          if (ret?.height)
-            setCount(c=>c+1);
-        }
-      })();
+      return;
     }
+    runningRef.current = true;
+    setOn(true);
+    (async()=>{
+      let saddr = wallet.c.receiveAddress;
+      let max_blocks = 1;
+      let nblocks = 0;
+      while (runningRef.current){
+        let ret;
+        if (1)
+          //ret = await mine_solo({netconf, saddr});
+          ret = await mine_solo_steps({netconf, saddr});
+        else {
+          ret = await mine_solo_steps({netconf, saddr, on_update: up=>{
+            if (!runningRef.current)
+              return {stop: true};
+            console.log('mining progress', up);
+          }});
+        }
+        if (!runningRef.current)
+          break;
+        if (ret?.height){
+          setCount(c=>c+1);
+          nblocks++;
+          if (nblocks>=max_blocks){
+            setOn(false);
+            break;
+          }
+        }
+      }
+    })();
   };
   useEffect(()=>()=>{ runningRef.current = false; }, []);
   return (

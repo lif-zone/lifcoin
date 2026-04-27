@@ -14,7 +14,10 @@ function init(){
   ipc.add_server_cmd('mine', ({cmd, arg})=>{
     console.log('mining', arg);
     arg.header = Buffer.from(arg.header, 'hex');
+    let tstart = Date.now();
     let ret = mine(arg);
+    ret.tstart = tstart;
+    ret.tend = Date.now();
     if (ret.header)
       ret.header = ret.header.toString('hex');
     console.log('mining res', ret);
