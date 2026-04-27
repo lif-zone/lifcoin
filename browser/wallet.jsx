@@ -11,7 +11,7 @@ import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   _el, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
-  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_solo, mine_solo_steps,
+  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_solo,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -779,10 +779,9 @@ function Mine_screen({wallet}){
       while (runningRef.current){
         let ret;
         if (1)
-          //ret = await mine_solo({netconf, saddr});
-          ret = await mine_solo_steps({netconf, saddr});
+          ret = await mine_solo({netconf, saddr});
         else {
-          ret = await mine_solo_steps({netconf, saddr, on_update: up=>{
+          ret = await mine_solo({netconf, saddr, on_update: up=>{
             if (!runningRef.current)
               return {stop: true};
             console.log('mining progress', up);

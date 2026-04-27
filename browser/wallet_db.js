@@ -860,24 +860,7 @@ export function kv_is_dns(key){
   return dns;
 }
 
-export async function mine_solo({netconf, saddr}){
-  const el = _el(netconf);
-  let ret = await el.mine_get_template(saddr);
-  const header = Buffer.from(ret.header, 'hex');
-  console.log('starting mining', ret.header);
-  let opt = {pow: netconf.pow, header, min: 0, max: 1000000};
-  let mine_ret = await mine_worker_call(opt);
-  console.log('mine_res', mine_ret);
-  if (!mine_ret.found)
-    return mine_ret;
-  console.log('submitting new block');
-  mine_ret.header = mine_ret.header.toString('hex');
-  ret = await el.mine_submit_header(mine_ret.header);
-  console.log('success! new block height '+ret.height);
-  return ret;
-}
-
-export async function mine_solo_steps({netconf, saddr, min=0, max=0x100000000,
+export async function mine_solo({netconf, saddr, min=0, max=0x100000000,
   on_update})
 {
   const el = _el(netconf);
