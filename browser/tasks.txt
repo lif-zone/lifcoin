@@ -47,15 +47,32 @@ make wallet.jsx support multiple wallets
 + add qr for receive address
 + add qr for send address
 + replace alert() windows, with JS.
-* add Mine button on LIF wallets, to collect funds.
-  - add JSON RPC getblocktemplate
++ add Mine button on LIF wallets, to collect funds.
+  + add JSON RPC getblocktemplate
+- all mining control to CPU percent, and estimations of when expected
+  mining success, and how much will be earned, and how much expected per day
+  of mining, and how much expected per month of mining.
+  - calculate how many HPS needed to get on avarage a share of sats.
 - open new users in github, and re-import the projects, but with different
   login names/emails
 - make lif/git source to bring most up-to-date versions
 
 Low priority:
 -------------
-+ show in wallet tx list ALL txs with lif_kv. today it shows only the last
+- P2P instant mining support: offer sat per target.
+  - in wallet mine server (stake holder) page, add to offer mining shares,
+    and on avarage to earn 50%.
+  - in lif p2p - publish subject of instant mining {mining_shares}
+  - give each of them a template, with different nonce1 nonce2
+  - once a winning claim submitted, give a signed TX that output,
+    To "open" such mining, you need free outputs, so one output per
+    miner is available to give out TXs. These TXs are updated every time an
+    additional share claim is submitted.
+  - The UI of the miner shows the won claims so far, and when you click to
+    cash in - it broadcasts it. if it fails, since that output was spent,
+    then requests another TX to replace it. a staker can broadcast a TX
+    in order to "free" up that output and reuse it for new miners.
+- show in wallet tx list ALL txs with lif_kv. today it shows only the last
   tx per value.
 - add support for websocket subscription on new transactions, and updating
   accordingly.
