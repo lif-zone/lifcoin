@@ -62,8 +62,24 @@ export function target_get(bits){
   return bigint_to_buf_le(target, 32);
 }
 
-export function mine_single(pow, header, target_a, nonce){
+export function header_get_time(header){
+  return header.readUInt32LE(68);
+}
+export function header_get_target(header){
+  return header.readUInt32LE(72);
+}
+export function header_get_nonce(header){
+  return header.readUInt32LE(76);
+}
+export function header_set_nonce(header, nonce){
   header.writeUInt32LE(nonce, 76);
+}
+export function header_set_time(header, time){
+  header.writeUInt32LE(time, 68);
+}
+
+export function mine_single(pow, header, target_a, nonce){
+  header_set_nonce(header, nonce);
   let hash = hash256_pow(pow, Buffer.from(header));
   if (target_rcmp(hash, target_a)<=0){
     console.log('mine_single: found nonce', nonce);
@@ -73,8 +89,7 @@ export function mine_single(pow, header, target_a, nonce){
 
 export function mine({pow, header, min, max}){
   let now = Math.round(Date.now()/1000);
-  let time = header.readUInt32LE(68);
-  let target_a = target_get(header.readUInt32LE(72));
+  let target_a = target_get(header_get_target(header));
   let v;
   for (let i=min; i<=max; i++){
     if (v=mine_single(pow, header, target_a, i))
