@@ -3,6 +3,8 @@ import sha256lif from './sha256lif.js';
 import sha256 from './sha256.js';
 import {ewait, esleep, assert, ipc_postmessage} from './util.js';
 
+let D = 0;
+
 export function hash256_pow(pow, buf){
   if (pow=='sha256lif')
     return sha256lif.digest(sha256.digest(buf));
@@ -82,7 +84,7 @@ export function mine_single(pow, header, target_a, nonce){
   header_set_nonce(header, nonce);
   let hash = hash256_pow(pow, Buffer.from(header));
   if (target_rcmp(hash, target_a)<=0){
-    console.log('mine_single: found nonce', nonce);
+    D && console.log('mine_single: found nonce', nonce);
     return {found: true, nonce};
   }
 }
@@ -93,7 +95,7 @@ export function date_time(){
 export function mine({pow, header, min, max}){
   let target_a = target_get(header_get_target(header));
   let v;
-  for (let i=min; i<=max; i++){
+  for (let i=min; i<max; i++){
     if (v=mine_single(pow, header, target_a, i))
       return {...v, header};
   }
@@ -130,7 +132,7 @@ export async function mine_worker_call(mine_cmd){
 export async function mine_steps({pow, header, time_local, min, max,
   on_update})
 {
-  let hps = 10000; // initial hashs per second. in reality is around 1M hps
+  let hps = 10; // initial hashs per second. in reality is around 1M hps
   let slice_ms = 100;
   let total_h = 0;
   let at = min;
@@ -142,8 +144,8 @@ export async function mine_steps({pow, header, time_local, min, max,
   for (;;){
     let slice_h = Math.floor(hps*1000/slice_ms+1);
     let up = on_update({hps, slice_h, total_h, nhash_win});
-    if (!up || up.stop)
-      return;
+    if (up?.stop)
+      return {stop: true, total_h};
     let time = date_time();
     if (time!=time_last){
       header_set_time(_header, time+time_diff);
@@ -151,15 +153,15 @@ export async function mine_steps({pow, header, time_local, min, max,
       at = min;
     }
     let tstart = Date.now();
-    let ret = mine_worker_call({pow, header: _header,
-      min: at, max: at+slice_h});
+    let ret = await mine_worker_call({pow, header: _header,
+      min: at, max: Math.min(at+slice_h, 0x100000000)});
     if (ret.found)
-      return ret;
+      return {...ret, total_h};
     let tend = Date.now();
     let ms = tend-tstart;
     total_h += slice_h;
     if (ms<slice_ms)
-      slice_h *= slice_ms/(ms+1);
+      slice_h = Math.round(slice_h * slice_ms/(ms+1));
     hps = slice_h*1000/slice_ms;
     at += slice_h;
     if (at>=max){
@@ -167,6 +169,7 @@ export async function mine_steps({pow, header, time_local, min, max,
       await esleep(slice_ms);
     }
   }
+  return {found: false, total_h};
 }
 
 function test(){

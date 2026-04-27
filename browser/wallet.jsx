@@ -778,7 +778,7 @@ function Mine_screen({wallet}){
       let nblocks = 0;
       while (runningRef.current){
         let ret;
-        if (1)
+        if (0)
           ret = await mine_solo({netconf, saddr});
         else {
           ret = await mine_solo({netconf, saddr, on_update: up=>{

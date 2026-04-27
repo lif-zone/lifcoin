@@ -15,7 +15,7 @@ function init(){
     console.log('mining', arg);
     arg.header = Buffer.from(arg.header, 'hex');
     let tstart = Date.now();
-    let ret = mine(arg);
+    let ret = mine(arg) || {};
     ret.tstart = tstart;
     ret.tend = Date.now();
     if (ret.header)

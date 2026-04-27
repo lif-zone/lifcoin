@@ -867,8 +867,8 @@ export async function mine_solo({netconf, saddr, min=0, max=0x100000000,
   let ret = await el.mine_get_template(saddr);
   const header = Buffer.from(ret.header, 'hex');
   console.log('starting mining', ret.header);
-  let local_time = date_time();
-  let opt = {pow: netconf.pow, header, min, max, local_time, on_update};
+  let time_local = date_time();
+  let opt = {pow: netconf.pow, header, min, max, time_local, on_update};
   let mine_ret;
   if (on_update)
     mine_ret = await mine_steps(opt);
