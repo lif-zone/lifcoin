@@ -759,11 +759,24 @@ function Receive_screen({address, symbol, netconf}){
 }
 
 // Mine Screen
+const fmt_duration = sec=>{
+  if (!isFinite(sec) || sec<0) return '—';
+  sec = Math.round(sec);
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  const s = sec%60;
+  const mm = String(m).padStart(2,'0');
+  const ss = String(s).padStart(2,'0');
+  return h>0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+};
 function Mine_screen({wallet}){
   const {netconf} = wallet;
   const [on, setOn] = useState(false);
   const [count, setCount] = useState(0);
+  const [stats, setStats] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
   const runningRef = useRef(false);
+  const blockStartRef = useRef(null);
   const toggle = ()=>{
     if (on){
       runningRef.current = false;
@@ -772,35 +785,36 @@ function Mine_screen({wallet}){
     }
     runningRef.current = true;
     setOn(true);
+    setStats(null);
+    setElapsed(0);
+    blockStartRef.current = Date.now();
     (async()=>{
-      let saddr = wallet.c.receiveAddress;
-      let max_blocks = 1;
-      let nblocks = 0;
+      const saddr = wallet.c.receiveAddress;
       while (runningRef.current){
-        let ret;
-        if (0)
-          ret = await mine_solo({netconf, saddr});
-        else {
-          ret = await mine_solo({netconf, saddr, on_update: up=>{
-            if (!runningRef.current)
-              return {stop: true};
-            console.log('mining progress', up);
-          }});
-        }
+        blockStartRef.current = Date.now();
+        const ret = await mine_solo({netconf, saddr, on_update: up=>{
+          if (!runningRef.current)
+            return {stop: true};
+          setStats(up);
+        }});
         if (!runningRef.current)
           break;
-        if (ret?.height){
+        if (ret?.height)
           setCount(c=>c+1);
-          nblocks++;
-          if (nblocks>=max_blocks){
-            setOn(false);
-            break;
-          }
-        }
       }
+      setOn(false);
     })();
   };
+  useEffect(()=>{
+    if (!on) return;
+    const id = setInterval(()=>{
+      setElapsed(Math.floor((Date.now()-blockStartRef.current)/1000));
+    }, 1000);
+    return ()=>clearInterval(id);
+  }, [on]);
   useEffect(()=>()=>{ runningRef.current = false; }, []);
+  const estimated = stats?.hps>0 ? stats.nhash_win/stats.hps : null;
+  const remaining = estimated!=null ? estimated-elapsed : null;
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Mine for free</h3>
@@ -810,6 +824,36 @@ function Mine_screen({wallet}){
       <div style={{marginTop: 16, fontSize: 14}}>
         Blocks mined: <strong>{count}</strong>
       </div>
+      {on && (
+        <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
+          <tbody>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Speed</td>
+              <td><strong>{stats?.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Total hashes</td>
+              <td><strong>{stats?.total ? stats.total.toLocaleString() : '…'}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Hashes to win</td>
+              <td><strong>{stats?.nhash_win ? stats.nhash_win.toLocaleString() : '…'}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Elapsed</td>
+              <td><strong>{fmt_duration(elapsed)}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Estimated total</td>
+              <td><strong>{fmt_duration(estimated)}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Estimated remaining</td>
+              <td><strong>{fmt_duration(remaining)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

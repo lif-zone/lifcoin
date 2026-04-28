@@ -49,17 +49,19 @@ make wallet.jsx support multiple wallets
 + replace alert() windows, with JS.
 + add Mine button on LIF wallets, to collect funds.
   + add JSON RPC getblocktemplate
-- all mining control to CPU percent, and estimations of when expected
++ calculate how many HPS needed to get on avarage a share of sats.
++ fix UI for aruk.localhost:4000 error msg
+- add UI of estimations of when expected
   mining success, and how much will be earned, and how much expected per day
   of mining, and how much expected per month of mining.
-  - calculate how many HPS needed to get on avarage a share of sats.
-- fix UI for aruk.localhost:4000 error msg
 - open new users in github, and re-import the projects, but with different
   login names/emails
 - make lif/git source to bring most up-to-date versions
 
 Low priority:
 -------------
+- add mining control CPU 5% - 100%, in drop down.
+- in CPU usage, it continues adding more mining threads - up to 4.
 - P2P instant mining support: offer sat per target.
   - in wallet mine server (stake holder) page, add to offer mining shares,
     and on avarage to earn 50%.
