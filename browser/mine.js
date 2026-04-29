@@ -79,6 +79,10 @@ export function header_set_nonce(header, nonce){
 export function header_set_time(header, time){
   header.writeUInt32LE(time, 68);
 }
+// for sim_target
+export function header_set_target(header, target){
+  header.writeUInt32LE(target, 72);
+}
 
 export function mine_single(pow, header, target_a, nonce){
   header_set_nonce(header, nonce);
@@ -197,3 +201,4 @@ function test(){
   t(header, 'sha256', 53841, 53850, undefined);
 }
 test();
+
