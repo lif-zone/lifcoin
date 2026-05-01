@@ -1,73 +1,42 @@
-# Bcoin
+# Lifcoin
 
-[![Build Status][circleci-status-img]][circleci-status-url]
-[![Coverage Status][coverage-status-img]][coverage-status-url]
+**Lifcoin** is JS implementation of the Lifcoin protocol, based on
+**[github.com/bcoin-org/bcoin][Bcoin]** implementation,
+following the Bitcoin protocol.
 
-**Bcoin** is an alternative implementation of the Bitcoin protocol, written in
-JavaScript and C/C++ for Node.js.
-
-Bcoin is well tested and aware of all known consensus rules. It is currently
-used in production as the consensus backend and wallet system for
-[purse.io][purse].
-
-## Uses
-
-- Full Node
-- SPV Node
-- Wallet Backend
-- Mining Backend (getblocktemplate support)
-- Layer 2 Backend (lightning)
-- General Purpose Bitcoin Library
+The Lifcoin protocol provides domain naming services for the
+[lif.zone][LIF network].
 
 ## Install
 
 ```
-$ git clone https://github.com/bcoin-org/bcoin
-$ cd bcoin
+$ git clone https://github.com/lif-zone/lifcoin
+$ cd lifcoin
 $ npm rebuild
-$ ./bin/bcoin
+$ node ./browser/lif_node.js
 ```
-
-See the [Getting started][guide] guide for more in-depth installation
-instructions, including verifying releases. If you're upgrading, see the
-latest changes via the [Changelog][changelog].
-
-## Documentation
-
-- General docs: [docs/](docs/README.md)
-- Wallet and node API docs: https://bcoin.io/api-docs/
-- Library API docs: https://bcoin.io/docs/
-
-## Support
-
-Join us on [freenode][freenode] in the [#bcoin][irc] channel.
 
 ## Disclaimer
 
-Bcoin does not guarantee you against theft or lost funds due to bugs, mishaps,
+Lifcoin does not guarantee you against theft or lost funds due to bugs, mishaps,
 or your own incompetence. You and you alone are responsible for securing your
-money.
+money or domain names.
 
 ## Contribution and License Agreement
 
 If you contribute code to this project, you are implicitly allowing your code
-to be distributed under the MIT license. You are also implicitly verifying that
+to be distributed under the JPL and MIT license.
+You are also implicitly verifying that
 all code is your original work. `</legalese>`
 
 ## License
 
+- Copyright (c) 1973-2026, Kohen Tzedek (JEM Public License JPL)
+- Copyright (c) 1978-2026, Douglas (Noel) Adams Software (DASoft, DNA Software)
+- Copyright (c) 1984-2026, Jungo (Jungo Public License JPL)
+- Copyright (c) 1996-2026, WinDriver (KRF Public License)
 - Copyright (c) 2014-2015, Fedor Indutny (MIT License).
 - Copyright (c) 2014-2017, Christopher Jeffrey (MIT License).
 
 See LICENSE for more info.
 
-[purse]: https://purse.io
-[guide]: docs/getting-started.md
-[freenode]: https://freenode.net/
-[irc]: irc://irc.freenode.net/bcoin
-[changelog]: CHANGELOG.md
-
-[coverage-status-img]: https://codecov.io/gh/bcoin-org/bcoin/badge.svg?branch=master
-[coverage-status-url]: https://codecov.io/gh/bcoin-org/bcoin?branch=master
-[circleci-status-img]: https://circleci.com/gh/bcoin-org/bcoin/tree/master.svg?style=shield
-[circleci-status-url]: https://circleci.com/gh/bcoin-org/bcoin/tree/master
