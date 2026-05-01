@@ -18,10 +18,7 @@
     "node": ">=10.0.0"
   },
   "dependencies": {
-    "@aguycalled/electrum-client-js": "0.1.14",
     "@peculiar/x509": "1.9.3",
-    "@zenfs/core": "^2.4.3",
-    "@zenfs/dom": "^1.2.5",
     "acme-client": "5.0.0",
     "bcfg": "git+https://github.com/bcoin-org/bcfg.git#semver:~0.1.7",
     "bcrypto": "git+https://github.com/bcoin-org/bcrypto.git#semver:~5.5.0",
@@ -157,6 +154,10 @@
       "react": "18.3.1",
       "react-dom": "18.3.1",
       "react-rnd": "18.3.1"
+    },
+    "miscDependencies": {
+      "@zenfs/core": "^2.4.3",
+      "@zenfs/dom": "^1.2.5"
     }
   },
   "bundleDependencies": [
