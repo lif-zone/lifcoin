@@ -1,11 +1,11 @@
 # Lifcoin
 
 **Lifcoin** is JS implementation of the Lifcoin protocol, based on
-[**Bcoin**][https://github.com/bcoin-org/bcoin] implementation,
+[**Bcoin**][bcoin] implementation,
 following the Bitcoin protocol.
 
 The Lifcoin protocol provides domain naming services for the
-[LIF Network][https://lif.zone]
+[LIF Network][lif.zone]
 
 ## Install
 
@@ -40,3 +40,5 @@ all code is your original work. `</legalese>`
 
 See LICENSE for more info.
 
+[bcoin]: https://github.com/bcoin-org/bcoin
+[lif.zone]: https://lif.zone
