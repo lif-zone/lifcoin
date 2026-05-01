@@ -31,10 +31,13 @@ all code is your original work. `</legalese>`
 
 ## License
 
-- Copyright (c) 1973-2026, Kohen Tzedek (JEM Public License JPL)
+- Copyright (c) 1973-2026, Ben Shushan/Shar Yashuv/Kohen Tzedek (JEM Public License JPL)
+- Copyright (c) 1977-2026, MTC Research and Development
 - Copyright (c) 1978-2026, Douglas (Noel) Adams Software (DASoft, DNA Software)
 - Copyright (c) 1984-2026, Jungo (Jungo Public License JPL)
 - Copyright (c) 1996-2026, WinDriver (KRF Public License)
+- Copyright (c) 2001-2026, Nation Zone (ZON Public License)
+- Copyright (c) 2004-2026, Hola Bright (Hola Public License)
 - Copyright (c) 2014-2015, Fedor Indutny (MIT License).
 - Copyright (c) 2014-2017, Christopher Jeffrey (MIT License).
 
