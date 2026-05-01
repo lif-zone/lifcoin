@@ -1,0 +1,125 @@
+" Linux: cp vimrc ~/.vimrc
+" Windows: cp vimrc c:/vim/vimrc
+
+if exists("g:vimrc_lif_running")
+  finish
+end
+let g:vimrc_lif_running=1
+
+" CTRL-H to flip hebrew<->english
+nmap <C-h> :call Rightleft_flip()<CR>
+fun Rightleft_flip()
+  if &rightleft
+    se norightleft
+  else
+    se rightleft
+  end
+endfun
+
+" color syntax debug function
+fun Debug_syntax()
+  for id in synstack(line("."), col("."))
+    echo synIDattr(id, "name")
+  endfor
+endfun
+
+" mark errors: long lines>=80 and trailing spaces
+fun Mark_error(enable_80)
+  if exists('w:me')
+    call matchdelete(w:me)
+    unlet w:me
+  end
+  if a:enable_80
+    let w:me=matchadd('ColorColumn','\%'.winwidth(0).'v.',-1)
+  end
+  return
+  " mark trailing spaces
+  if !exists('w:me2')
+    let w:me2=matchadd('ColorColumn','\s\+$',-1)
+  end
+  if !exists('w:me3')
+    let w:me3=matchadd('ErrorMsg','\%u00a0',-1)
+  end
+endfun
+au BufNewFile,BufRead *.json6 setlocal filetype=javascript
+au FileType text,json,javascript setlocal sw=2 et nowrap
+se sw=2
+se et
+se nowrap
+au BufWinEnter * call Mark_error(1)
+au VimResized * call Mark_error(1)
+se synmaxcol=128 " syntax coloring of huge lines slows the world
+se hlsearch
+se autoindent
+se cpo=
+se shortmess-=S
+if has("gui_running")
+  se lines=50 " full height of screen
+  " We disable the toolbar, since it makes gvim open in more than 80 columns
+  " if the icons on the toolbar are more than 80 char width
+  set guioptions-=T
+  if &diff
+    set columns=162
+  else
+    set columns=80
+  end
+  if has("win32")
+    "set guifont=Lucida_Console:h11
+    set guifont=Consolas:h11
+  else
+    set guifont=Monospace\ 12
+  end
+  set guioptions+=P
+  set guioptions-=Tend
+end
+if has("win32")
+  " disable vim91/plhgin/netrwPlugin.vim from loading
+  let g:loaded_netrwPlugin="v173"
+  run mswin.vim
+  fun Win32_fix()
+    " fix problem of leaving visual mode with arrows in win32
+    vn <Left> <S-Left>
+    vn <Right> <S-Right>
+    vn <Up> <S-Up>
+    vn <Down> <S-Down>
+    vn <Home> <S-Home>
+    vn <End> <S-End>
+    return
+    behave mswin
+    " CTRL-X and SHIFT-Del are Cut
+    vnoremap <C-X> "+x
+    vnoremap <S-Del> "+x
+    " CTRL-C and CTRL-Insert are Copy
+    vnoremap <C-C> "+y
+    vnoremap <C-Insert> "+y
+    " CTRL-V and SHIFT-Insert are Paste
+    map <C-V> "+gP
+    map <S-Insert> "+gP
+    cmap <C-V> <C-R>+
+    cmap <S-Insert> <C-R>+
+    imap <S-Insert> <C-V>
+    vmap <S-Insert> <C-V>
+    " CTRL-Z is Undo; not in cmdline though
+    noremap <C-Z> u
+    inoremap <C-Z> <C-O>u
+    " CTRL-Y is Redo (although not repeat); not in cmdline though
+    noremap <C-Y> <C-R>
+    inoremap <C-Y> <C-O><C-R>
+  endfun
+  au VimEnter * call Win32_fix()
+end
+
+fun JS_fix()
+  syn clear javaScriptMember
+  "syn keyword javaScriptMember from as
+  syn clear javaScriptDeprecated
+  syn clear javaScriptReserved
+  syn keyword javaScriptReserved class debugger export extends import static super async
+  syn clear javaScriptIdentifier
+  syn keyword javaScriptIdentifier arguments this var let const
+  syn clear javaScriptType
+  syn keyword javaScriptType Array Boolean Date Function Number Object String RegExp BigInt
+  hi javaScriptStringT guifg=DarkBlue
+endfun
+au FileType javascript call JS_fix()
+au FileType javascriptreact call JS_fix()

@@ -1,0 +1,88 @@
+#!/bin/bash -e
+# install: 
+#   cp gitdiff ~/bin/
+#   cp gitdiff /usr/local/bin/
+usage(){
+  echo "gitdiff [-D DATE | -r REV] [-D DATE | -r REV] [FILE | . | DIR/]"
+  echo "gitdiff file.js"
+  echo "gitdiff -D '1 week ago' file.js    # single file"
+  echo "gitdiff -D '1 week ago' -D 'yesterday' file.js"
+  echo "gitdiff -D '1 week ago' component/ # all files in component"
+  echo "gitdiff -D '1 week ago'            # all files in current dir"
+  echo "gitdiff -o -D '1 week ago'         # print diff to stdout"
+  exit 1
+}
+
+GITDIFF=$0
+DIFF="g -f -d"
+if [ "$1" == -o ] ; then
+  DIFF=diff
+  GITDIFF="$GITDIFF -o"
+  shift
+fi
+if [ "$1" == -D ] || [ "$1" == -r ]; then
+  OP=$1
+  shift
+  if [ $OP == -D ]; then
+    D1=$1
+    R1="HEAD@{$D1}"
+  else
+    R1=$1
+  fi
+  shift
+fi
+if [ "$1" == -D ] || [ "$1" == -r ]; then
+  OP=$1
+  shift
+  if [ $OP == -D ]; then
+    D2=$1
+    R2="HEAD@{$D2}"
+  else
+    R2=$1
+  fi
+  shift
+fi
+if [ -n "$1" ]; then
+  FILE=./$1
+  shift
+else
+  FILE=./
+fi
+[ -n "$1" ] && usage
+
+# multifile
+if [ "$FILE" == . ] || [[ "$FILE" == */ ]]; then
+  CD=$PWD
+  ROOT=$(git rev-parse --show-toplevel)
+  cd "$ROOT"
+  if [ -z "$R1" ]; then
+    git diff --name-only "$FILE" | (
+      cd $ROOT; xargs -n1 $GITDIFF )
+  elif [ -z "$R2" ]; then
+    git diff --name-only "$R1" $FILE | (
+      cd $ROOT; xargs -n1 $GITDIFF -r "$R1" )
+  else
+    git diff --name-only "$R1" "$R2" $FILE | (
+      cd $ROOT; xargs -n1 $GITDIFF -r "$R1" -r "$R2" )
+  fi
+  exit
+fi
+
+# single file
+BASE=$(basename $FILE)
+T1=.tmp.$BASE
+if [ -z "$R1" ]; then
+  git show "HEAD:./$FILE" > $T1
+  CMP2=$FILE
+elif [ -z "$R2" ]; then
+  git show "$R1:./$FILE" > $T1
+  CMP2=$FILE
+else
+  git show "$R1:./$FILE" > $T1
+  CMP2=.tmp2.$BASE
+  T2=$CMP2
+  git show "$R2:./$FILE" > $T2
+fi
+$DIFF $T1 $CMP2
+unlink $T1 $T2
+

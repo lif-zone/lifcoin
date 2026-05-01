@@ -1,0 +1,8 @@
+bind "\C-t":forward-search-history
+
+# https://superuser.com/questions/607478/how-do-you-change-the-xterm-cursor-to-an-i-beam-or-vertical-bar
+if [ "$MINGW_CHOST" ] ; then
+  export PS1='\w$ '
+  # echo -e -n "\x1b[\x31 q" # change cursor blinking to block on MinGW
+  export GVIM_PATH=c:/Vim/vim91/gvim
+fi

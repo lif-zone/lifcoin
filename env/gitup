@@ -1,0 +1,35 @@
+#!/bin/bash -e
+# install: 
+#   cp gitup ~/bin/
+#   cp gitup /usr/local/bin/
+usage(){
+  echo "gitup -D DATE"
+  echo "gitup -D '1 week ago'"
+  echo "gitup -D '2025-01-30'"
+  echo "gitup -A"
+  exit 1
+}
+
+GITUP=$0
+master=master
+# in 2020 git changed master->main
+master=$(git remote show origin | grep 'HEAD branch:' | cut -d' ' -f5)
+if [ "$1" == -D ] ; then
+  OP=$1
+  shift
+  D=$1
+  _D=`date -d "$D" --iso=seconds -u`
+  echo $_D
+  R=`git rev-list $master -n 1 --first-parent --before="$_D"`
+  shift
+fi
+if [ "$1" == -A ] ; then
+  OP=$1
+  shift
+  R=$master
+fi
+[ -n "$1" ] && usage
+
+echo "git checkout $R # $_D"
+git checkout $R
+

@@ -1,0 +1,19 @@
+" cp gitconfig ~/.gitconfig
+
+[user]
+	email = bright@bright.center
+	name = Bright Life
+[difftool.jdiff]
+        cmd = "diff \"$LOCAL\" \"$REMOTE\""
+[difftool]
+	prompt = false
+[diff]
+	tool = "diff"
+	context = 0
+[merge]
+	tool = "diff"
+	context = 0
+[core]
+	pager = cat
+[color]
+	ui = false
