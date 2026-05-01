@@ -1,0 +1,17 @@
+[Unit]
+Description=LIF Kernel Service
+After=network.target
+
+[Service]
+ExecStart=/var/lif/lif-kernel/server.js
+WorkingDirectory=/var/lif/lif-kernel
+Restart=always
+RestartSec=5
+User=root
+Environment=NODE_ENV=production
+# Optionally add StandardOutput and Error paths
+# StandardOutput=file:/var/log/myapp/output.log
+# StandardError=file:/var/log/myapp/error.log
+
+[Install]
+WantedBy=multi-user.target
