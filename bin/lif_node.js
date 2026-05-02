@@ -14,18 +14,8 @@ const Output = require('../lib/primitives/output');
 const Script = require('../lib/script/script');
 const MTX = require('../lib/primitives/mtx');
 const Coin = require('../lib/primitives/coin');
+const {ewait} = require('../browser/util');
 const assert = require('bsert');
-const ewait = ()=>{
-  let _return, _throw;
-  let promise = new Promise((resolve, reject)=>{
-    _return = ret=>{ resolve(ret); return ret; };
-    _throw = err=>{ reject(err); return err; };
-  });
-  promise.return = _return;
-  promise.throw = _throw;
-  promise.catch(err=>{}); // catch un-waited wait() objects. avoid Uncaught in promise
-  return promise;
-};
 
 function bech32(mnemonic, net){
   let _mnemonic = Mnemonic.fromPhrase(mnemonic);
