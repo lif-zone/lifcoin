@@ -1,0 +1,7 @@
+# bash aliases and settings
+# install: cp bash_aliases ~/.bash_aliases
+
+export EDITOR=/usr/bin/vim
+export GIT_EDITOR=$EDITOR
+export GVIM_PATH=$EDITOR
+
