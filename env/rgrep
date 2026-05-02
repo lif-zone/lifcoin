@@ -1,0 +1,89 @@
+#!/bin/bash
+
+usage()
+{
+    echo "usage: zgrep [GREP_OPTIONS] GREP_EXPRESSION"
+    echo "  --verbose - show grep command line"
+    echo "  --c|--h|--js|--pl|--mk|--jake|--sh|--java|--html - filter out files"
+    echo "  --name '*.svg' - search only svg files"
+    echo "  --multiline: use perl style multiline regexp"
+    echo "  --no-exclude: do not exclude any file"
+    echo "automatically recurses (grep -rs GREP_EXPRESSION .), while skipping"
+    echo "build.* and CVS directories, and temporary files (ctags, swap etc)"
+    exit 1
+}
+
+if [ -z "$1" ]; then
+    usage
+fi
+
+OPT=()
+VERBOSE=
+MULTILINE=
+# gvim Windows backup files: *~
+# cvs backup files: .#*
+# ctags files, cscope files
+# zdiff temp file files: *.tmp.*
+# vim swap files: *.swp, *.swo
+EXCLUDE=(--exclude="*~" --exclude=".#*" --exclude=tags --exclude=TAGS
+    --exclude="cscope*.files" --exclude="*cscope*.out" --exclude=*.tmp.*
+    --exclude=*.swp --exclude=*.swo)
+while ((1)); do
+    if [ "$1" == --js ]; then
+	INCLUDE+=(--include='*.js')
+    elif [ "$1" == --c ]; then
+	INCLUDE+=(--include='*.[ch]')
+    elif [ "$1" == --h ]; then
+	INCLUDE+=(--include='*.h')
+    elif [ "$1" == --pl ]; then
+	INCLUDE+=(--include='*.p[lm]')
+    elif [ "$1" == --mk ]; then
+	INCLUDE+=(--include=Makefile --include='*.mk')
+    elif [ "$1" == --jake ]; then
+	INCLUDE+=(--include='Jakefile.js' --include='env.js')
+    elif [ "$1" == --sh ]; then
+	INCLUDE+=(--include='*.sh')
+    elif [ "$1" == --java ]; then
+	INCLUDE+=(--include='*.java')
+    elif [ "$1" == --html ]; then
+	INCLUDE+=(--include='*.html' --include='*.css' --include='*.less')
+    elif [ "$1" == --name ]; then
+        shift
+	INCLUDE+=(--include="$1")
+    elif [ "$1" == --multiline ]; then
+	MULTILINE=1
+    elif [ "$1" == --verbose ]; then
+	VERBOSE=1
+    elif [ "$1" == --no-exclude ]; then
+    EXCLUDE=()
+    else
+	break
+    fi
+    shift
+done
+if [ -n "$INCLUDE" ]; then
+    EXCLUDE=()
+fi
+
+if [ -f ~/.rgreprc ]; then
+    . ~/.rgreprc
+fi
+if [ -z "$COLOR" ]; then
+    COLOR=auto
+fi
+OPT+=(--color=$COLOR)
+if [ "$SHOW_LINE_NUMBERS" == "yes" ]; then
+    OPT+=(-n)
+fi
+if (($MULTILINE)); then
+    OPT+=(-P -z -o)
+fi
+
+# CVS control dirs, build dirs
+cmd=(grep -rs --exclude-dir=CVS --exclude-dir=.svn --exclude-dir="build.*"
+    --exclude-dir=node_modules --exclude-dir=.git
+    "${EXCLUDE[@]}" "${INCLUDE[@]}" "${OPT[@]}" "$@" .)
+if ((VERBOSE)); then
+    echo "${cmd[@]}"
+fi
+"${cmd[@]}"

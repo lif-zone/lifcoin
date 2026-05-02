@@ -1,0 +1,28 @@
+#!/bin/bash
+
+usage()
+{
+    echo "usage: ffind FIND_EXPRESSION"
+    exit 1
+}
+
+if [ -z "$1" ]; then
+    usage
+fi
+
+OPT=()
+while ((1)); do
+    if [ "$1" == --verbose ]; then
+	VERBOSE=1
+    else
+	break
+    fi
+    shift
+done
+
+if [ -z "$COLOR" ]; then
+    COLOR=auto
+fi
+OPT+=(--color=$COLOR)
+
+find $2 | grep $OPT "$1"
