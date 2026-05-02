@@ -10,8 +10,8 @@ The Lifcoin protocol provides domain naming services for the
 ## Install
 
 ```
-$ git clone https://github.com/lif-zone/lifcoin
-$ cd lifcoin
+$ git clone https://github.com/lif-zone/lif-coin
+$ cd lif-coin
 $ npm rebuild
 $ node ./browser/lif_node.js
 ```
