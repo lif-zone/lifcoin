@@ -53,17 +53,17 @@ make wallet.jsx support multiple wallets
 + fix UI for aruk.localhost:4000 error msg
 + open new users in github, and re-import the projects, but with different
   login names/emails
-* separate lif-kernel from lif-os: create a new tree, and re-create commits.
-- add UI of estimations of when expected
-  mining success, and how much will be earned, and how much expected per day
-  of mining, and how much expected per month of mining.
++ separate lif-kernel from lif-os: create a new tree, and re-create commits.
 - make lif/git source to bring most up-to-date versions
 
 Low priority:
 -------------
 - add mining control CPU 5% - 100%, in drop down.
 - in CPU usage, it continues adding more mining threads - up to 4.
-- P2P instant mining support: offer sat per target.
+- add support for WebGPU and WASM, and in NodeJS for native SHA instructions
+- add UI of estimations how much will be earned, and how much expected per day
+  of mining, and how much expected per month of mining.
+-- P2P instant mining support: offer sat per target.
   - in wallet mine server (stake holder) page, add to offer mining shares,
     and on avarage to earn 50%.
   - in lif p2p - publish subject of instant mining {mining_shares}
