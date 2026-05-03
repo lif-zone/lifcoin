@@ -6,7 +6,6 @@ import {BIP32Factory} from 'bip32';
 const bip32 = BIP32Factory(ecc);
 import {ECPairFactory} from 'ecpair';
 const ecpair = ECPairFactory(ecc);
-import ElectrumClient from '@aguycalled/electrum-client-js';
 import {openDB} from 'idb';
 import sha256lif from './sha256lif.js';
 const sha256 = bitcoin.crypto.sha256;
