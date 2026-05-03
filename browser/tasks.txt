@@ -60,6 +60,10 @@ make wallet.jsx support multiple wallets
   + fix all "site" in wallets to have nice domain names
 * sync VPN lif_node with local lif_node (GETBLOCKS fail/timeout response)
 - make lif/git source to bring most up-to-date versions
+- instant P2P mining: add to wallet ability offer instant mining.
+  use lif-kernel server do websocket connection between peers on same
+  subject ('mine_instant'). Some register as mine_instant servers, and others
+  request mine_instant servers, and get mining offers.
 
 Low priority:
 -------------
@@ -68,7 +72,7 @@ Low priority:
 - add support for WebGPU and WASM, and in NodeJS for native SHA instructions
 - add UI of estimations how much will be earned, and how much expected per day
   of mining, and how much expected per month of mining.
--- P2P instant mining support: offer sat per target.
+- P2P instant mining support: offer sat per target.
   - in wallet mine server (stake holder) page, add to offer mining shares,
     and on avarage to earn 50%.
   - in lif p2p - publish subject of instant mining {mining_shares}
