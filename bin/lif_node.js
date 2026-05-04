@@ -98,6 +98,7 @@ let node = new FullNode({
   'coinbase-address': [mine_address],
   'persistent-mempool': true,
   'require-standard': false,
+  incoming_sync: true,
 });
 
 async function mine_blocks(n){
