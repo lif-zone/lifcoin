@@ -99,6 +99,7 @@ let node = new FullNode({
   'persistent-mempool': true,
   'require-standard': false,
   incoming_sync: true,
+  assist_before_sync: true,
 });
 
 async function mine_blocks(n){
