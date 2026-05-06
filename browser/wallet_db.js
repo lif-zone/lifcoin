@@ -660,7 +660,7 @@ function kv_script(key, val){
 }
 
 export async function tx_broadcast(netconf, tx){
-  let txid = _el(netconf).tx_broadcast(tx.toHex());
+  let txid = await _el(netconf).tx_broadcast(tx.toHex());
   if (txid!=tx.getId())
     console.error(`mistmatch txid ${txid} ${tx.getId()}`);
 }
