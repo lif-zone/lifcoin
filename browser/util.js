@@ -173,17 +173,15 @@ export function assert_te(fn){
 }
 assert.te = assert_te;
 
-export class ipc_postmessage {
+export class ipc_client_server {
   req = {};
   cmd_cb = {};
-  ports;
-  port;
   id = 0;
   async cmd(cmd, arg){
     let id = ''+(this.id++);
     let req = this.req[id] = {wait: ewait()};
     req.slow = eslow('post cmd '+cmd);
-    this.port.postMessage({cmd, arg, id});
+    await this.send({cmd, arg, id});
     return await req.wait;
   }
   async cmd_server_cb(msg){
@@ -194,15 +192,14 @@ export class ipc_postmessage {
       let slow = eslow('chan cmd '+msg.cmd);
       let res = await cmd_cb({cmd: msg.cmd, arg: msg.arg});
       slow.end();
-      this.port.postMessage({cmd_res: msg.cmd, id_res: msg.id, res});
+      await this.send({cmd_res: msg.cmd, id_res: msg.id, res});
     } catch(err){
       console.error('cmd failed', msg, err);
-      this.port.postMessage({cmd_res: msg.cmd, id_res: msg.id, err: ''+err});
+      await this.send({cmd_res: msg.cmd, id_res: msg.id, err: ''+err});
       throw err;
     }
   }
-  on_msg(event){
-    let msg = event.data;
+  on_msg(msg){
     if (typeof msg.cmd=='string' && typeof msg.id=='string')
       return this.cmd_server_cb(msg);
     if (typeof msg.cmd_res=='string' && typeof msg.id_res=='string'){
@@ -222,18 +219,26 @@ export class ipc_postmessage {
   add_server_cmd(cmd, cb){
     this.cmd_cb[cmd] = cb;
   }
+}
+
+export class ipc_postmessage extends ipc_client_server {
+  ports;
+  port;
+  send(json){
+    this.port.postMessage(json);
+  }
   // controller = navigator.serviceWorker.controller
   connect(controller){
     this.ports = new MessageChannel();
     controller.postMessage({connect: true}, [this.ports.port2]);
     this.port = this.ports.port1;
-    this.port.addEventListener('message', event=>this.on_msg(event));
+    this.port.addEventListener('message', event=>this.on_msg(event.data));
     this.port.start();
   }
   listen(event){
     if (event.data?.connect){
       this.port = event.ports[0];
-      this.port.addEventListener('message', event=>this.on_msg(event));
+      this.port.addEventListener('message', event=>this.on_msg(event.data));
       this.port.start();
       return true;
     }
@@ -243,4 +248,44 @@ export class ipc_postmessage {
   }
 }
 
+export class ipc_websocket extends ipc_client_server {
+  ws;
+  ws_open;
+  async send(json){
+    if (!await this.ws_open)
+      throw new Error('WebSocket not open');
+    this.ws.send(JSON.stringify(json));
+  }
+  async connect(url){
+    this.url = url;
+    this.ws = new WebSocket(this.url);
+    this.ws_open = ewait();
+    this.ws.onopen = ()=>{
+      assert(this.ws.readyState==WebSocket.OPEN);
+      this.ws_open.return(true);
+    };
+    this.ws.onmessage = event=>{
+      let msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch(e){
+        return console.error('invalid ipc json', event.data);
+      }
+      this.on_msg(msg);
+    };
+    this.ws.onerror = err=>{
+      console.error('WebSocket error', err);
+      this.ws_open.throw(err);
+      this.error = true;
+    };
+    this.ws.onclose = ()=>{
+      this.ws_open.throw('WebSocket closed');
+      this.error = true;
+    };
+    return await this.ws_open;
+  }
+  close(){
+    this.ws?.close();
+  }
+}
 
