@@ -239,7 +239,6 @@ SHA256.bits = 256;
 SHA256.blockSize = 64;
 SHA256.zero = Buffer.alloc(32, 0x00);
 SHA256.ctx = new SHA256();
-SHA256.Buffer = Buffer;
 
 /*
  * Helpers
