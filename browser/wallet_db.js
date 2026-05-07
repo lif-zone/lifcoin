@@ -11,7 +11,6 @@ import {T, OE, OV, OA, ewait, esleep, assert, ipc_postmessage}
   from './util.js';
 let lif = globalThis.$lif = {};
 lif.assert = util.assert;
-import sha256lif from './sha256lif.js';
 const sha256 = bitcoin.crypto.sha256;
 import {mine, mine_worker_call, mine_steps, date_time} from './mine.js';
 
