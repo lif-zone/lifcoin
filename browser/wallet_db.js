@@ -132,18 +132,13 @@ class Json_rpc {
   ws_open;
   id = 0;
   pending = {}; // {id: await result}
-  constructor(url){
+  async connect(url){
     this.url = url;
-  }
-
-  async connect(){
-    let wait = ewait();
     this.ws = new WebSocket(this.url);
     this.ws_open = ewait();
     this.ws.onopen = ()=>{
       assert(this.ws.readyState==WebSocket.OPEN);
       this.ws_open.return(true);
-      wait.return(true);
     };
     this.ws.onmessage = event=>{
       let msg;
@@ -156,15 +151,14 @@ class Json_rpc {
     };
     this.ws.onerror = err=>{
       console.error('WebSocket error', err);
-      wait.throw(err);
       this.ws_open.throw(err);
       this.error = true;
     };
     this.ws.onclose = ()=>{
-      this.ws_open = null;
+      this.ws_open.throw('WebSocket closed');
       this.error = true;
     };
-    return await wait;
+    return await this.ws_open;
   }
 
   on_msg(msg){
@@ -225,9 +219,9 @@ class Electrum_rpc {
         return rpc;
       rpc.close();
     }
-    rpc = g_electrum[this.url] = new Json_rpc(this.url);
+    rpc = g_electrum[this.url] = new Json_rpc();
     try {
-      await rpc.connect();
+      await rpc.connect(this.url);
     } catch(e){
       console.error('roc_connect', e);
       rpc.close();
