@@ -126,12 +126,12 @@ export function electrum_set(electrum){
 
 // JSON-RPC Client over WebSocket
 class Json_rpc {
+  ws;
+  ws_open;
+  id = 0;
+  pending = {}; // {id: await result}
   constructor(url){
     this.url = url;
-    this.ws = null;
-    this.ws_open = null;
-    this.id = 0;
-    this.pending = {}; // id → {resolve, reject}
   }
 
   async connect(){
@@ -139,6 +139,7 @@ class Json_rpc {
     this.ws = new WebSocket(this.url);
     this.ws_open = ewait();
     this.ws.onopen = ()=>{
+      assert(this.ws.readyState==WebSocket.OPEN);
       this.ws_open.return(true);
       wait.return(true);
     };
@@ -183,12 +184,8 @@ class Json_rpc {
 
   async call(method, ...params){
     let msg_wait = ewait();
-    if (!this.ws)
-      throw new Error('WebSocket not inited');
     if (!await this.ws_open)
       throw new Error('WebSocket not open');
-    if (this.ws.readyState!==WebSocket.OPEN)
-      throw new Error('WebSocket not connected');
     const id = ++this.id;
     const request = {
       jsonrpc: "2.0",
@@ -209,8 +206,7 @@ class Json_rpc {
   }
 
   close(){
-    if (this.ws)
-      this.ws.close();
+    this.ws?.close();
   }
 }
 
