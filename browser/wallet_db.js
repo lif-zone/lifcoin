@@ -7,10 +7,12 @@ const bip32 = BIP32Factory(ecc);
 import {ECPairFactory} from 'ecpair';
 const ecpair = ECPairFactory(ecc);
 import {openDB} from 'idb';
-import sha256lif from './sha256lif.js';
-const sha256 = bitcoin.crypto.sha256;
 import {T, OE, OV, OA, ewait, esleep, assert, ipc_postmessage}
   from './util.js';
+let lif = globalThis.$lif = {};
+lif.assert = util.assert;
+import sha256lif from './sha256lif.js';
+const sha256 = bitcoin.crypto.sha256;
 import {mine, mine_worker_call, mine_steps, date_time} from './mine.js';
 
 const HD_SCAN_GAP = 20;

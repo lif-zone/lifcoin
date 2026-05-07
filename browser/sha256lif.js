@@ -13,13 +13,8 @@
  *   https://github.com/indutny/hash.js/blob/master/lib/hash/sha/256.js
  */
 'use strict';
-let assert = (ok, ...msg)=>{
-  if (ok)
-    return;
-  console.error('assert FAIL:', ...msg);
-  debugger; // eslint-disable-line no-debugger
-  throw Error('assert FAIL');
-};
+const assert = globalThis.assert || $lif.assert;
+const Buffer = globalThis.Buffer || $lif.Buffer;
  
 /*
  * Constants
