@@ -412,7 +412,7 @@ export class jsonrpc_base {
     console.error('unknowing rpc msg', msg);
   }
 
-  async call(method, ...params){
+  async call(method, params){
     let msg_wait = ewait();
     if (!await this.open)
       throw new Error('jsonrpc not open');
@@ -421,7 +421,7 @@ export class jsonrpc_base {
       jsonrpc: "2.0",
       id,
       method,
-      ...(params.length && {params}),
+      ...(params && {params}),
     };
     this.pending[id] = msg_wait;
     await this.send(request);

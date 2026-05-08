@@ -7,8 +7,7 @@ const bip32 = BIP32Factory(ecc);
 import {ECPairFactory} from 'ecpair';
 const ecpair = ECPairFactory(ecc);
 import {openDB} from 'idb';
-import {T, OE, OV, OA, ewait, esleep, assert, ipc_postmessage,
-  jsonrpc_websocket,
+import {T, OE, OV, OA, ewait, esleep, assert, jsonrpc_websocket,
 } from './util.js';
 let lif = globalThis.$lif = {};
 lif.assert = assert;
@@ -149,7 +148,7 @@ class Electrum_rpc {
     }
     try {
       this.server_version = await rpc.call('server.version',
-        'lif-coin-wallet', '1.4');
+        ['lif-coin-wallet', '1.4']);
       this.server_banner = await rpc.call('server.banner');
     } catch(e){
       console.error('server version rpc', e);
@@ -165,7 +164,7 @@ class Electrum_rpc {
   }
   async call(method, ...params){
     let rpc = await this.connect();
-    return await rpc.call(method, ...params);
+    return await rpc.call(method, params);
   }
   close(){
     const rpc = g_electrum[this.url];
