@@ -309,18 +309,21 @@ export class rpc_base {
     let method_fn = this.method_fn[msg.method];
     if (!method_fn)
       throw Error('rpc invalid cmd', msg.method);
+    let result = {id: msg.id};
+    if (this.jsonrpc)
+      result.jsonrpc = this.jsonrpc;
     let res;
     let slow = eslow('rpc on handler '+msg.method);
     try {
       res = await method_fn(msg.params);
     } catch(err){
       console.error('rpc failed handler', msg, err);
-      await this.send({id: msg.id, error: ''+err});
+      await this.send({...result, error: ''+err});
       throw err;
     } finally {
       slow.end();
     }
-    await this.send({id: msg.id, result: res});
+    await this.send({...result, result: res});
   }
   async on_notify(msg){
     let method_fn = this.method_fn[msg.method];
@@ -337,6 +340,8 @@ export class rpc_base {
     }
   }
   on_msg(msg){
+    if (this.jsonrpc && !msg.jsonrpc)
+      return console.error('rpc: not jsonrpc msg', msg);
     if (!msg)
       return console.error('rpc: invalid empty msg');
     if (msg.method==null)
