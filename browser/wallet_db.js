@@ -7,7 +7,7 @@ const bip32 = BIP32Factory(ecc);
 import {ECPairFactory} from 'ecpair';
 const ecpair = ECPairFactory(ecc);
 import {openDB} from 'idb';
-import {T, OE, OV, OA, ewait, esleep, assert, jsonrpc_websocket,
+import {T, OE, OV, OA, ewait, esleep, assert, rpc_websocket,
 } from './util.js';
 let lif = globalThis.$lif = {};
 lif.assert = assert;
@@ -138,7 +138,7 @@ class Electrum_rpc {
         return rpc;
       rpc.close();
     }
-    rpc = g_electrum[this.url] = new jsonrpc_websocket();
+    rpc = g_electrum[this.url] = new rpc_websocket();
     try {
       await rpc.connect(this.url);
     } catch(e){

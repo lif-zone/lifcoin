@@ -265,85 +265,20 @@ export const micro_Buffer = class Buffer extends Uint8Array {
   static isBuffer(b){ return b instanceof Buffer || b instanceof Uint8Array; }
 };
 
-export class ipc_base {
-  method_fn = {};
-  req = {};
-  id = 0;
-  open = ewait();
-  async call(method, params){
-    let id = ''+(this.id++);
-    let req = this.req[id] = {wait: ewait()};
-    let request = req.request = {method, params, id};
-    let res;
-    let slow = eslow(5000, 'ipc '+method);
-    try {
-      if (!await this.open)
-        throw new Error('ipc not open');
-      await this.send(request);
-      res = await req.wait;
-    } catch(err){
-      console.error('rpc failed call', request);
-      throw req.wait.throw(err);
-    } finally {
-      slow.end();
-    }
-    return res;
-  }
-  async on_res(msg){
-    let id = msg.id_res, req;
-    if (!(req = this.req[id]))
-      throw Error('invalid req msg.id', id);
-    delete this.req[id];
-    if (msg.err)
-      return req.wait.throw(msg.err);
-    return req.wait.return(msg.res);
-  }
-  async on_call(msg){
-    let method_fn = this.method_fn[msg.method];
-    if (!method_fn)
-      throw Error('invalid cmd', msg.method);
-    let res;
-    let slow = eslow('ipc cmd '+msg.method);
-    try {
-      res = await method_fn(msg.params);
-    } catch(err){
-      console.error('cmd failed', msg, err);
-      await this.send({method_res: msg.method, id_res: msg.id, err: ''+err});
-      throw err;
-    } finally {
-      slow.end();
-    }
-    await this.send({method_res: msg.method, id_res: msg.id, res});
-  }
-  on_msg(msg){
-    if (typeof msg.method=='string' && typeof msg.id=='string')
-      return this.on_call(msg);
-    if (typeof msg.method_res=='string' && typeof msg.id_res=='string')
-      return this.on_res(msg);
-    if (typeof msg.misc=='string')
-      return console.log(msg);
-    throw Error('invalid msg', msg);
-  }
-  add_method(method, cb){
-    this.method_fn[method] = cb;
-  }
-  close(){
-    for (let [id, req] of OE(this.req)){
-      delete this.req[id];
-      req.wait.throw('close');
-    }
-  }
-}
-
-export class jsonrpc_base {
+export class rpc_base {
   method_fn = {};
   id = 0;
   req = {};
   open = ewait();
+  jsonrpc;
   async call(method, params){
     let id = this.id++;
     let req = this.req[id] = {wait: ewait(), method, params};
-    const request = {jsonrpc: "2.0", id, method, ...(params && {params})};
+    const request = {id, method};
+    if (params)
+      request.params = params;
+    if (this.jsonrpc)
+      request.jsonrpc = this.jsonrpc;
     let res;
     let slow = eslow(5000, 'rpc cmd '+method);
     try {
@@ -367,7 +302,7 @@ export class jsonrpc_base {
       return console.error('unexpected rpc msg', msg);
     delete this.req[id];
     if (msg.error)
-      return req.wait.throw(msg);
+      return req.wait.throw(msg.error);
     return req.wait.return(msg.result);
   }
   async on_call(msg){
@@ -421,7 +356,7 @@ export class jsonrpc_base {
   }
 }
 
-export class ipc_postmessage extends ipc_base {
+export class ipc_postmessage extends rpc_base {
   ports;
   port;
   send(json){
@@ -451,8 +386,13 @@ export class ipc_postmessage extends ipc_base {
   }
 }
 
-export const class_ipc_websocket = base=>class extends base {
+// json-rpc over websocket
+export class rpc_websocket extends rpc_base {
   ws;
+  constructor(){
+    super();
+    this.jsonrpc = '2.0';
+  }
   async send(json){
     this.ws.send(JSON.stringify(json));
   }
@@ -488,9 +428,6 @@ export const class_ipc_websocket = base=>class extends base {
     this.ws?.close();
   }
 };
-
-export const ipc_websocket = class_ipc_websocket(ipc_base);
-export const jsonrpc_websocket = class_ipc_websocket(jsonrpc_base);
 
 const utf8_enc = new TextEncoder('utf-8');
 export function str_to_buf(buf){
