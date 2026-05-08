@@ -11,7 +11,7 @@ import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   _el, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
-  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_solo,
+  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_solo, mine_instant,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -772,6 +772,7 @@ const fmt_duration = sec=>{
 function Mine_screen({wallet}){
   const {netconf} = wallet;
   const [on, setOn] = useState(false);
+  const [mode, setMode] = useState('instant');
   const [count, setCount] = useState(0);
   const [stats, setStats] = useState(null);
   const [elapsed, setElapsed] = useState(0);
@@ -790,16 +791,22 @@ function Mine_screen({wallet}){
     blockStartRef.current = Date.now();
     (async()=>{
       const saddr = wallet.c.receiveAddress;
+      const on_update = up=>{
+        if (!runningRef.current)
+          return {stop: true};
+        setStats(up);
+      };
       while (runningRef.current){
         blockStartRef.current = Date.now();
-        let target;
-        if (settings.ls.devtools && settings.ls.dev_target)
-          target = 0xffff001d; // genesis block real target
-        const ret = await mine_solo({netconf, saddr, target, on_update: up=>{
-          if (!runningRef.current)
-            return {stop: true};
-          setStats(up);
-        }});
+        let ret;
+        if (mode=='instant')
+          ret = await mine_instant({netconf, saddr, on_update});
+        else {
+          let target;
+          if (settings.ls.devtools && settings.ls.dev_target)
+            target = 0xffff001d;
+          ret = await mine_solo({netconf, saddr, target, on_update});
+        }
         if (!runningRef.current)
           break;
         if (ret?.height)
@@ -821,6 +828,17 @@ function Mine_screen({wallet}){
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Mine for free</h3>
+      {!on && (
+        <div style={{display: 'flex', gap: 16, marginTop: 10, fontSize: 14}}>
+          {['solo', 'instant'].map(m=>(
+            <label key={m} style={{display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'}}>
+              <input type="radio" name="mine_mode" value={m} checked={mode==m}
+                onChange={()=>setMode(m)} />
+              {m=='solo' ? 'Solo mining' : 'Instant mining'}
+            </label>
+          ))}
+        </div>
+      )}
       <button onClick={toggle} style={{fontSize: 16, marginTop: 8}}>
         {on ? '⏹ Stop mining' : '▶ Start mining'}
       </button>

@@ -206,7 +206,9 @@ export function _el(netconf){
 const g_lif_rg = {};
 class lif_rg_rpc {
   constructor(){
-    this.url = location.host+'/.lif.rg';
+    let protocol = location.protocol=='http:' ? 'ws:' :
+      location.protocol=='https:' ? 'wss:' : null;
+    this.url = protocol+'//'+location.host+'/.lif.rg';
   }
   async connect(){
     let rpc;
