@@ -404,7 +404,7 @@ export class rpc_websocket extends rpc_base {
   async connect(url){
     this.url = url;
     let ws = this.ws = new WebSocket(this.url);
-    ws.on = ws.addEventListener;
+    ws.on ||= ws.addEventListener;
     ws.on('open', ()=>{
       assert(this.ws.readyState==WebSocket.OPEN);
       this.open.return(true);
