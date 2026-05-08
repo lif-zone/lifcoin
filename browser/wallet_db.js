@@ -7,10 +7,11 @@ const bip32 = BIP32Factory(ecc);
 import {ECPairFactory} from 'ecpair';
 const ecpair = ECPairFactory(ecc);
 import {openDB} from 'idb';
-import {T, OE, OV, OA, ewait, esleep, assert, ipc_postmessage}
-  from './util.js';
+import {T, OE, OV, OA, ewait, esleep, assert, ipc_postmessage,
+  jsonrpc_websocket,
+} from './util.js';
 let lif = globalThis.$lif = {};
-lif.assert = util.assert;
+lif.assert = assert;
 const sha256 = bitcoin.crypto.sha256;
 import {mine, mine_worker_call, mine_steps, date_time} from './mine.js';
 
@@ -125,86 +126,6 @@ export function electrum_set(electrum){
   settings_save();
 }
 
-// JSON-RPC Client over WebSocket
-class Json_rpc {
-  ws;
-  ws_open;
-  id = 0;
-  pending = {}; // {id: await result}
-  async connect(url){
-    this.url = url;
-    this.ws = new WebSocket(this.url);
-    this.ws_open = ewait();
-    this.ws.onopen = ()=>{
-      assert(this.ws.readyState==WebSocket.OPEN);
-      this.ws_open.return(true);
-    };
-    this.ws.onmessage = event=>{
-      let msg;
-      try {
-        msg = JSON.parse(event.data);
-      } catch(e){
-        return console.error('invalid rpc json', event.data);
-      }
-      this.on_msg(msg);
-    };
-    this.ws.onerror = err=>{
-      console.error('WebSocket error', err);
-      this.ws_open.throw(err);
-      this.error = true;
-    };
-    this.ws.onclose = ()=>{
-      this.ws_open.throw('WebSocket closed');
-      this.error = true;
-    };
-    return await this.ws_open;
-  }
-
-  on_msg(msg){
-    if (!msg)
-      return console.error('invalid empty rpc msg');
-    if (msg.id!=null){
-      const msg_wait = this.pending[msg.id];
-      if (!msg_wait)
-        return console.error('unexpected rpc msg', msg);
-      delete this.pending[msg.id];
-      if (msg.error)
-        return msg_wait.throw(msg);
-      return msg_wait.return(msg.result);
-    }
-    if (msg.method)
-      return console.log('rpc server notification:', msg.method, msg.params);
-    console.error('unknowing rpc msg', msg);
-  }
-
-  async call(method, ...params){
-    let msg_wait = ewait();
-    if (!await this.ws_open)
-      throw new Error('WebSocket not open');
-    const id = ++this.id;
-    const request = {
-      jsonrpc: "2.0",
-      id,
-      method,
-      ...(params.length && {params}),
-    };
-    this.pending[id] = msg_wait;
-    this.ws.send(JSON.stringify(request));
-    let res;
-    try {
-      res = await msg_wait;
-    } catch(msg){
-      console.error('rpc('+method+') error', msg);
-      throw new Error(msg.error);
-    }
-    return res;
-  }
-
-  close(){
-    this.ws?.close();
-  }
-}
-
 const g_electrum = {};
 class Electrum_rpc {
   constructor(netconf){
@@ -218,7 +139,7 @@ class Electrum_rpc {
         return rpc;
       rpc.close();
     }
-    rpc = g_electrum[this.url] = new Json_rpc();
+    rpc = g_electrum[this.url] = new jsonrpc_websocket();
     try {
       await rpc.connect(this.url);
     } catch(e){
