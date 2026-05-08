@@ -260,7 +260,7 @@ export class ipc_postmessage extends ipc_base {
   }
 }
 
-export class ipc_websocket extends ipc_base {
+export const class_ipc_websocket = base=>class extends base {
   ws;
   async send(json){
     this.ws.send(JSON.stringify(json));
@@ -296,7 +296,7 @@ export class ipc_websocket extends ipc_base {
     super.close();
     this.ws?.close();
   }
-}
+};
 
 // JSON-RPC Client over WebSocket
 export class jsonrpc_base {
@@ -350,42 +350,6 @@ export class jsonrpc_base {
   }
 }
 
-export class jsonrpc_websocket extends jsonrpc_base {
-  ws;
-  async send(json){
-    this.ws.send(JSON.stringify(json));
-  }
-  async connect(url){
-    this.url = url;
-    this.ws = new WebSocket(this.url);
-    this.ws.onopen = ()=>{
-      assert(this.ws.readyState==WebSocket.OPEN);
-      this.open.return(true);
-    };
-    this.ws.onmessage = event=>{
-      let msg;
-      try {
-        msg = JSON.parse(event.data);
-      } catch(e){
-        return console.error('invalid rpc json', event.data);
-      }
-      this.on_msg(msg);
-    };
-    this.ws.onerror = err=>{
-      console.error('WebSocket error', err);
-      this.open.throw(err);
-      this.error = true;
-    };
-    this.ws.onclose = ()=>{
-      this.open.throw('WebSocket closed');
-      this.error = true;
-    };
-    return await this.open;
-  }
-
-  close(){
-    super.close();
-    this.ws?.close();
-  }
-}
+export const ipc_websocket = class_ipc_websocket(ipc_base);
+export const jsonrpc_websocket = class_ipc_websocket(jsonrpc_base);
 
