@@ -315,8 +315,8 @@ export class ipc_base {
     this.cmd_cb[cmd] = cb;
   }
   close(){
-    for (let [id, msg_wait] of OE(this.pending)){
-      delete this.pending[id];
+    for (let [id, msg_wait] of OE(this.req)){
+      delete this.req[id];
       msg_wait.throw('close');
     }
   }
@@ -393,16 +393,16 @@ export const class_ipc_websocket = base=>class extends base {
 // JSON-RPC Client over WebSocket
 export class jsonrpc_base {
   id = 0;
-  pending = {}; // {id: await result}
+  req = {}; // {id: await result}
   open = ewait();
   on_msg(msg){
     if (!msg)
       return console.error('invalid empty rpc msg');
     if (msg.id!=null){
-      const msg_wait = this.pending[msg.id];
+      const msg_wait = this.req[msg.id];
       if (!msg_wait)
         return console.error('unexpected rpc msg', msg);
-      delete this.pending[msg.id];
+      delete this.req[msg.id];
       if (msg.error)
         return msg_wait.throw(msg);
       return msg_wait.return(msg.result);
@@ -423,7 +423,7 @@ export class jsonrpc_base {
       method,
       ...(params && {params}),
     };
-    this.pending[id] = msg_wait;
+    this.req[id] = msg_wait;
     await this.send(request);
     let res;
     try {
@@ -435,8 +435,8 @@ export class jsonrpc_base {
     return res;
   }
   close(){
-    for (let [id, msg_wait] of OE(this.pending)){
-      delete this.pending[id];
+    for (let [id, msg_wait] of OE(this.req)){
+      delete this.req[id];
       msg_wait.throw('close');
     }
   }
