@@ -223,7 +223,10 @@ export class ipc_base {
     this.cmd_cb[cmd] = cb;
   }
   close(){
-    // XXX TODO: cancel all pending requests
+    for (let [id, msg_wait] of OE(this.pending)){
+      delete this.pending[id];
+      msg_wait.throw('close');
+    }
   }
 }
 
@@ -340,7 +343,10 @@ export class jsonrpc_base {
     return res;
   }
   close(){
-    // XXX TODO: cancel all pending requests
+    for (let [id, msg_wait] of OE(this.pending)){
+      delete this.pending[id];
+      msg_wait.throw('close');
+    }
   }
 }
 
