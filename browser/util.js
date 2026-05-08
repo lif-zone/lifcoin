@@ -307,8 +307,10 @@ export class rpc_base {
   }
   async on_call(msg){
     let method_fn = this.method_fn[msg.method];
-    if (!method_fn)
-      throw Error('rpc invalid cmd', msg.method);
+    if (!method_fn){
+      console.error('rpc invalid method '+msg.method);
+      throw Error('rpc invalid method '+msg.method);
+    }
     let result = {id: msg.id};
     if (this.jsonrpc)
       result.jsonrpc = this.jsonrpc;
@@ -406,19 +408,19 @@ export class rpc_websocket extends rpc_base {
     if (opt.url){
       this.url = opt.url;
       this.ws = new WebSocket(this.url);
-      this.browser = true;
       this.ws.on = this.ws.addEventListener;
-    } else if (opt.ws)
+    } else if (opt.ws){
       this.ws = opt.ws;
-    else
+      this.is_node = true;
+    } else
       throw new Error('missing connect opt');
     this.ws.on('open', ()=>{
-      if (this.browser)
+      if (!this.is_node)
         assert(this.ws.readyState==WebSocket.OPEN);
       this.open.return(true);
     });
     this.ws.on('message', event=>{
-      let data = this.browser ? event.data : event;
+      let data = this.is_node ? event.toString('utf8') : event.data;
       let msg;
       try {
         msg = JSON.parse(data);
