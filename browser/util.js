@@ -307,10 +307,8 @@ export class rpc_base {
   }
   async on_call(msg){
     let method_fn = this.method_fn[msg.method];
-    if (!method_fn){
-      console.error('rpc invalid method '+msg.method);
-      throw Error('rpc invalid method '+msg.method);
-    }
+    if (!method_fn)
+      return console.error('rpc unsupported method '+msg.method);
     let result = {id: msg.id};
     if (this.jsonrpc)
       result.jsonrpc = this.jsonrpc;
@@ -321,7 +319,7 @@ export class rpc_base {
     } catch(err){
       console.error('rpc failed handler', msg, err);
       await this.send({...result, error: ''+err});
-      throw err;
+      return;
     } finally {
       slow.end();
     }
@@ -330,13 +328,12 @@ export class rpc_base {
   async on_notify(msg){
     let method_fn = this.method_fn[msg.method];
     if (!method_fn)
-      throw Error('rpc: invalid cmd', msg.method);
+      return console.error('rpc: invalid cmd', msg.method);
     let slow = eslow('rpc notify '+msg.method);
     try {
       await method_fn(msg.params);
     } catch(err){
       console.error('rpc failed notify', msg, err);
-      throw err;
     } finally {
       slow.end();
     }
