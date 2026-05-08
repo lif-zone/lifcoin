@@ -11,7 +11,7 @@ function init(){
     console.error('invalid message', event.data, event);
   });
   ipc.add_method('version', ()=>({version}));
-  ipc.add_method('mine', ({cmd, arg})=>{
+  ipc.add_method('mine', arg=>{
     console.log('mining', arg);
     arg.header = Buffer.from(arg.header, 'hex');
     let tstart = Date.now();

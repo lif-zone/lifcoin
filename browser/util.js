@@ -270,12 +270,12 @@ export class ipc_base {
   req = {};
   id = 0;
   open = ewait();
-  async call(cmd, arg){
+  async call(method, params){
     let id = ''+(this.id++);
-    let req = this.req[id] = {wait: ewait(), cmd, arg};
-    let request = {cmd, arg, id};
+    let req = this.req[id] = {wait: ewait()};
+    let request = req.request = {method, params, id};
     let res;
-    let slow = eslow('ipc cmd '+cmd);
+    let slow = eslow(5000, 'ipc '+method);
     try {
       if (!await this.open)
         throw new Error('ipc not open');
@@ -299,33 +299,33 @@ export class ipc_base {
     return req.wait.return(msg.res);
   }
   async on_call(msg){
-    let method_fn = this.method_fn[msg.cmd];
+    let method_fn = this.method_fn[msg.method];
     if (!method_fn)
-      throw Error('invalid cmd', msg.cmd);
+      throw Error('invalid cmd', msg.method);
     let res;
-    let slow = eslow('ipc cmd '+msg.cmd);
+    let slow = eslow('ipc cmd '+msg.method);
     try {
-      res = await method_fn({cmd: msg.cmd, arg: msg.arg});
+      res = await method_fn(msg.params);
     } catch(err){
       console.error('cmd failed', msg, err);
-      await this.send({cmd_res: msg.cmd, id_res: msg.id, err: ''+err});
+      await this.send({method_res: msg.method, id_res: msg.id, err: ''+err});
       throw err;
     } finally {
       slow.end();
     }
-    await this.send({cmd_res: msg.cmd, id_res: msg.id, res});
+    await this.send({method_res: msg.method, id_res: msg.id, res});
   }
   on_msg(msg){
-    if (typeof msg.cmd=='string' && typeof msg.id=='string')
+    if (typeof msg.method=='string' && typeof msg.id=='string')
       return this.on_call(msg);
-    if (typeof msg.cmd_res=='string' && typeof msg.id_res=='string')
+    if (typeof msg.method_res=='string' && typeof msg.id_res=='string')
       return this.on_res(msg);
     if (typeof msg.misc=='string')
       return console.log(msg);
     throw Error('invalid msg', msg);
   }
-  add_method(cmd, cb){
-    this.method_fn[cmd] = cb;
+  add_method(method, cb){
+    this.method_fn[method] = cb;
   }
   close(){
     for (let [id, req] of OE(this.req)){
@@ -345,7 +345,7 @@ export class jsonrpc_base {
     let req = this.req[id] = {wait: ewait(), method, params};
     const request = {jsonrpc: "2.0", id, method, ...(params && {params})};
     let res;
-    let slow = eslow('rpc cmd '+method);
+    let slow = eslow(5000, 'rpc cmd '+method);
     try {
       if (!await this.open)
         throw new Error('rpc not open');
@@ -409,6 +409,9 @@ export class jsonrpc_base {
     if (msg.id==null)
       return this.on_notify(msg);
     return this.on_call(msg);
+  }
+  add_method(method, cb){
+    this.method_fn[method] = cb;
   }
   close(){
     for (let [id, req] of OE(this.req)){
