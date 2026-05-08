@@ -280,7 +280,7 @@ export class rpc_base {
     if (this.jsonrpc)
       request.jsonrpc = this.jsonrpc;
     let res;
-    let slow = eslow(5000, 'rpc cmd '+method);
+    let slow = eslow(5000, 'rpc '+method);
     try {
       if (!await this.open)
         throw new Error('rpc not open');
@@ -297,9 +297,9 @@ export class rpc_base {
   async on_res(msg){
     let id = msg.id, req;
     if (typeof id!='string' && typeof id!='number')
-      return console.error('invalid msg id', msg);
+      return console.error('rpc: invalid msg id', msg);
     if (!(req = this.req[id]))
-      return console.error('unexpected rpc msg', msg);
+      return console.error('rpc: unexpected msg', msg);
     delete this.req[id];
     if (msg.error)
       return req.wait.throw(msg.error);
@@ -308,13 +308,13 @@ export class rpc_base {
   async on_call(msg){
     let method_fn = this.method_fn[msg.method];
     if (!method_fn)
-      throw Error('invalid cmd', msg.method);
+      throw Error('rpc invalid cmd', msg.method);
     let res;
-    let slow = eslow('ipc cmd '+msg.method);
+    let slow = eslow('rpc on handler '+msg.method);
     try {
       res = await method_fn(msg.params);
     } catch(err){
-      console.error('cmd failed', msg, err);
+      console.error('rpc failed handler', msg, err);
       await this.send({id: msg.id, error: ''+err});
       throw err;
     } finally {
@@ -325,12 +325,12 @@ export class rpc_base {
   async on_notify(msg){
     let method_fn = this.method_fn[msg.method];
     if (!method_fn)
-      throw Error('invalid cmd', msg.method);
+      throw Error('rpc: invalid cmd', msg.method);
     let slow = eslow('rpc notify '+msg.method);
     try {
       await method_fn(msg.params);
     } catch(err){
-      console.error('cmd failed', msg, err);
+      console.error('rpc failed notify', msg, err);
       throw err;
     } finally {
       slow.end();
@@ -338,7 +338,7 @@ export class rpc_base {
   }
   on_msg(msg){
     if (!msg)
-      return console.error('invalid empty rpc msg');
+      return console.error('rpc: invalid empty msg');
     if (msg.method==null)
       return this.on_res(msg);
     if (msg.id==null)
