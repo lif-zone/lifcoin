@@ -138,9 +138,9 @@ class Electrum_rpc {
         return rpc;
       rpc.close();
     }
-    rpc = g_electrum[this.url] = new rpc_websocket();
+    rpc = g_electrum[this.url] = new rpc_websocket({jsonrpc: '2.0'});
     try {
-      await rpc.connect(this.url);
+      await rpc.connect({url: this.url});
     } catch(e){
       console.error('roc_connect', e);
       rpc.close();
@@ -210,6 +210,21 @@ async function el_connect(netconf){
 
 export function _el(netconf){
   return new Electrum_rpc(netconf);
+}
+
+let g_bridge;
+async function bridge_connect(){
+  if (g_bridge)
+    return await g_bridge.wait;
+  let br = g_bridge = {rpc: new rpc_websocket(), wait: ewait()};
+  try {
+    await br.rpc.connect(location.host+'/.lif.bridge');
+    br.wait.return(br.rpc);
+  } catch(err){
+    console.error('failed lif bridge connect', err);
+    throw err;
+    br.wait.throw(err);
+  }
 }
 
 // id → single wallet object instance (mutated in place)

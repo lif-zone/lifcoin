@@ -394,21 +394,24 @@ export class ipc_postmessage extends rpc_base {
 // json-rpc over websocket
 export class rpc_websocket extends rpc_base {
   ws;
-  constructor(){
+  constructor(opt={}){
     super();
-    this.jsonrpc = '2.0';
+    if (opt.jsonrpc)
+      this.jsonrpc = opt.jsonrpc;
   }
   async send(json){
     this.ws.send(JSON.stringify(json));
   }
-  async connect(url){
-    if (typeof url=='string'){
-      this.url = url;
+  async connect(opt){
+    if (opt.url){
+      this.url = opt.url;
       this.ws = new WebSocket(this.url);
       this.browser = true;
       this.ws.on = this.ws.addEventListener;
-    } else if (typeof url=='object')
-      this.ws = url.ws;
+    } else if (opt.ws)
+      this.ws = opt.ws;
+    else
+      throw new Error('missing connect opt');
     this.ws.on('open', ()=>{
       if (this.browser)
         assert(this.ws.readyState==WebSocket.OPEN);
