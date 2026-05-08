@@ -403,12 +403,13 @@ export class rpc_websocket extends rpc_base {
   }
   async connect(url){
     this.url = url;
-    this.ws = new WebSocket(this.url);
-    this.ws.onopen = ()=>{
+    let ws = this.ws = new WebSocket(this.url);
+    ws.on = ws.addEventListener;
+    ws.on('open', ()=>{
       assert(this.ws.readyState==WebSocket.OPEN);
       this.open.return(true);
-    };
-    this.ws.onmessage = event=>{
+    });
+    ws.on('message', event=>{
       let msg;
       try {
         msg = JSON.parse(event.data);
@@ -416,16 +417,16 @@ export class rpc_websocket extends rpc_base {
         return console.error('invalid ipc json', event.data);
       }
       this.on_msg(msg);
-    };
-    this.ws.onerror = err=>{
+    });
+    ws.on('error', err=>{
       console.error('WebSocket error', err);
       this.open.throw(err);
       this.error = true;
-    };
-    this.ws.onclose = ()=>{
+    });
+    ws.on('close', ()=>{
       this.open.throw('WebSocket closed');
       this.error = true;
-    };
+    });
     return await this.open;
   }
   close(){
