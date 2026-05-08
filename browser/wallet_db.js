@@ -8,6 +8,7 @@ import {ECPairFactory} from 'ecpair';
 const ecpair = ECPairFactory(ecc);
 import {openDB} from 'idb';
 import {T, OE, OV, OA, ewait, esleep, assert, rpc_websocket,
+  version as util_version,
 } from './util.js';
 let lif = globalThis.$lif ||= {};
 lif.assert = assert;
@@ -227,7 +228,7 @@ class lif_rg_rpc {
     }
     try {
       this.server_version = await rpc.call('version',
-        {name: 'lif-coin-wallet', version: '1.4'});
+        {name: 'lif-coin-wallet', version: util_version});
     } catch(e){
       console.error('server version rpc', e);
       this.close();
