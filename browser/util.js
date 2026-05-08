@@ -350,7 +350,7 @@ export class rpc_base {
       return this.on_notify(msg);
     return this.on_call(msg);
   }
-  add_method(method, cb){
+  method(method, cb){
     this.method_fn[method] = cb;
   }
   close(){
@@ -402,28 +402,34 @@ export class rpc_websocket extends rpc_base {
     this.ws.send(JSON.stringify(json));
   }
   async connect(url){
-    this.url = url;
-    let ws = this.ws = new WebSocket(this.url);
-    ws.on ||= ws.addEventListener;
-    ws.on('open', ()=>{
-      assert(this.ws.readyState==WebSocket.OPEN);
+    if (typeof url=='string'){
+      this.url = url;
+      this.ws = new WebSocket(this.url);
+      this.browser = true;
+      this.ws.on = this.ws.addEventListener;
+    } else if (typeof url=='object')
+      this.ws = url.ws;
+    this.ws.on('open', ()=>{
+      if (this.browser)
+        assert(this.ws.readyState==WebSocket.OPEN);
       this.open.return(true);
     });
-    ws.on('message', event=>{
+    this.ws.on('message', event=>{
+      let data = this.browser ? event.data : event;
       let msg;
       try {
-        msg = JSON.parse(event.data);
+        msg = JSON.parse(data);
       } catch(e){
-        return console.error('invalid ipc json', event.data);
+        return console.error('invalid ipc json', data);
       }
       this.on_msg(msg);
     });
-    ws.on('error', err=>{
+    this.ws.on('error', err=>{
       console.error('WebSocket error', err);
       this.open.throw(err);
       this.error = true;
     });
-    ws.on('close', ()=>{
+    this.ws.on('close', ()=>{
       this.open.throw('WebSocket closed');
       this.error = true;
     });
