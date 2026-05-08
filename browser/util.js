@@ -267,10 +267,10 @@ export const micro_Buffer = class Buffer extends Uint8Array {
 
 export class ipc_base {
   req = {};
-  cmd_cb = {};
+  method_fn = {};
   id = 0;
   open = ewait();
-  async cmd(cmd, arg){
+  async call(cmd, arg){
     let id = ''+(this.id++);
     let req = this.req[id] = {wait: ewait()};
     req.slow = eslow('post cmd '+cmd);
@@ -279,13 +279,13 @@ export class ipc_base {
     await this.send({cmd, arg, id});
     return await req.wait;
   }
-  async cmd_server_cb(msg){
-    let cmd_cb = this.cmd_cb[msg.cmd];
-    if (!cmd_cb)
+  async on_call(msg){
+    let method_fn = this.method_fn[msg.cmd];
+    if (!method_fn)
       throw Error('invalid cmd', msg.cmd);
     try {
       let slow = eslow('chan cmd '+msg.cmd);
-      let res = await cmd_cb({cmd: msg.cmd, arg: msg.arg});
+      let res = await method_fn({cmd: msg.cmd, arg: msg.arg});
       slow.end();
       await this.send({cmd_res: msg.cmd, id_res: msg.id, res});
     } catch(err){
@@ -294,25 +294,27 @@ export class ipc_base {
       throw err;
     }
   }
+  async on_res(msg){
+    let id = msg.id_res, req;
+    if (!(req = this.req[id]))
+      throw Error('invalid req msg.id', id);
+    delete this.req[id];
+    req.slow.end();
+    if (msg.err)
+      return req.wait.throw(msg.err);
+    return req.wait.return(msg.res);
+  }
   on_msg(msg){
     if (typeof msg.cmd=='string' && typeof msg.id=='string')
-      return this.cmd_server_cb(msg);
-    if (typeof msg.cmd_res=='string' && typeof msg.id_res=='string'){
-      let id = msg.id_res, req;
-      if (!(req = this.req[id]))
-        throw Error('invalid req msg.id', id);
-      delete this.req[id];
-      req.slow.end();
-      if (msg.err)
-        return req.wait.throw(msg.err);
-      return req.wait.return(msg.res);
-    }
+      return this.on_call(msg);
+    if (typeof msg.cmd_res=='string' && typeof msg.id_res=='string')
+      return this.on_res(msg);
     if (typeof msg.misc=='string')
       return console.log(msg);
     throw Error('invalid msg', msg);
   }
-  add_server_cmd(cmd, cb){
-    this.cmd_cb[cmd] = cb;
+  add_method(cmd, cb){
+    this.method_fn[cmd] = cb;
   }
   close(){
     for (let [id, msg_wait] of OE(this.req)){
