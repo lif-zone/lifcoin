@@ -792,7 +792,10 @@ function Mine_screen({wallet}){
       const saddr = wallet.c.receiveAddress;
       while (runningRef.current){
         blockStartRef.current = Date.now();
-        const ret = await mine_solo({netconf, saddr, on_update: up=>{
+        let target;
+        if (settings.ls.devtools && settings.ls.dev_target)
+          target = 0xffff001d; // genesis block real target
+        const ret = await mine_solo({netconf, saddr, target, on_update: up=>{
           if (!runningRef.current)
             return {stop: true};
           setStats(up);
@@ -1381,7 +1384,13 @@ function Kv_add_raw_screen({wallet, onSent}){
           rows={5}
           placeholder={'{"site": "lif:git/..."}'}
           value={kv_val}
-          onChange={e=>{ set_kv_val(e.target.value); try { JSON.parse(e.target.value); setValError(false); } catch { setValError(true); } }}
+          onChange={e=>{
+            set_kv_val(e.target.value);
+            try {
+              JSON.parse(e.target.value);
+              setValError(false);
+            } catch { setValError(true); }
+          }}
           style={{display: 'block', width: '100%', marginTop: 4, fontFamily: 'monospace',
             fontSize: 13, boxSizing: 'border-box'}}
         />

@@ -79,10 +79,6 @@ export function header_set_nonce(header, nonce){
 export function header_set_time(header, time){
   header.writeUInt32LE(time, 68);
 }
-// for sim_target
-export function header_set_target(header, target){
-  header.writeUInt32LE(target, 72);
-}
 
 export function mine_single(pow, header, target_a, nonce){
   header_set_nonce(header, nonce);
@@ -96,8 +92,9 @@ export function mine_single(pow, header, target_a, nonce){
 export function date_time(){
   return Math.floor(Date.now()/1000);
 }
-export function mine({pow, header, min, max}){
-  let target_a = target_get(header_get_target(header));
+export function mine({pow, header, min=0, max=0x100000000, target}){
+  target ||= header_get_target(header);
+  let target_a = target_get(target);
   let v;
   for (let i=min; i<max; i++){
     if (v=mine_single(pow, header, target_a, i))
@@ -133,18 +130,19 @@ export async function mine_worker_call(mine_cmd){
   return ret;
 }
 
-export async function mine_steps({pow, header, time_local, min, max,
-  on_update})
+export async function mine_steps({pow, header, time_local,
+  min=0, max=0x100000000, target, on_update})
 {
   let hps = 10; // initial hashs per second. in reality is around 1M hps
   let slice_ms = 1000;
   let total_h = 0;
   let at = min;
+  time_local ||= date_time();
   let time_diff = header_get_time(header)-time_local;
   let time_last = time_local;
   let _header = Buffer.from(header);
-  let nhash_win = Number(target_to_nhash_win(
-    target_from_compact(header_get_target(header))));
+  target ||= header_get_target(header);
+  let nhash_win = Number(target_to_nhash_win(target_from_compact(target)));
   for (;;){
     let slice_h = Math.max(Math.floor(hps*slice_ms/1000), 1);
     let up = on_update({hps, slice_h, total_h, nhash_win});
@@ -157,7 +155,7 @@ export async function mine_steps({pow, header, time_local, min, max,
       at = min;
     }
     let tstart = Date.now();
-    let ret = await mine_worker_call({pow, header: _header,
+    let ret = await mine_worker_call({pow, header: _header, target,
       min: at, max: Math.min(at+slice_h, 0x100000000)});
     if (ret.found)
       return {...ret, total_h};

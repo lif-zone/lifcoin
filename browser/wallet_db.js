@@ -9,7 +9,7 @@ const ecpair = ECPairFactory(ecc);
 import {openDB} from 'idb';
 import {T, OE, OV, OA, ewait, esleep, assert, rpc_websocket,
 } from './util.js';
-let lif = globalThis.$lif = {};
+let lif = globalThis.$lif ||= {};
 lif.assert = assert;
 const sha256 = bitcoin.crypto.sha256;
 import {mine, mine_worker_call, mine_steps, date_time} from './mine.js';
@@ -157,11 +157,6 @@ class Electrum_rpc {
     }
     return rpc;
   }
-  static async connect(netconf){
-    const el = new Electrum_rpc(netconf);
-    await el.connect();
-    return el;
-  }
   async call(method, ...params){
     let rpc = await this.connect();
     return await rpc.call(method, params);
@@ -204,27 +199,57 @@ class Electrum_rpc {
   }
 }
 
-async function el_connect(netconf){
-  return await Electrum_rpc.connect(netconf);
-}
-
 export function _el(netconf){
   return new Electrum_rpc(netconf);
 }
 
-let g_bridge;
-async function bridge_connect(){
-  if (g_bridge)
-    return await g_bridge.wait;
-  let br = g_bridge = {rpc: new rpc_websocket(), wait: ewait()};
-  try {
-    await br.rpc.connect(location.host+'/.lif.bridge');
-    br.wait.return(br.rpc);
-  } catch(err){
-    console.error('failed lif bridge connect', err);
-    throw err;
-    br.wait.throw(err);
+const g_lif_rg = {};
+class lif_rg_rpc {
+  constructor(){
+    this.url = location.host+'/.lif.rg';
   }
+  async connect(){
+    let rpc;
+    if (rpc = g_lif_rg[this.url]){
+      if (!rpc.error)
+        return rpc;
+      rpc.close();
+    }
+    rpc = g_lif_rg[this.url] = new rpc_websocket();
+    try {
+      await rpc.connect({url: this.url});
+    } catch(e){
+      console.error('roc_connect', e);
+      rpc.close();
+      throw e; // return
+    }
+    try {
+      this.server_version = await rpc.call('version',
+        {name: 'lif-coin-wallet', version: '1.4'});
+    } catch(e){
+      console.error('server version rpc', e);
+      this.close();
+      throw e; // XXX return
+    }
+    return rpc;
+  }
+  async call(method, params){
+    let rpc = await this.connect();
+    return await rpc.call(method, params);
+  }
+  close(){
+    const rpc = g_lif_rg[this.url];
+    if (rpc)
+      rpc.close();
+    delete g_lif_rg[this.url];
+  }
+  async topic_get(topic){
+    return await this.call('topic_get', {topic});
+  }
+}
+
+export function _rg(){
+  return new lif_rg_rpc();
 }
 
 // id → single wallet object instance (mutated in place)
@@ -785,15 +810,12 @@ export function kv_is_dns(key){
   return dns;
 }
 
-export async function mine_solo({netconf, saddr, min=0, max=0x100000000,
-  on_update})
-{
+export async function mine_solo({netconf, saddr, min, max, target, on_update}){
   const el = _el(netconf);
-  let ret = await el.mine_get_template(saddr);
-  const header = Buffer.from(ret.header, 'hex');
-  console.log('starting mining', ret.header);
-  let time_local = date_time();
-  let opt = {pow: netconf.pow, header, min, max, time_local, on_update};
+  let template = await el.mine_get_template(saddr);
+  const header = Buffer.from(template.header, 'hex');
+  console.log('starting mining', template.header);
+  let opt = {pow: netconf.pow, header, min, max, target, on_update};
   let mine_ret;
   if (on_update)
     mine_ret = await mine_steps(opt);
@@ -804,8 +826,33 @@ export async function mine_solo({netconf, saddr, min=0, max=0x100000000,
     return mine_ret;
   console.log('submitting new block');
   mine_ret.header = mine_ret.header.toString('hex');
-  ret = await el.mine_submit_header(mine_ret.header);
+  let ret = await el.mine_submit_header(mine_ret.header);
   console.log('success! new block height '+ret.height);
   return ret;
 }
 
+export async function mine_instant({netconf, saddr, on_update}){
+  // here will be the implementation of the instant mining code
+  const rg = _rg();
+  let ret = await rg.topic_get('mine_instant');
+  if (!ret.length)
+    return {err: 'no mining servers found'};
+  let server = ret[0];
+  ret = await rg.rcall(server, 'ping');
+  if (!ret.pong)
+    return {err: 'no ping'};
+  let template = await rg.rcall(server, 'mine_instant_get_template');
+  if (!template.header)
+    return {err: 'no mine_instant_get_template'};
+  const header = Buffer.from(template.header, 'hex');
+  let opt = {pow: netconf.pow, header, target: template.target, on_update};
+  let mine_ret = await mine_steps(opt);
+  console.log('mine_res', mine_ret);
+  if (!mine_ret.found)
+    return mine_ret;
+  console.log('submitting new block');
+  mine_ret.header = mine_ret.header.toString('hex');
+  ret = await rg.rcall(server, {header: mine_ret.header, addr: saddr});
+  console.log('success! new TX '+ret.tx);
+  return ret;
+}
