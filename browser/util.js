@@ -352,12 +352,15 @@ export class jsonrpc_base {
 
 export class jsonrpc_websocket extends jsonrpc_base {
   ws;
+  async send(json){
+    this.ws.send(JSON.stringify(json));
+  }
   async connect(url){
     this.url = url;
     this.ws = new WebSocket(this.url);
     this.ws.onopen = ()=>{
       assert(this.ws.readyState==WebSocket.OPEN);
-      this.ws_open.return(true);
+      this.open.return(true);
     };
     this.ws.onmessage = event=>{
       let msg;
