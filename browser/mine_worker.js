@@ -1,5 +1,4 @@
 // LICENSE_CODE JPL: mine_worker.js
-console.log('start mine_worker');
 import {ipc_postmessage} from './util.js';
 import {mine} from './mine.js';
 let version = '26.4.23';
