@@ -339,6 +339,7 @@ export class rpc_base {
       let ret = await method_fn(msg.params);
       res.result = ret;
     } catch(err){
+      console.error(err);
       res.error = ''+err;
     }
     slow.end();
