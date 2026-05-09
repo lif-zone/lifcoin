@@ -307,12 +307,13 @@ export class rpc_base {
         throw new Error('rpc not open');
       await this.send(request);
       res = await req.wait;
+      if (!res.error && !res.result)
+        res = {error: 'invalid msg: no result or error'};
     } catch(err){
       console.error('rpc failed call', err, request);
-      return {error: err};
-    } finally {
-      slow.end();
+      res = {error: ''+err};
     }
+    slow.end();
     return res;
   }
   async on_res(msg){
