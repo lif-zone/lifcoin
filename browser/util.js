@@ -127,6 +127,7 @@ export function TU(fn){
     throw Error('failed '+fn.name);
   return v;
 }
+export const _try = TU;
 
 // str.js
 export const str = {};
