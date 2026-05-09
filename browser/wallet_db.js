@@ -840,6 +840,16 @@ export async function mine_solo({netconf, saddr, min, max, target, on_update}){
   return ret;
 }
 
+function tx_out_find(tx, saddr){
+  const addr = bitcoin.address.toOutputScript(saddr);
+  for (let i=0; i<tx.outs.length; i++){
+    const out = tx.outs[i];
+    if (!out.script.equals(addr))
+      continue;
+    return {index: i, value: out.value, out};
+  }
+}
+
 let g_rg = {};
 export async function mine_instant({netconf, saddr, on_update}){
   // here will be the implementation of the instant mining code
@@ -861,7 +871,12 @@ export async function mine_instant({netconf, saddr, on_update}){
   let rg = g_rg[rgid] ||= {template: 0, mined: 0, cheat: 0, success: 0};
   let template = await rgc.rcall(rgid, 'mine_instant_get_template');
   if (!template.header)
-    return {err: 'no mine_instant_get_template'};
+    return {err: 'pool: no mine_instant_get_template'};
+  let {payout, fee} = template;
+  if (!payout || !fee)
+    return {err: 'pool: no payout/fee'};
+  if (payout<=fee)
+    return {err: 'pool: payout lees than fee'};
   rg.template++;
   const header = Buffer.from(template.header, 'hex');
   let opt = {pow: netconf.pow, header, target: template.target, on_update};
@@ -881,15 +896,26 @@ export async function mine_instant({netconf, saddr, on_update}){
   let _tx = _try(()=>bitcoin.transaction.fromHex(tx));
   if (!_tx){
     rg.cheat++;
-    return {err: 'invalid winning tx', cheat: 1};
+    return {err: 'pool cheat: invalid tx', cheat: 1};
+  }
+  let out = tx_out_find(_tx, saddr);
+  if (!out){
+    rg.cheat++;
+    return {err: 'pool cheat: didnt pay out to addr', cheat: 1};
+  }
+  let warn = {};
+  if (out.value<(payout-fee)){
+    rg.cheat++;
+    warn = {warn: 'pool cheat: paid only '+out.value+' - less than '
+      +(payout-fee)+' promised (fee ', cheat: 1};
   }
   ret = await tx_broadcast(netconf, _tx);
   if (!ret){
     rg.cheat++;
-    return {err: 'failed broadcast winning share', cheat: 1};
+    return {err: 'pool cheat: TX payout not accepted by mempool', cheat: 1};
   }
   rg.success++;
   console.log('success! new TX '+ret.tx);
-  return ret;
+  return {...ret, ...warn};
 }
 
