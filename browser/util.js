@@ -281,8 +281,8 @@ export class rpc_base {
   }
   async call(method, params){
     let id = this.id++;
-    let req = this.req[id] = {wait: ewait(), method, params};
-    const request = {id, method};
+    let req = this.req[id] = {wait: ewait()};
+    const request = req.request = {id, method};
     if (params)
       request.params = params;
     if (this.jsonrpc)
