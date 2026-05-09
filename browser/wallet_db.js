@@ -7,7 +7,7 @@ const bip32 = BIP32Factory(ecc);
 import {ECPairFactory} from 'ecpair';
 const ecpair = ECPairFactory(ecc);
 import {openDB} from 'idb';
-import {T, OE, OV, OA, ewait, esleep, assert, rpc_websocket,
+import {T, OE, OV, OA, ewait, esleep, assert, rpc_websocket, _try,
   version as util_version,
 } from './util.js';
 let lif = globalThis.$lif ||= {};
@@ -254,7 +254,7 @@ class lif_rg_rpc {
   }
 }
 
-export function _rg(){
+export function rg_rpc(){
   return new lif_rg_rpc();
 }
 
@@ -619,7 +619,8 @@ function kv_script(key, val){
 export async function tx_broadcast(netconf, tx){
   let txid = await _el(netconf).tx_broadcast(tx.toHex());
   if (txid!=tx.getId())
-    console.error(`mistmatch txid ${txid} ${tx.getId()}`);
+    return void console.error(`mistmatch txid ${txid} ${tx.getId()}`);
+  return txid;
 }
 
 export function fee_calc(rateSatPerKb, tx){
@@ -829,36 +830,66 @@ export async function mine_solo({netconf, saddr, min, max, target, on_update}){
     mine_ret = await mine_worker_call(opt);
   console.log('mine_res', mine_ret);
   if (!mine_ret.found)
-    return mine_ret;
+    return {err: 'failed mining', ...mine_ret};
   console.log('submitting new block');
   mine_ret.header = mine_ret.header.toString('hex');
   let ret = await el.mine_submit_header(mine_ret.header);
+  if (!ret?.height)
+    return {err: 'failed submitting new block', ...(ret||{})};
   console.log('success! new block height '+ret.height);
   return ret;
 }
 
+let g_rg = {};
 export async function mine_instant({netconf, saddr, on_update}){
   // here will be the implementation of the instant mining code
-  const rg = _rg();
-  let ret = await rg.topic_get('mine_instant');
+  const rgc = rg_rpc();
+  let ret = await rgc.topic_get('mine_instant');
   if (!ret.length)
     return {err: 'no mining servers found'};
-  let server = ret[0];
-  ret = await rg.rcall(server, 'ping');
-  if (!ret.pong)
-    return {err: 'no ping'};
-  let template = await rg.rcall(server, 'mine_instant_get_template');
+  let rgid;
+  for (let id in ret){
+    if (g_rg[id]?.cheat)
+      continue;
+    ret = await rgc.rcall(id, 'ping');
+    if (!ret.pong)
+      continue;
+    rgid = id;
+  }
+  if (!rgid)
+    return {err: 'no servers online'};
+  let rg = g_rg[rgid] ||= {template: 0, mined: 0, cheat: 0, success: 0};
+  let template = await rgc.rcall(rgid, 'mine_instant_get_template');
   if (!template.header)
     return {err: 'no mine_instant_get_template'};
+  rg.template++;
   const header = Buffer.from(template.header, 'hex');
   let opt = {pow: netconf.pow, header, target: template.target, on_update};
   let mine_ret = await mine_steps(opt);
   console.log('mine_res', mine_ret);
   if (!mine_ret.found)
     return mine_ret;
+  rg.mined++;
   console.log('submitting new block');
   mine_ret.header = mine_ret.header.toString('hex');
-  ret = await rg.rcall(server, {header: mine_ret.header, addr: saddr});
+  let tx_ret = await rgc.rcall(rgid, {header: mine_ret.header, addr: saddr});
+  let tx = tx_ret?.tx;
+  if (!tx){
+    rg.cheat++;
+    return {err: 'failed submitting winning share', ...(tx_ret||{}), cheat: 1};
+  }
+  let _tx = _try(()=>bitcoin.transaction.fromHex(tx));
+  if (!_tx){
+    rg.cheat++;
+    return {err: 'invalid winning tx', cheat: 1};
+  }
+  ret = await tx_broadcast(netconf, _tx);
+  if (!ret){
+    rg.cheat++;
+    return {err: 'failed broadcast winning share', cheat: 1};
+  }
+  rg.success++;
   console.log('success! new TX '+ret.tx);
   return ret;
 }
+

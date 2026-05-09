@@ -330,20 +330,20 @@ export class rpc_base {
   }
   async on_call(msg){
     let method_fn = this.method_fn[msg.method];
-    let res = {id: msg.id};
+    let res;
     if (this.jsonrpc)
       res.jsonrpc = this.jsonrpc;
     let slow = eslow('rpc on handler '+msg.method);
     try {
       if (!method_fn)
         throw 'rpc unsupported method '+msg.method;
-      let ret = await method_fn(msg.params);
-      res.result = ret;
+      res = await method_fn(msg.params);
     } catch(err){
       console.error(err);
-      res.error = ''+err;
+      res = {error: ''+err};
     }
     slow.end();
+    res = {id: msg.id, ...res};
     if (this.D || res.error)
       console.log('rpc< '+(res.error ? 'err ' : '')+msg.method, msg.params, res);
     await this.send(res);
@@ -382,8 +382,22 @@ export class rpc_base {
     this.open.throw('close');
     this.error = true;
   }
-  method(method, cb){
-    this.method_fn[method] = cb;
+  method(method, fn){
+    this.method_fn[method] = async(params)=>{
+      let res = await fn(params);
+      return {result: res};
+    };
+  }
+  _method(method, fn){
+    this.method_fn[method] = async(params)=>{
+      let res = await fn(params);
+      if (res.error)
+        return res;
+      return {result: res};
+    };
+  }
+  __method(method, fn){
+    this.method_fn[method] = fn;
   }
   close(){
     for (let [id, req] of OE(this.req)){

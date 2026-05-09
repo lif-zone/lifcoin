@@ -799,18 +799,26 @@ function Mine_screen({wallet}){
       while (runningRef.current){
         blockStartRef.current = Date.now();
         let ret;
-        if (mode=='instant')
-          ret = await mine_instant({netconf, saddr, on_update});
-        else {
-          let target;
-          if (settings.ls.devtools && settings.ls.dev_target)
-            target = 0xffff001d;
-          ret = await mine_solo({netconf, saddr, target, on_update});
+        try {
+          if (mode=='instant'){
+            ret = await mine_instant({netconf, saddr, on_update});
+            if (ret.tx)
+              setCount(c=>c+1);
+          } else {
+            let target;
+            if (settings.ls.devtools && settings.ls.dev_target)
+              target = 0xffff001d;
+            ret = await mine_solo({netconf, saddr, target, on_update});
+            if (ret?.height)
+              setCount(c=>c+1);
+          }
+        } catch(err){
+          ret = {err};
         }
         if (!runningRef.current)
           break;
-        if (ret?.height)
-          setCount(c=>c+1);
+        if (ret?.err)
+          await esleep(1000);
       }
       setOn(false);
     })();
