@@ -370,6 +370,16 @@ export class rpc_base {
       return this.on_notify(msg);
     return this.on_call(msg);
   }
+  on_error(err){
+    console.error('rpc socket error', err);
+    this.open.throw(err);
+    this.error = true;
+  }
+  on_close(){
+    console.error('rpc socket closed');
+    this.open.throw('close');
+    this.error = true;
+  }
   method(method, cb){
     this.method_fn[method] = cb;
   }
@@ -390,21 +400,24 @@ export class ipc_postmessage extends rpc_base {
     this.port.postMessage(json);
   }
   // controller = navigator.serviceWorker.controller
+  set_events(){
+    this.port.addEventListener('message', event=>this.on_msg(event.data));
+    this.port.addEventListener('error', event=>this.on_error(event.data));
+    this.port.addEventListener('close', event=>this.on_close());
+    this.port.start();
+    this.open.return(true);
+  }
   connect(controller){
     this.ports = new MessageChannel();
     controller.postMessage({connect: true}, [this.ports.port2]);
     this.port = this.ports.port1;
-    this.port.addEventListener('message', event=>this.on_msg(event.data));
-    this.port.start();
-    this.open.return(true);
+    this.set_events();
   }
   accept(event){
     if (!event.data?.connect)
       return;
     this.port = event.ports[0];
-    this.port.addEventListener('message', event=>this.on_msg(event.data));
-    this.port.start();
-    this.open.return(true);
+    this.set_events();
     return true;
   }
   close(){
@@ -440,21 +453,14 @@ export class rpc_websocket extends rpc_base {
       }
       this.on_msg(msg);
     });
-    this.ws.on('error', err=>{
-      console.error('WebSocket error', err);
-      this.open.throw(err);
-      this.error = true;
-    });
-    this.ws.on('close', ()=>{
-      this.open.throw('WebSocket closed');
-      this.error = true;
-    });
+    this.ws.on('error', err=>this.on_error(err));
+    this.ws.on('close', ()=>this.on_close());
   }
   async connect(opt){
     if (opt.url){
       this.url = opt.url;
       this.ws = new WebSocket(this.url);
-      this.ws.on = this.ws.addEventListener;
+      this.ws.on ||= this.ws.addEventListener;
     } else
       throw new Error('missing connect opt');
     this.set_events();
