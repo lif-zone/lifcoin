@@ -65,9 +65,9 @@ make wallet.jsx support multiple wallets
   use lif-kernel server do websocket connection between peers on same
   subject ('mine_instant'). Some register as mine_instant servers, and others
   request mine_instant servers, and get mining offers.
-  + add websocket /.lif.bridge
+  + add websocket /.lif.rg
   * add websocket json rpc bridging, and topic locating
-  - connect browser/wallet_db.js to /.lif.bridge, finding topic 'mine_instant'
+  * connect browser/wallet_db.js to /.lif.rg, finding topic 'mine_instant'
   - add to wallet a instant mining server. it publicizes to mine_instant.
   - add to wallet an instant mining page (client). it requests blocks heades
     to mine. once receiving it - it mines, and sends results, and waits to
