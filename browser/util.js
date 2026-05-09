@@ -279,7 +279,19 @@ export class rpc_base {
     if (this.D)
       console.log('rpc>>connect');
   }
+  async T_call(method, params){
+    let res = await this._call(method, params);
+    if (res.error)
+      throw res.error;
+    return res.result;
+  }
   async call(method, params){
+    let res = await this._call(method, params);
+    if (res.error)
+      return;
+    return res.result;
+  }
+  async _call(method, params){
     let id = this.id++;
     let req = this.req[id] = {wait: ewait()};
     const request = req.request = {id, method};
@@ -296,7 +308,7 @@ export class rpc_base {
       res = await req.wait;
     } catch(err){
       console.error('rpc failed call', err, request);
-      throw req.wait.throw(err);
+      return {error: err};
     } finally {
       slow.end();
     }
@@ -309,34 +321,30 @@ export class rpc_base {
     if (!(req = this.req[id]))
       return console.error('rpc: unexpected msg', msg);
     delete this.req[id];
-    if (this.D){
-      console.log('rpc> '+(msg.error ? 'err ':'')+' '+req.request.method,
-        req.request.params, msg.error||msg.result);
+    if (this.D || msg.error){
+      console.log('rpc> '+(msg.error ? 'err ' : '')+req.request.method,
+        req.request.params ?? '', msg);
     }
-    if (msg.error)
-      return req.wait.throw(msg.error);
-    return req.wait.return(msg.result);
+    req.wait.return(msg);
   }
   async on_call(msg){
     let method_fn = this.method_fn[msg.method];
-    let result = {id: msg.id};
+    let res = {id: msg.id};
     if (this.jsonrpc)
-      result.jsonrpc = this.jsonrpc;
-    let res, res_msg;
+      res.jsonrpc = this.jsonrpc;
     let slow = eslow('rpc on handler '+msg.method);
     try {
       if (!method_fn)
         throw 'rpc unsupported method '+msg.method;
-      res = await method_fn(msg.params);
-      res_msg = {...result, result: res};
+      let ret = await method_fn(msg.params);
+      res.result = ret;
     } catch(err){
-      console.error('rpc failed handler', msg, err);
-      res_msg = {...result, error: ''+err};
+      res.error = ''+err;
     }
     slow.end();
-    if (this.D)
-      console.log('rpc< '+msg.method, msg.params, res_msg);
-    await this.send(res_msg);
+    if (this.D || res.error)
+      console.log('rpc< '+(res.error ? 'err ' : '')+msg.method, msg.params, res);
+    await this.send(res);
   }
   async on_notify(msg){
     let method_fn = this.method_fn[msg.method];
@@ -943,7 +951,7 @@ export function T_lpm_parse(lpm){
     l.lmod = l.reg+'/'+l.blockid;
     break;
   case 'ethereum':
-    throw Error('unsupported etherum '+lpm);
+    throw Error('unsupported ethereum '+lpm);
     break;
   case 'ipfs':
     l.cid = next('cid');
@@ -984,7 +992,7 @@ export function T_lpm_str(l){
     return l.reg+'/'+l.blockid+l.submod+l.path;
     break;
   case 'ethereum':
-    throw Error('unsupported etherum');
+    throw Error('unsupported ethereum');
   case 'ipfs':
     return l.reg+'/'+l.cid+l.submod+l.path;
   case 'ipns':
@@ -1203,7 +1211,7 @@ export function lpm_is_perm(u){
   case 'bitcoin':
     return true;
   case 'ethereum':
-    throw Error('unsupported etherum');
+    throw Error('unsupported ethereum');
   case 'ipfs':
     return true;
   case 'ipns':
