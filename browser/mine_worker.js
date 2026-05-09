@@ -6,7 +6,7 @@ let ipc;
 function init(){
   ipc = new ipc_postmessage();
   globalThis.addEventListener("message", event=>{
-    if (ipc.listen(event))
+    if (ipc.accept(event))
       return;
     console.error('invalid message', event.data, event);
   });

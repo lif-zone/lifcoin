@@ -5,6 +5,7 @@ export const version = util_version;
 let D = 0; // Debug
 
 let is_worker = typeof window=='undefined';
+let is_node = globalThis.process?.versions?.node!==undefined;
 
 // Promise with return() and throw()
 export function ewait(){
@@ -271,6 +272,13 @@ export class rpc_base {
   req = {};
   open = ewait();
   jsonrpc;
+  D;
+  constructor(opt={}){
+    if (opt.D)
+      this.D = 1;
+    if (this.D)
+      console.log('rpc>>connect');
+  }
   async call(method, params){
     let id = this.id++;
     let req = this.req[id] = {wait: ewait(), method, params};
@@ -301,29 +309,34 @@ export class rpc_base {
     if (!(req = this.req[id]))
       return console.error('rpc: unexpected msg', msg);
     delete this.req[id];
+    if (this.D){
+      console.log('rpc> '+(msg.error ? 'err ':'')+' '+req.request.method,
+        req.request.params, msg.error||msg.result);
+    }
     if (msg.error)
       return req.wait.throw(msg.error);
     return req.wait.return(msg.result);
   }
   async on_call(msg){
     let method_fn = this.method_fn[msg.method];
-    if (!method_fn)
-      return console.error('rpc unsupported method '+msg.method);
     let result = {id: msg.id};
     if (this.jsonrpc)
       result.jsonrpc = this.jsonrpc;
-    let res;
+    let res, res_msg;
     let slow = eslow('rpc on handler '+msg.method);
     try {
+      if (!method_fn)
+        throw 'rpc unsupported method '+msg.method;
       res = await method_fn(msg.params);
+      res_msg = {...result, result: res};
     } catch(err){
       console.error('rpc failed handler', msg, err);
-      await this.send({...result, error: ''+err});
-      return;
-    } finally {
-      slow.end();
+      res_msg = {...result, error: ''+err};
     }
-    await this.send({...result, result: res});
+    slow.end();
+    if (this.D)
+      console.log('rpc< '+msg.method, msg.params, res_msg);
+    await this.send(res_msg);
   }
   async on_notify(msg){
     let method_fn = this.method_fn[msg.method];
@@ -357,6 +370,8 @@ export class rpc_base {
       delete this.req[id];
       req.wait.throw('close');
     }
+    if (this.D)
+      console.log('rpc>!close');
   }
 }
 
@@ -375,7 +390,7 @@ export class ipc_postmessage extends rpc_base {
     this.port.start();
     this.open.return(true);
   }
-  listen(event){
+  accept(event){
     if (!event.data?.connect)
       return;
     this.port = event.ports[0];
@@ -394,30 +409,21 @@ export class ipc_postmessage extends rpc_base {
 export class rpc_websocket extends rpc_base {
   ws;
   constructor(opt={}){
-    super();
+    super(opt);
     if (opt.jsonrpc)
       this.jsonrpc = opt.jsonrpc;
   }
   async send(json){
     this.ws.send(JSON.stringify(json));
   }
-  async connect(opt){
-    if (opt.url){
-      this.url = opt.url;
-      this.ws = new WebSocket(this.url);
-      this.ws.on = this.ws.addEventListener;
-    } else if (opt.ws){
-      this.ws = opt.ws;
-      this.is_node = true;
-    } else
-      throw new Error('missing connect opt');
+  set_events(){
     this.ws.on('open', ()=>{
-      if (!this.is_node)
+      if (!is_node)
         assert(this.ws.readyState==WebSocket.OPEN);
       this.open.return(true);
     });
     this.ws.on('message', event=>{
-      let data = this.is_node ? event.toString('utf8') : event.data;
+      let data = is_node ? event.toString('utf8') : event.data;
       let msg;
       try {
         msg = JSON.parse(data);
@@ -435,7 +441,22 @@ export class rpc_websocket extends rpc_base {
       this.open.throw('WebSocket closed');
       this.error = true;
     });
+  }
+  async connect(opt){
+    if (opt.url){
+      this.url = opt.url;
+      this.ws = new WebSocket(this.url);
+      this.ws.on = this.ws.addEventListener;
+    } else
+      throw new Error('missing connect opt');
+    this.set_events();
     return await this.open;
+  }
+  accept(opt){
+    assert(is_node);
+    this.ws = opt.ws;
+    this.open.return(true);
+    this.set_events();
   }
   close(){
     super.close();
