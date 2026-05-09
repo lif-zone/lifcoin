@@ -776,6 +776,7 @@ function Mine_screen({wallet}){
   const [count, setCount] = useState(0);
   const [stats, setStats] = useState(null);
   const [elapsed, setElapsed] = useState(0);
+  const [lastStatus, setLastStatus] = useState(null);
   const runningRef = useRef(false);
   const blockStartRef = useRef(null);
   const toggle = ()=>{
@@ -817,7 +818,8 @@ function Mine_screen({wallet}){
         }
         if (!runningRef.current)
           break;
-        if (ret?.err)
+        setLastStatus(ret.err);
+        if (ret.err)
           await esleep(1000);
       }
       setOn(false);
@@ -853,6 +855,11 @@ function Mine_screen({wallet}){
       <div style={{marginTop: 16, fontSize: 14}}>
         Blocks mined: <strong>{count}</strong>
       </div>
+      {lastStatus && (
+        <div style={{marginTop: 8, fontSize: 13, color: '#c00'}}>
+          Last status: {lastStatus}
+        </div>
+      )}
       {on && (
         <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
           <tbody>

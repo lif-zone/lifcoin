@@ -846,7 +846,7 @@ export async function mine_instant({netconf, saddr, on_update}){
   const rgc = rg_rpc();
   let ret = await rgc.topic_get('mine_instant');
   if (!ret.length)
-    return {err: 'no mining servers found'};
+    return {err: 'no mining servers online'};
   let rgid;
   for (let id in ret){
     if (g_rg[id]?.cheat)
