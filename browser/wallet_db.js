@@ -127,7 +127,7 @@ export function electrum_set(electrum){
 }
 
 const g_electrum = {};
-class Electrum_rpc {
+class electrum_rpc {
   constructor(netconf){
     this.netconf = netconf;
     this.url = netconf.electrum;
@@ -148,9 +148,9 @@ class Electrum_rpc {
       throw e; // return
     }
     try {
-      this.server_version = await rpc.call('server.version',
+      this.server_version = await rpc.T_call('server.version',
         ['lif-coin-wallet', '1.4']);
-      this.server_banner = await rpc.call('server.banner');
+      this.server_banner = await rpc.T_call('server.banner');
     } catch(e){
       console.error('server version rpc', e);
       this.close();
@@ -201,7 +201,7 @@ class Electrum_rpc {
 }
 
 export function _el(netconf){
-  return new Electrum_rpc(netconf);
+  return new electrum_rpc(netconf);
 }
 
 const g_lif_rg = {};
@@ -227,7 +227,7 @@ class lif_rg_rpc {
       throw e; // return
     }
     try {
-      this.server_version = await rpc.call('version',
+      this.server_version = await rpc.T_call('version',
         {name: 'lif-coin-wallet', version: util_version});
     } catch(e){
       console.error('server version rpc', e);
@@ -238,7 +238,7 @@ class lif_rg_rpc {
   }
   async call(method, params){
     let rpc = await this.connect();
-    return await rpc.call(method, params);
+    return await rpc.T_call(method, params);
   }
   close(){
     const rpc = g_lif_rg[this.url];

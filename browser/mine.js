@@ -114,7 +114,7 @@ export async function mine_worker_init(){
     {type: 'module'});
   mine_ipc = new ipc_postmessage();
   mine_ipc.connect(mine_worker);
-  let v = await mine_ipc.call('version');
+  let v = await mine_ipc.T_call('version');
   console.log('connected to mine_worker version', v);
   return mine_worker_wait.return(mine_ipc);
 }
@@ -123,7 +123,7 @@ export async function mine_worker_call(mine_cmd){
   let mine_ipc = await mine_worker_init();
   let opt = {...mine_cmd};
   opt.header = opt.header.toString('hex');
-  let ret = await mine_ipc.call('mine', opt);
+  let ret = await mine_ipc.T_call('mine', opt);
   console.log('got ret', ret);
   if (ret.header)
     ret.header = Buffer.from(ret.header, 'hex');
