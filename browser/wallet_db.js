@@ -219,6 +219,9 @@ class lif_rg_rpc {
       rpc.close();
     }
     rpc = g_lif_rg[this.url] = new rpc_websocket();
+    rpc.method('ping', ()=>({pong: 1}));
+    rpc.method('version',
+      ()=>({name: 'lif-coin-wallet', version: util_version}));
     try {
       await rpc.connect({url: this.url});
     } catch(e){
