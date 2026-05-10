@@ -69,7 +69,7 @@ make wallet.jsx support multiple wallets
   + add websocket json rpc bridging, and topic locating
   + connect browser/wallet_db.js to /.lif.rg, finding topic 'mine_instant'
   * add to wallet a instant mining server. it publicizes to mine_instant.
-  - add to wallet an instant mining page (client). it requests blocks heades
+  * add to wallet an instant mining page (client). it requests blocks heades
     to mine. once receiving it - it mines, and sends results, and waits to
     get resulting TX to his address. Must take no more than 10 seconds.
 
