@@ -129,6 +129,21 @@ export function TU(fn){
 }
 export const _try = TU;
 
+export function CE(err){
+  if (err instanceof TypeError || err instanceof RangeError){
+    console.error(err);
+    debugger; // eslint-disable-line no-debugger
+  }
+  return err;
+}
+
+export function CEA(err){
+  console.error(err);
+  if (err instanceof TypeError || err instanceof RangeError)
+    debugger; // eslint-disable-line no-debugger
+  return err;
+}
+
 // str.js
 export const str = {};
 str.split_ws = s=>s.split(/\s+/).filter(s=>s);
