@@ -265,6 +265,9 @@ class lif_rg_rpc {
   async rcall(rg_id, method, params){
     return await this.call('rcall', {rg_id, method, params});
   }
+  async rg_id(rg_id){
+    return await this.call('rg_id', {rg_id});
+  }
 }
 
 export function rg_rpc(){
@@ -865,6 +868,7 @@ function tx_out_find(tx, saddr){
 }
 
 let g_rg = {};
+let g_rg_id = ''+Math.floor(Math.random()*1000000000);
 export async function mine_instant({netconf, saddr, on_update}){
   // here will be the implementation of the instant mining code
   const rg_c = rg_rpc();
@@ -940,6 +944,7 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
   const rpc = await rg_c.connect();
   try {
     const el = _el(netconf);
+    await rg_c.rg_id(g_rg_id);
     const offers = {};
     const nslice = 1024;
     const slice_sz = Math.floor(0x100000000/nslice);
