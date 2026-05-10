@@ -928,6 +928,7 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
   const {netconf} = wallet;
   const {pow} = netconf;
   const rg_c = rg_rpc();
+  debugger;
   const rpc = rg_c.connect();
   try {
     const el = _el(netconf);

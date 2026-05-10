@@ -819,7 +819,7 @@ function Mine_screen({wallet}){
               setCount(c=>c+1);
           }
         } catch(err){
-          ret = {err};
+          ret = {err: ''+err};
         }
         if (!runningRef.current)
           break;
