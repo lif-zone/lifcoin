@@ -143,7 +143,7 @@ class electrum_rpc {
         return rpc;
       rpc.close();
     }
-    rpc = g_electrum[this.url] = new rpc_websocket({jsonrpc: '2.0'});
+    rpc = g_electrum[this.url] = new rpc_websocket({jsonrpc: '2.0', D: 1});
     try {
       await rpc.connect({url: this.url});
     } catch(e){
@@ -222,7 +222,7 @@ class lif_rg_rpc {
         return rpc;
       rpc.close();
     }
-    rpc = g_lif_rg[this.url] = new rpc_websocket();
+    rpc = g_lif_rg[this.url] = new rpc_websocket({D: 1});
     rpc.method('ping', ()=>({pong: 1}));
     rpc.method('version',
       ()=>({name: 'lif-coin-wallet', version: util_version}));
