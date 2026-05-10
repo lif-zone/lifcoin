@@ -282,13 +282,13 @@ export class rpc_base {
   }
   async T_call(method, params){
     let res = await this._call(method, params);
-    if (res.error)
+    if (res.error!==undefined)
       throw res.error;
     return res.result;
   }
   async call(method, params){
     let res = await this._call(method, params);
-    if (res.error)
+    if (res.error!==undefined)
       return;
     return res.result;
   }
@@ -307,7 +307,7 @@ export class rpc_base {
         throw new Error('rpc not open');
       await this.send(request);
       res = await req.wait;
-      if (!res.error && !res.result)
+      if (res.error===undefined && res.result===undefined)
         res = {error: 'invalid msg: no result or error'};
     } catch(err){
       console.error('rpc failed call', err, request);
@@ -323,7 +323,7 @@ export class rpc_base {
     if (!(req = this.req[id]))
       return console.error('rpc: unexpected msg', msg);
     delete this.req[id];
-    if (this.D || msg.error){
+    if (this.D || msg.error!==undefined){
       console.log('rpc> '+(msg.error ? 'err ' : '')+req.request.method,
         req.request.params ?? '', msg);
     }
@@ -345,7 +345,7 @@ export class rpc_base {
     }
     slow.end();
     res = {id: msg.id, ...res};
-    if (this.D || res.error)
+    if (this.D || res.error!==undefined)
       console.log('rpc< '+(res.error ? 'err ' : '')+msg.method, msg.params, res);
     await this.send(res);
   }
@@ -392,7 +392,7 @@ export class rpc_base {
   _method(method, fn){
     this.method_fn[method] = async(params)=>{
       let res = await fn(params);
-      if (res.error)
+      if (res.error!==undefined)
         return res;
       return {result: res};
     };
