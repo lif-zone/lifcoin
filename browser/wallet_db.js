@@ -13,7 +13,9 @@ import {T, OE, OV, OA, ewait, esleep, assert, rpc_websocket, _try,
 let lif = globalThis.$lif ||= {};
 lif.assert = assert;
 const sha256 = bitcoin.crypto.sha256;
-import {mine, mine_worker_call, mine_steps, date_time} from './mine.js';
+import {mine, mine_worker_call, mine_steps, date_time,
+  target_from_nhash_win, target_to_nhash_win,
+} from './mine.js';
 
 const HD_SCAN_GAP = 20;
 const DUST_VAL = 1;
@@ -853,15 +855,15 @@ function tx_out_find(tx, saddr){
 let g_rg = {};
 export async function mine_instant({netconf, saddr, on_update}){
   // here will be the implementation of the instant mining code
-  const rgc = rg_rpc();
-  let ret = await rgc.topic_get('mine_instant');
+  const rg_c = rg_rpc();
+  let ret = await rg_c.topic_get('mine_instant');
   if (!ret.length)
     return {err: 'no mining servers online'};
   let rgid;
   for (let id in ret){
     if (g_rg[id]?.cheat)
       continue;
-    ret = await rgc.rcall(id, 'ping');
+    ret = await rg_c.rcall(id, 'ping');
     if (!ret.pong)
       continue;
     rgid = id;
@@ -869,7 +871,7 @@ export async function mine_instant({netconf, saddr, on_update}){
   if (!rgid)
     return {err: 'no servers online'};
   let rg = g_rg[rgid] ||= {template: 0, mined: 0, cheat: 0, success: 0};
-  let template = await rgc.rcall(rgid, 'mine_instant_get_template');
+  let template = await rg_c.rcall(rgid, 'mine_instant_get_template');
   if (!template.header)
     return {err: 'pool: no mine_instant_get_template'};
   let {payout, fee} = template;
@@ -887,7 +889,7 @@ export async function mine_instant({netconf, saddr, on_update}){
   rg.mined++;
   console.log('submitting new block');
   mine_ret.header = mine_ret.header.toString('hex');
-  let tx_ret = await rgc.rcall(rgid, {header: mine_ret.header, addr: saddr});
+  let tx_ret = await rg_c.rcall(rgid, {header: mine_ret.header, addr: saddr});
   let tx = tx_ret?.tx;
   if (!tx){
     rg.cheat++;
@@ -919,3 +921,67 @@ export async function mine_instant({netconf, saddr, on_update}){
   return {...ret, ...warn};
 }
 
+/*
+export async function mine_instant_pool({wallet, payout_percent, on_update}){
+  try {
+    const rg_c = rg_rpc();
+    const rpc = rg_c.connect();
+    const el = _el(netconf);
+    const offers = {};
+    const nslice = 1024;
+    const slice_sz = Math.floor(0x100000000/nslice);
+    const template = await el.mine_get_template(saddr);
+    const header = Buffer.from(template.header, 'hex');
+    const target = header_get_target(header);
+    const nhash_win = target_to_nhash_win(target_from_compact(target));
+    const nhash_win_slice = nhash_win/BigInt(nslice);
+    const slice_target = target_from_nhash_win(nhash_win_slice);
+    const time_local = date_time();
+    console.log('starting mining pool', template.header);
+    // do here the pool mining
+    rpc.method('mine_instant_get_template', params=>{
+      let {addr} = params;
+      if (!addr)
+        return {error: 'no payout addr'};
+      let offer;
+      for (let i=0; i<nslice; i++){
+        if (offers[i])
+          continue;
+        offer = offers[i] = {min: i*slice_sz, max: (i+1)*slice_sz, addr};
+      }
+      offer.header = template.heae
+      return {payout, fee, header: template.header, target: slice_target,
+        time_local, min: offer.min, max: offer.max};
+    });
+    rpc.method('mine_instant_submit', params=>{
+      let {addr, header} = params;
+      if (!addr)
+        return {error: 'no payout addr'};
+    });
+    let ret = await rg_c.topic_pub('mine_instant', {payout, fee, target});
+    let opt = {pow: netconf.pow, header, target, on_update};
+    let mine_ret;
+    if (on_update)
+      mine_ret = await mine_steps(opt);
+    else
+      mine_ret = await mine_worker_call(opt);
+    console.log('mine_res', mine_ret);
+    if (!mine_ret.found)
+      return {err: 'failed mining', ...mine_ret};
+    console.log('submitting new block');
+    mine_ret.header = mine_ret.header.toString('hex');
+    ret = await el.mine_submit_header(mine_ret.header);
+    if (!ret?.height)
+      return {err: 'failed submitting new block', ...(ret||{})};
+    console.log('success! new block height '+ret.height);
+    return ret;
+}
+
+  } finally {
+    rpc.method('mine_instant_get_template');
+    rpc.method('mine_instant_submit');
+    await rg_c.topic_unpub('mine_instant');
+  }
+}
+
+*/
