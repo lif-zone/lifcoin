@@ -42,8 +42,38 @@ export function target_from_compact(compact){
   return num;
 }
 
+function bigint_to_bytes(n){
+  if (!n)
+    return 0;
+  return Math.ceil(n.toString(16).length/2);
+}
+export function target_to_compact(num){
+  if (!num)
+    return 0;
+  let exponent = bigint_to_bytes(num);
+  let mantissa;
+  if (exponent <= 3){
+    mantissa = Number(num);
+    mantissa <<= 8 * (3 - exponent);
+  } else
+    mantissa = Number(num >> BigInt(8 * (exponent-3)));
+  if (mantissa & 0x800000){
+    mantissa >>= 8;
+    exponent++;
+  }
+  let compact = (exponent << 24) | mantissa;
+  if (num<0n)
+    compact |= 0x800000;
+  compact >>>= 0;
+  return compact;
+}
+
 export function target_to_nhash_win(target){
-  return (2n ** 256n)/(target + 1n);
+  return (2n ** 256n)/target;
+}
+
+export function target_from_nhash_win(nhash){
+  return (2n ** 256n)/nhash;
 }
 
 export function bigint_to_buf_le(value, bytes){
@@ -55,7 +85,7 @@ export function bigint_to_buf_le(value, bytes){
   return a;
 }
 
-export function target_get(bits){
+export function target_buf(bits){
   const target = target_from_compact(bits);
   if (target<0)
     throw new Error('Target is negative.');
@@ -94,7 +124,7 @@ export function date_time(){
 }
 export function mine({pow, header, min=0, max=0x100000000, target}){
   target ||= header_get_target(header);
-  let target_a = target_get(target);
+  let target_a = target_buf(target);
   let v;
   for (let i=min; i<max; i++){
     if (v=mine_single(pow, header, target_a, i))
@@ -174,22 +204,21 @@ export async function mine_steps({pow, header, time_local,
 
 function test(){
   let t;
-  t = (v, res)=>assert.eq(target_to_nhash_win(v), res);
-  t(0x00000000ffff0000000000000000000000000000000000000000000000000000n,
+  t = (compact, target, buf, nhash)=>{
+    assert.eq(target_from_compact(compact), target);
+    assert.eq(target_to_compact(target), compact);
+    assert.eq(bigint_to_buf_le(target, 32).toString('hex'), buf);
+    assert.eq(target_buf(compact).toString('hex'), buf);
+    assert.eq(target_to_nhash_win(target), nhash);
+  };
+  t(0x1d00ffff, 
+    0x00000000ffff0000000000000000000000000000000000000000000000000000n,
+    '0000000000000000000000000000000000000000000000000000ffff00000000',
     4295032833n);
-  t(0x0000ffff00000000000000000000000000000000000000000000000000000000n,
-    65537n);
-  t = (v, res)=>assert.eq(target_from_compact(v), res);
-  t(0x1d00ffff, 
-    0x00000000ffff0000000000000000000000000000000000000000000000000000n);
-  t = (v, res)=>assert.eq(bigint_to_buf_le(v, 32).toString('hex'), res);
-  t(0x00000000ffff0000000000000000000000000000000000000000000000000000n,
-    '0000000000000000000000000000000000000000000000000000ffff00000000');
-  t = (v, res)=>assert.eq(target_get(v).toString('hex'), res);
-  t(0x1d00ffff, 
-    '0000000000000000000000000000000000000000000000000000ffff00000000');
   t(0x1f00ffff,
-    '00000000000000000000000000000000000000000000000000000000ffff0000');
+    0x0000ffff00000000000000000000000000000000000000000000000000000000n,
+    '00000000000000000000000000000000000000000000000000000000ffff0000',
+    65537n);
   t = (header, pow, min, max, v)=>assert.eq(mine(
     {pow, header: Buffer.from(header, 'hex'), min, max})?.nonce, v);
   let header = '00000020d7da75d79cff74f6a9896d6445a4abb9d283cfb5df37bdcc8d886bfdd441000085ea5bf430856f0ba4e80515b9fc45bf8ef837a2da8c5b8ab1fadc5f6b7c37d5fabbee69ffff001ff52d0100';
