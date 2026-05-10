@@ -288,7 +288,7 @@ export class rpc_base {
   req = {};
   open = ewait();
   jsonrpc;
-  D;
+  D = 1;
   constructor(opt={}){
     if (opt.D)
       this.D = 1;
@@ -336,7 +336,7 @@ export class rpc_base {
     if (typeof id!='string' && typeof id!='number')
       return console.error('rpc: invalid msg id', msg);
     if (!(req = this.req[id]))
-      return console.error('rpc: unexpected msg', msg);
+      return console.error('rpc: unexpected msg id', msg);
     delete this.req[id];
     if (this.D || msg.error!==undefined){
       console.log('rpc> '+(msg.error ? 'err ' : '')+req.request.method,

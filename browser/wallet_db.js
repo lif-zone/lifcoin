@@ -876,7 +876,7 @@ export async function mine_instant({netconf, saddr, on_update}){
   if (!ret.length)
     return {err: 'no mining servers online'};
   let rg_id;
-  for (let id in ret){
+  for (let id of ret){
     if (g_rg[id]?.cheat)
       continue;
     ret = await rg_c.rcall(id, 'ping');
