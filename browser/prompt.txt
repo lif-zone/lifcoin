@@ -1064,3 +1064,11 @@ USER: In the 'Name Transferred' alert message, in regular mode, don't show the T
 CLAUDE: Added devTools prop to Kv_send_screen and passed it from BrightWallet. Changed the Name transferred alert to show just "Name transferred!" in regular mode, and in devTools mode show JSX with TXID + clickable "View in block explorer" link using conf.explorer_tx URL.
 
 ---
+
+---
+
+USER: Add to Mine_screen another radio button for "Mining pool" that will call mine_instant_pool()
+
+CLAUDE: Added "Mining pool" radio button to Mine_screen. Imported mine_instant_pool from wallet_db.js, added 'pool' to the radio button array with label "Mining pool", and added else-if branch calling mine_instant_pool({wallet, reward_share: 1, on_update}).
+
+---

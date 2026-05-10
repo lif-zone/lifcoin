@@ -11,7 +11,7 @@ import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
   _el, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
-  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_solo, mine_instant,
+  LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_solo, mine_instant, mine_instant_pool,
 } from './wallet_db.js';
 
 await wallet_db_init();
@@ -805,6 +805,11 @@ function Mine_screen({wallet}){
             ret = await mine_instant({netconf, saddr, on_update});
             if (ret.tx)
               setCount(c=>c+1);
+          } else if (mode=='pool'){
+            ret = await mine_instant_pool({wallet, reward_share: 0.5,
+              on_update});
+            if (ret.tx)
+              setCount(c=>c+1);
           } else {
             let target;
             if (settings.ls.devtools && settings.ls.dev_target)
@@ -840,11 +845,11 @@ function Mine_screen({wallet}){
       <h3>Mine for free</h3>
       {!on && (
         <div style={{display: 'flex', gap: 16, marginTop: 10, fontSize: 14}}>
-          {['solo', 'instant'].map(m=>(
+          {['solo', 'instant', 'pool'].map(m=>(
             <label key={m} style={{display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'}}>
               <input type="radio" name="mine_mode" value={m} checked={mode==m}
                 onChange={()=>setMode(m)} />
-              {m=='solo' ? 'Solo mining' : 'Instant mining'}
+              {m=='solo' ? 'Solo mining' : m=='instant' ? 'Instant mining' : 'Mining pool'}
             </label>
           ))}
         </div>

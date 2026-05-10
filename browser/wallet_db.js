@@ -15,7 +15,7 @@ lif.assert = assert;
 const sha256 = bitcoin.crypto.sha256;
 import {mine, mine_worker_call, mine_steps, date_time,
   target_from_nhash_win, target_to_nhash_win,
-  header_get_target, header_set_target, header_get_time, header_set_time,
+  header_get_target, header_get_time, header_set_time,
   header_get_nonce, header_set_nonce, target_from_compact,
 } from './mine.js';
 
