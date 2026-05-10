@@ -256,6 +256,15 @@ class lif_rg_rpc {
   async topic_get(topic){
     return await this.call('topic_get', {topic});
   }
+  async topic_pub(topic, data){
+    return await this.call('topic_pub', {topic, data});
+  }
+  async topic_unpub(topic){
+    return await this.call('topic_unpub', {topic});
+  }
+  async rcall(rg_id, method, params){
+    return await this.call('rcall', {rg_id, method, params});
+  }
 }
 
 export function rg_rpc(){
@@ -862,19 +871,19 @@ export async function mine_instant({netconf, saddr, on_update}){
   let ret = await rg_c.topic_get('mine_instant');
   if (!ret.length)
     return {err: 'no mining servers online'};
-  let rgid;
+  let rg_id;
   for (let id in ret){
     if (g_rg[id]?.cheat)
       continue;
     ret = await rg_c.rcall(id, 'ping');
     if (!ret.pong)
       continue;
-    rgid = id;
+    rg_id = id;
   }
-  if (!rgid)
+  if (!rg_id)
     return {err: 'no servers online'};
-  let rg = g_rg[rgid] ||= {template: 0, mined: 0, cheat: 0, success: 0};
-  let template = await rg_c.rcall(rgid, 'mine_instant_get_template');
+  let rg = g_rg[rg_id] ||= {template: 0, mined: 0, cheat: 0, success: 0};
+  let template = await rg_c.rcall(rg_id, 'mine_instant_get_template');
   if (!template.header)
     return {err: 'pool: no mine_instant_get_template'};
   let {reward, fee} = template;
@@ -892,7 +901,7 @@ export async function mine_instant({netconf, saddr, on_update}){
   rg.mined++;
   console.log('submitting new block');
   mine_ret.header = mine_ret.header.toString('hex');
-  let tx_ret = await rg_c.rcall(rgid, {header: mine_ret.header, addr: saddr});
+  let tx_ret = await rg_c.rcall(rg_id, {header: mine_ret.header, addr: saddr});
   let tx = tx_ret?.tx;
   if (!tx){
     rg.cheat++;
@@ -928,7 +937,7 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
   const {netconf} = wallet;
   const {pow} = netconf;
   const rg_c = rg_rpc();
-  const rpc = rg_c.connect();
+  const rpc = await rg_c.connect();
   try {
     const el = _el(netconf);
     const offers = {};
