@@ -357,7 +357,13 @@ export class rpc_base {
     try {
       if (!method_fn)
         throw 'rpc unsupported method '+msg.method;
-      res = await method_fn(msg.params);
+      let ret = await method_fn(msg.params);
+      if (ret.result!==undefined)
+        res = {result: ret.result};
+      else if (ret.error!==undefined)
+        res = {error: ret.result};
+      else
+        throw 'rpc: method invalid res '+msg.method;
     } catch(err){
       console.error(err);
       res = {error: ''+err};
