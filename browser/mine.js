@@ -73,7 +73,7 @@ export function target_to_nhash_win(target){
 }
 
 export function target_from_nhash_win(nhash){
-  return (2n ** 256n)/nhash;
+  return (2n ** 256n)/BigInt(nhash);
 }
 
 export function bigint_to_buf_le(value, bytes){

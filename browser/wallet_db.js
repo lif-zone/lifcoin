@@ -14,7 +14,7 @@ let lif = globalThis.$lif ||= {};
 lif.assert = assert;
 const sha256 = bitcoin.crypto.sha256;
 import {mine, mine_worker_call, mine_steps, date_time,
-  target_from_nhash_win, target_to_nhash_win,
+  target_from_nhash_win, target_to_nhash_win, target_to_compact,
   header_get_target, header_get_time, header_set_time,
   header_get_nonce, header_set_nonce, target_from_compact,
 } from './mine.js';
@@ -957,9 +957,10 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
     const {reward} = template;
     const header = Buffer.from(template.header, 'hex');
     const target = header_get_target(header);
-    const nhash_win = target_to_nhash_win(target_from_compact(target));
-    const nhash_win_slice = nhash_win/BigInt(nslice);
-    const slice_target = target_from_nhash_win(nhash_win_slice);
+    const nhash_win = Number(target_to_nhash_win(target_from_compact(target)));
+    const nhash_win_slice = Math.floor(nhash_win/nslice);
+    const slice_target = target_to_compact(target_from_nhash_win(
+      nhash_win_slice));
     const slice_reward = Math.floor(reward/nslice*reward_share);
     const time_local = date_time();
     const fee = tx_send({wallet, saddr_to: wallet.c.changeAddrInfo.address,
@@ -994,9 +995,9 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
         time_local, min: offer.min, max: offer.max};
     });
     function do_update(){
-      let total_h = nwin*Number(nhash_win_slice);
+      let total_h = nwin*nhash_win_slice;
       let hps = total_h/Math.max(date_time()-time_local, 1);
-      return on_update({hps, slice_h: Number(nhash_win_slice),
+      return on_update({hps, slice_h: nhash_win_slice,
         total_h, nhash_win});
     }
     rpc.method('mine_instant_update', params=>{
