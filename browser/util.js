@@ -308,6 +308,7 @@ export class rpc_base {
     return res.result;
   }
   async _call(method, params){
+    assert(typeof method=='string', 'invalid method type');
     let id = this.id++;
     let req = this.req[id] = {wait: ewait()};
     const request = req.request = {id, method};

@@ -908,7 +908,7 @@ export async function mine_instant({netconf, saddr, on_update}){
   rg.mined++;
   console.log('submitting new block');
   mine_ret.header = mine_ret.header.toString('hex');
-  let tx_ret = await rg_c.rcall(rg_id, {header: mine_ret.header, addr: saddr});
+  let tx_ret = await rg_c.rcall(rg_id, 'mine_instant_submit', {header: mine_ret.header, addr: saddr});
   let tx = tx_ret?.tx;
   if (!tx){
     rg.cheat++;
