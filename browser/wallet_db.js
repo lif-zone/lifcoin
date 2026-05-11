@@ -887,7 +887,8 @@ export async function mine_instant({netconf, saddr, on_update}){
   if (!rg_id)
     return {err: 'no servers online'};
   let rg = g_rg[rg_id] ||= {template: 0, mined: 0, cheat: 0, success: 0};
-  let template = await rg_c.rcall(rg_id, 'mine_instant_get_template');
+  let template = await rg_c.rcall(rg_id, 'mine_instant_get_template',
+    {addr: saddr});
   if (!template.header)
     return {err: 'pool: no mine_instant_get_template'};
   let {reward, fee} = template;

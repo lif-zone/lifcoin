@@ -344,7 +344,7 @@ export class rpc_base {
     delete this.req[id];
     if (this.D || msg.error!==undefined){
       console.log('rpc> '+(msg.error ? 'err ' : '')+req.request.method,
-        req.request.params ?? '', msg);
+        req.request.params ?? '', msg.error||msg.result);
     }
     req.wait.return(msg);
   }
@@ -370,8 +370,10 @@ export class rpc_base {
     }
     slow.end();
     res = {id: msg.id, ...res};
-    if (this.D || res.error!==undefined)
-      console.log('rpc< '+(res.error ? 'err ' : '')+msg.method, msg.params, res);
+    if (this.D || res.error!==undefined){
+      console.log('rpc< '+(res.error ? 'err ' : '')+msg.method, msg.params,
+        res.error||res.result);
+    }
     await this.send(res);
   }
   async on_notify(msg){
