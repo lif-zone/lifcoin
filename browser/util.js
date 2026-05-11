@@ -336,7 +336,7 @@ export class rpc_base {
     return res;
   }
   async on_res(msg){
-    let id = msg.id, req;
+    let {id} = msg, req;
     if (typeof id!='string' && typeof id!='number')
       return console.error('rpc: invalid msg id', msg);
     if (!(req = this.req[id]))
@@ -349,38 +349,40 @@ export class rpc_base {
     req.wait.return(msg);
   }
   async on_call(msg){
-    let method_fn = this.method_fn[msg.method];
+    let {id, method, params} = msg;
+    let method_fn = this.method_fn[method];
     let res;
     if (this.jsonrpc)
       res.jsonrpc = this.jsonrpc;
-    let slow = eslow('rpc on handler '+msg.method);
+    let slow = eslow('rpc on handler '+method);
     try {
       if (!method_fn)
-        throw 'rpc unsupported method '+msg.method;
-      let ret = await method_fn(msg.params);
+        throw 'rpc unsupported method '+method;
+      let ret = await method_fn(params);
       if (ret.result!==undefined)
         res = {result: ret.result};
       else if (ret.error!==undefined)
         res = {error: ret.error};
       else
-        throw 'rpc: method invalid res '+msg.method;
+        throw 'rpc: method invalid res '+method;
     } catch(err){
       console.error(err);
       res = {error: ''+err};
     }
     slow.end();
-    res = {id: msg.id, ...res};
+    res = {id, ...res};
     if (this.D || res.error!==undefined){
-      console.log('rpc< '+(res.error ? 'err ' : '')+msg.method, msg.params,
+      console.log('rpc< '+(res.error ? 'err ' : '')+method, params,
         res.error||res.result);
     }
     await this.send(res);
   }
   async on_notify(msg){
-    let method_fn = this.method_fn[msg.method];
+    let {method} = msg;
+    let method_fn = this.method_fn[method];
     if (!method_fn)
-      return console.error('rpc: invalid cmd', msg.method);
-    let slow = eslow('rpc notify '+msg.method);
+      return console.error('rpc: invalid cmd', method);
+    let slow = eslow('rpc notify '+method);
     try {
       await method_fn(msg.params);
     } catch(err){
