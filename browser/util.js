@@ -361,7 +361,7 @@ export class rpc_base {
       if (ret.result!==undefined)
         res = {result: ret.result};
       else if (ret.error!==undefined)
-        res = {error: ret.result};
+        res = {error: ret.error};
       else
         throw 'rpc: method invalid res '+msg.method;
     } catch(err){
