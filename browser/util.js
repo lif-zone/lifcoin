@@ -325,7 +325,7 @@ export class rpc_base {
       if (ret.result!==undefined)
         res = {result: ret.result};
       else if (ret.error!==undefined)
-        res = {error: ret.result};
+        res = {error: ret.error};
       else
         res = {error: 'invalid msg: no result or error'};
     } catch(err){
