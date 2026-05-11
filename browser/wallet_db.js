@@ -889,6 +889,8 @@ export async function mine_instant({netconf, saddr, on_update}){
   let rg = g_rg[rg_id] ||= {template: 0, mined: 0, cheat: 0, success: 0};
   let template = await rg_c.rcall(rg_id, 'mine_instant_get_template',
     {addr: saddr});
+  if (template.error)
+    return {err: 'pool: mine_instant_get_template '+template.error};
   if (!template.header)
     return {err: 'pool: no mine_instant_get_template'};
   let {reward, fee} = template;
@@ -938,6 +940,7 @@ export async function mine_instant({netconf, saddr, on_update}){
   return {...ret, ...warn};
 }
 
+let STALE_OFFER = 60; // 1 minute
 export async function mine_instant_pool({wallet, reward_share, on_update}){
   const {netconf} = wallet;
   const {pow} = netconf;
@@ -971,14 +974,21 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
       if (!addr)
         return {error: 'no reward addr'};
       let offer;
-      for (let i=0; i<nslice; i++){
-        if (offers[i])
-          continue;
-        offer = offers[i] = {min: i*slice_sz, max: (i+1)*slice_sz, addr,
-          time_local, win: []};
+      let i;
+      for (let _i=0; _i<nslice; _i++){
+        let offer = offers[_i];
+        if (offer){
+          if (date_time()-offer.last_update<STALE_OFFER)
+            continue;
+          delete offers[_i];
+        }
+        i = _i;
+        break;
       }
-      if (!offer)
+      if (i==undefined)
         return {error: 'all offer slots full'};
+      offer = offers[i] = {min: i*slice_sz, max: (i+1)*slice_sz, addr,
+        time_local, last_update: time_local, win: []};
       return {reward: slice_reward, fee,
         header: template.header, target: slice_target,
         time_local, min: offer.min, max: offer.max};
@@ -1055,7 +1065,8 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
       do_update();
       return ret;
     });
-    let ret = await rg_c.topic_pub('mine_instant', {reward, fee, target});
+    let ret = await rg_c.topic_pub('mine_instant',
+      {reward: slice_reward, fee, target});
     while (1){
       await esleep(1000);
       let up = do_update();
