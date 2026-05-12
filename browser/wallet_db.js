@@ -1007,14 +1007,14 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
       if (!addr)
         return {error: 'no reward addr'};
       let _h = Buffer.from(h, 'hex');
+      let nonce = header_get_nonce(_h);
+      let time = header_get_time(_h);
       // check target in range for reward - if so - give reward
       let ret = mine({pow, header: _h, min: nonce, max: nonce+1,
         target: slice_target});
       if (!ret)
         return {error: 'pool cheat: not in target'};
       // check target full block winner
-      let nonce = header_get_nonce(_h);
-      let time = header_get_time(_h);
       ret = mine({pow, header: _h, min: nonce, max: nonce+1});
       if (ret){
         console.log('seems like got a winning block!', h);
@@ -1058,7 +1058,7 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
         reward: slice_reward-fee, fee, addr: addr}};
     }
     rpc.__method('mine_instant_submit', async params=>{
-      let ret = await mine_instant_submit();
+      let ret = await mine_instant_submit(params);
       if (ret.error)
         console.error(ret.error);
       else
