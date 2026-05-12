@@ -68,13 +68,18 @@ make wallet.jsx support multiple wallets
   + add websocket /.lif.rg
   + add websocket json rpc bridging, and topic locating
   + connect browser/wallet_db.js to /.lif.rg, finding topic 'mine_instant'
-  * add to wallet a instant mining server. it publicizes to mine_instant.
-  * add to wallet an instant mining page (client). it requests blocks heades
+  + add to wallet a instant mining server. it publicizes to mine_instant.
+  + add to wallet an instant mining page (client). it requests blocks heades
     to mine. once receiving it - it mines, and sends results, and waits to
     get resulting TX to his address. Must take no more than 10 seconds.
+  - add request for reduced fees, by providing prev tx, and asking to
+    update it.
 
 Low priority:
 -------------
+- add rpc.rconnect() - remote connection. Gives an object similar to and rpc(),
+  but with remove connection.
+- add rpc.on(), and do rpc.emit('close')
 - add mining control CPU 5% - 100%, in drop down.
 - in CPU usage, it continues adding more mining threads - up to 4.
 - add support for WebGPU and WASM, and in NodeJS for native SHA instructions
