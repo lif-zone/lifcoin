@@ -901,6 +901,11 @@ export async function mine_instant({netconf, saddr, on_update}){
   rg.template++;
   const header = Buffer.from(template.header, 'hex');
   let opt = {pow: netconf.pow, header, target: template.target, on_update};
+  if (0){ // debug target
+    //opt.target = undefined;
+    opt.target = target_to_compact(target_from_nhash_win(
+      target_to_nhash_win(target_from_compact(header_get_target(header)))/4n));
+  }
   let mine_ret = await mine_steps(opt);
   console.log('mine_res', mine_ret);
   if (!mine_ret.found)
@@ -1001,6 +1006,7 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
         total_h, nhash_win});
     }
     rpc.method('mine_instant_update', params=>{
+      console.log('TODO call on_update and update statistics');
     });
     async function mine_instant_submit(params){
       let {addr, header: h} = params;
