@@ -313,7 +313,7 @@ export const EventEmitter = is_node
   removeListener = this.off;
 };
 
-export class rpc_base {
+export class rpc_base extends EventEmitter {
   method_fn = {};
   id = 0;
   req = {};
@@ -321,6 +321,7 @@ export class rpc_base {
   jsonrpc;
   D = 0;
   constructor(opt={}){
+    super();
     if (opt.D)
       this.D = 1;
     if (this.D)
@@ -441,6 +442,7 @@ export class rpc_base {
   }
   on_close(){
     console.error('rpc socket closed');
+    this.emit('close');
     this.open.throw('close');
     this.error = true;
   }
