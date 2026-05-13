@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict'; /* eslint-env node */
 process.title = 'lif_node';
+require('../browser/browser_env.js');
 const Network = require('../lib/protocol/network');
 Network.set('lifmain');
 const consensus = require('../lib/protocol/consensus');
