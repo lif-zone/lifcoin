@@ -274,12 +274,43 @@ export function assert_te(fn){
 assert.te = assert_te;
 
 // micro Buffer implementation, for sha256.js/sha256lif.js
-export const micro_Buffer = class Buffer extends Uint8Array {
+export const Buffer = is_node ? globalThis.Buffer :
+class Buffer extends Uint8Array {
   copy(dst, dst_off, src_off, src_end){
     dst.set(this.subarray(src_off, src_end), dst_off);
   }
   static alloc(sz){ return new Buffer(sz); }
   static isBuffer(b){ return b instanceof Buffer || b instanceof Uint8Array; }
+};
+
+export const EventEmitter = is_node
+? globalThis.process.browser_env.EventEmitter
+: class EventEmitter extends EventTarget {
+  on(eventName, listener){
+    this.addEventListener(eventName, listener);
+    return this;
+  }
+  once(eventName, listener){
+    const wrapper = event=>{
+      this.removeEventListener(eventName, wrapper);
+      listener(event);
+    };
+    this.addEventListener(eventName, wrapper);
+    return this;
+  }
+  off(eventName, listener){
+    this.removeEventListener(eventName, listener);
+    return this;
+  }
+  emit(eventName, ...args){
+    const event = new CustomEvent(eventName, {
+      detail: args.length==1 ? args[0] : args, // nice detail for single arg
+    });
+    return this.dispatchEvent(event);
+  }
+  // Optional: Node.js style alias
+  addListener = this.on;
+  removeListener = this.off;
 };
 
 export class rpc_base {
