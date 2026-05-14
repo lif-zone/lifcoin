@@ -1,7 +1,7 @@
 // LICENSE_CODE JPL mine.js - browser mining api
 import sha256lif from './sha256lif.js';
 import sha256 from './sha256.js';
-import {ewait, esleep, assert, ipc_postmessage} from './util.js';
+import {ewait, esleep, assert, ipc_postmessage, date_time} from './util.js';
 
 let D = 0;
 
@@ -119,9 +119,6 @@ export function mine_single(pow, header, target_a, nonce){
   }
 }
 
-export function date_time(){
-  return Math.floor(Date.now()/1000);
-}
 export function mine({pow, header, min=0, max=0x100000000, target}){
   target ||= header_get_target(header);
   let target_a = target_buf(target);

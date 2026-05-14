@@ -98,6 +98,14 @@ export function json(obj){ return JSON.stringify(obj); }
 export function json_cp(obj){
   return JSON.parse(JSON.stringify(obj===undefined ? null : obj));
 }
+export const MS = {SEC: 1000, MIN: 60*1000, HOUR: 60*60*1000,
+  DAY: 24*60*60*1000, WEEK: 8*24*60*60*1000, MONTH: 30*24*60*60*1000,
+  YEAR: 365*24*60*60*1000,
+};
+export function date_time(){
+  return Math.floor(Date.now()/1000);
+}
+
 // throw Error -> undefined
 export function Tf(fn, throw_val){
   return function(){
