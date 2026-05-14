@@ -368,6 +368,29 @@ export class rpc_base extends EventEmitter {
     slow.end();
     return res;
   }
+  async notify(method, params, opt){
+    assert(typeof method=='string', 'invalid method type');
+    const request = {method};
+    if (params)
+      request.params = params;
+    if (this.jsonrpc)
+      request.jsonrpc = this.jsonrpc;
+    let res;
+    let slow = eslow(5000, 'rpc '+method);
+    try {
+      if (!await this.open){
+        if (opt?.no_fail)
+          return;
+        throw new Error('rpc not open');
+      }
+      await this.send(request);
+    } catch(err){
+      console.error('rpc failed notify', err, request);
+      res = {error: ''+err};
+    }
+    slow.end();
+    return res;
+  }
   async on_res(msg){
     let {id} = msg, req;
     if (typeof id!='string' && typeof id!='number')
@@ -452,7 +475,7 @@ export class rpc_base extends EventEmitter {
       return {result: res};
     };
   }
-  _method(method, fn){
+  e_method(method, fn){
     this.method_fn[method] = async(params)=>{
       let res = await fn(params);
       if (res.error!==undefined)
@@ -460,7 +483,7 @@ export class rpc_base extends EventEmitter {
       return {result: res};
     };
   }
-  __method(method, fn){
+  _method(method, fn){
     this.method_fn[method] = fn;
   }
   close(){
