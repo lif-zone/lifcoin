@@ -3,6 +3,7 @@ import sha256lif from 'lif-kernel/sha256lif.js';
 import sha256 from 'lif-kernel/sha256.js';
 import {ewait, esleep, assert, ipc_postmessage, date_time,
 } from 'lif-kernel/util.js';
+import etask from 'lif-kernel/etask.js';
 
 let D = 0;
 
@@ -133,33 +134,33 @@ export function mine({pow, header, min=0, max=0x100000000, target}){
 let mine_worker;
 let mine_worker_wait;
 let mine_ipc;
-export async function mine_worker_init(){
+export function mine_worker_init(){ return etask(function*(){
   if (mine_worker_wait)
-    return await mine_worker_wait;
+    return yield mine_worker_wait;
   mine_worker_wait = ewait();
   console.log('mine_worker_init.js');
   mine_worker = new Worker(import.meta.resolve('./mine_worker_init.js'),
     {type: 'module'});
   mine_ipc = new ipc_postmessage();
   mine_ipc.connect(mine_worker);
-  let v = await mine_ipc.T_call('version');
+  let v = yield mine_ipc.T_call('version');
   console.log('connected to mine_worker version', v);
   return mine_worker_wait.return(mine_ipc);
-}
+}); }
 
-export async function mine_worker_call(mine_cmd){
-  let mine_ipc = await mine_worker_init();
+export function mine_worker_call(mine_cmd){ return etask(function*(){
+  let mine_ipc = yield mine_worker_init();
   let opt = {...mine_cmd};
   opt.header = opt.header.toString('hex');
-  let ret = await mine_ipc.T_call('mine', opt);
+  let ret = yield mine_ipc.T_call('mine', opt);
   console.log('got ret', ret);
   if (ret.header)
     ret.header = Buffer.from(ret.header, 'hex');
   return ret;
-}
+}); }
 
-export async function mine_steps({pow, header, time_local,
-  min=0, max=0x100000000, target, on_update})
+export function mine_steps({pow, header, time_local,
+  min=0, max=0x100000000, target, on_update}){ return etask(function*()
 {
   let hps = 10; // initial hashs per second. in reality is around 1M hps
   let slice_ms = 1000;
@@ -183,7 +184,7 @@ export async function mine_steps({pow, header, time_local,
       at = min;
     }
     let tstart = Date.now();
-    let ret = await mine_worker_call({pow, header: _header, target,
+    let ret = yield mine_worker_call({pow, header: _header, target,
       min: at, max: Math.min(at+slice_h, 0x100000000)});
     if (ret.found)
       return {...ret, total_h};
@@ -194,11 +195,11 @@ export async function mine_steps({pow, header, time_local,
     at += slice_h;
     if (at>=max){
       console.warn('mine reached nonce end of slice');
-      await esleep(slice_ms);
+      yield esleep(slice_ms);
     }
   }
   return {found: false, total_h};
-}
+}); }
 
 function test(){
   let t;

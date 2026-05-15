@@ -870,25 +870,27 @@ function tx_out_find(tx, saddr){
 
 let g_rg = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
-export async function mine_instant({netconf, saddr, on_update}){
+export function mine_instant({netconf, saddr, on_update}){
+  return etask(function*mine_instant()
+{
   // here will be the implementation of the instant mining code
   const rg_c = rg_rpc();
-  let ret = await rg_c.topic_get('mine_instant');
+  let ret = yield rg_c.topic_get('mine_instant');
   if (!ret.length)
     return {err: 'no mining servers online'};
   let rg_id;
   for (let id of ret){
     if (g_rg[id]?.cheat)
       continue;
-    ret = await rg_c.rcall(id, 'ping');
+    ret = yield rg_c.rcall(id, 'ping');
     if (!ret.pong)
       continue;
     rg_id = id;
   }
   if (!rg_id)
-    return {err: 'no servers online'};
+    return {err: 'no good mining servers online'};
   let rg = g_rg[rg_id] ||= {template: 0, mined: 0, cheat: 0, success: 0};
-  let template = await rg_c.rcall(rg_id, 'mine_instant_get_template',
+  let template = yield rg_c.rcall(rg_id, 'mine_instant_get_template',
     {addr: saddr});
   if (template.error)
     return {err: 'pool: mine_instant_get_template '+template.error};
@@ -907,14 +909,14 @@ export async function mine_instant({netconf, saddr, on_update}){
     opt.target = target_to_compact(target_from_nhash_win(
       target_to_nhash_win(target_from_compact(header_get_target(header)))/4n));
   }
-  let mine_ret = await mine_steps(opt);
+  let mine_ret = yield mine_steps(opt);
   console.log('mine_res', mine_ret);
   if (!mine_ret.found)
     return mine_ret;
   rg.mined++;
   console.log('submitting new block');
   mine_ret.header = mine_ret.header.toString('hex');
-  let tx_ret = await rg_c.rcall(rg_id, 'mine_instant_submit', {header: mine_ret.header, addr: saddr});
+  let tx_ret = yield rg_c.rcall(rg_id, 'mine_instant_submit', {header: mine_ret.header, addr: saddr});
   let tx = tx_ret?.tx;
   if (!tx){
     rg.cheat++;
@@ -936,7 +938,7 @@ export async function mine_instant({netconf, saddr, on_update}){
     warn = {warn: 'pool cheat: paid only '+out.value+' - less than '
       +(reward-fee)+' promised (fee ', cheat: 1};
   }
-  ret = await tx_broadcast(netconf, _tx);
+  ret = yield tx_broadcast(netconf, _tx);
   if (!ret){
     rg.cheat++;
     return {err: 'pool cheat: TX reward not accepted by mempool', cheat: 1};
@@ -944,22 +946,24 @@ export async function mine_instant({netconf, saddr, on_update}){
   rg.success++;
   console.log('success! new TX '+ret.tx);
   return {...ret, ...warn};
-}
+}); };
 
 let STALE_OFFER = 60; // 1 minute
-export async function mine_instant_pool({wallet, reward_share, on_update}){
+export function mine_instant_pool({wallet, reward_share, on_update}){
+  return etask(function*mine_instant_pool()
+{
   const {netconf} = wallet;
   const {pow} = netconf;
   const rg_c = rg_rpc();
-  const rpc = await rg_c.connect();
+  const rpc = yield rg_c.connect();
   try {
     const el = _el(netconf);
-    await rg_c.rg_id(g_rg_id);
+    yield rg_c.rg_id(g_rg_id);
     const offers = {};
     const nslice = 1024;
     const slice_sz = Math.floor(0x100000000/nslice);
     const saddr = wallet.c.receiveAddress;
-    const template = await el.mine_get_template(saddr);
+    const template = yield el.mine_get_template(saddr);
     const {reward} = template;
     const header = Buffer.from(template.header, 'hex');
     const target = header_get_target(header);
@@ -1009,7 +1013,7 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
     rpc.method('mine_instant_update', params=>{
       console.log('TODO call on_update and update statistics');
     });
-    async function mine_instant_submit(params){
+    function mine_instant_submit(params){ return etask(function*(){
       let {addr, header: h} = params;
       if (!addr)
         return {error: 'no reward addr'};
@@ -1025,7 +1029,7 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
       ret = mine({pow, header: _h, min: nonce, max: nonce+1});
       if (ret){
         console.log('seems like got a winning block!', h);
-        let ret = await el.mine_submit_header(h);
+        let ret = yield el.mine_submit_header(h);
         if (ret?.height)
           console.log('winning block submitted successfully!');
       }
@@ -1058,12 +1062,12 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
       let tx = tx_send({wallet, saddr_to: addr, value: slice_reward-fee, fee});
       if (tx.err)
         return {error: 'failed payout to valid offer! serious bug!'};
-      ret = await tx_broadcast(netconf, tx.tx);
+      ret = yield tx_broadcast(netconf, tx.tx);
       if (!ret)
         return {error: 'failed broadcast TX of payout to valid offer!'};
       return {result: {tx: tx.tx.toHex(), txid: tx.tx.getId(),
         reward: slice_reward-fee, fee, addr: addr}};
-    }
+    }); }
     rpc._method('mine_instant_submit', async params=>{
       let ret = await mine_instant_submit(params);
       if (ret.error)
@@ -1073,10 +1077,10 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
       do_update();
       return ret;
     });
-    let ret = await rg_c.topic_pub('mine_instant',
+    let ret = yield rg_c.topic_pub('mine_instant',
       {reward: slice_reward, fee, target});
     while (1){
-      await esleep(1000);
+      yield esleep(1000);
       let up = do_update();
       if (up?.stop)
         break;
@@ -1087,7 +1091,7 @@ export async function mine_instant_pool({wallet, reward_share, on_update}){
   } finally {
     rpc.method('mine_instant_get_template');
     rpc.method('mine_instant_submit');
-    await rg_c.topic_unpub('mine_instant');
+    yield rg_c.topic_unpub('mine_instant');
   }
-}
+}); }
 
