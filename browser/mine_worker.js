@@ -1,5 +1,5 @@
 // LICENSE_CODE JPL: mine_worker.js
-import {ipc_postmessage} from './util.js';
+import {ipc_postmessage} from 'lif-kernel/util.js';
 import {mine} from './mine.js';
 let version = '26.4.23';
 let ipc;

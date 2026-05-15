@@ -18,6 +18,7 @@
     "node": ">=10.0.0"
   },
   "dependencies": {
+    "lif-kernel": "git+https://github.com/lif-zone/lif-kernel",
     "@peculiar/x509": "1.9.3",
     "acme-client": "5.0.0",
     "bcfg": "git+https://github.com/bcoin-org/bcfg.git#semver:~0.1.7",
@@ -112,6 +113,7 @@
       "websocket": "1.0.35"
     },
     "dependencies": {
+      "lif-kernel": "/lif-kernel",
       "browserfs": "^2.0.0",
       "browser-resolve": "^2.0.0",
       "browserify-zlib": "~0.2.0",

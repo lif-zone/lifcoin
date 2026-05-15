@@ -9,7 +9,7 @@ const ecpair = ECPairFactory(ecc);
 import {openDB} from 'idb';
 import {T, OE, OV, OA, CE, CEA, ewait, esleep, assert, rpc_websocket, _try,
   version as util_version, date_time,
-} from './util.js';
+} from 'lif-kernel/util.js';
 let lif = globalThis.$lif ||= {};
 lif.assert = assert;
 const sha256 = bitcoin.crypto.sha256;

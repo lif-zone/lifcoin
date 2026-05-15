@@ -15,7 +15,7 @@ const Output = require('../lib/primitives/output');
 const Script = require('../lib/script/script');
 const MTX = require('../lib/primitives/mtx');
 const Coin = require('../lib/primitives/coin');
-const {ewait} = require('../browser/util');
+const {ewait} = require('lif-kernel/util.js');
 const assert = require('bsert');
 
 function bech32(mnemonic, net){
