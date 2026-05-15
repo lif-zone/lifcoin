@@ -18,6 +18,7 @@ import {mine, mine_worker_call, mine_steps,
   header_get_target, header_get_time, header_set_time,
   header_get_nonce, header_set_nonce, target_from_compact,
 } from './mine.js';
+import etask from 'lif-kernel/etask.js';
 
 const HD_SCAN_GAP = 20;
 const DUST_VAL = 1;

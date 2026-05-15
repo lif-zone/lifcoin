@@ -18,7 +18,7 @@
     "node": ">=10.0.0"
   },
   "dependencies": {
-    "lif-kernel": "git+https://github.com/lif-zone/lif-kernel",
+    "lif-kernel": "git+https://github.com/lif-zone/lif-kernel#main",
     "@peculiar/x509": "1.9.3",
     "acme-client": "5.0.0",
     "bcfg": "git+https://github.com/bcoin-org/bcfg.git#semver:~0.1.7",
