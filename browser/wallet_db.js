@@ -670,11 +670,14 @@ function tx_psbt(network){
   return p;
 }
 
+const u8arr_cmp = indexedDB.cmp;
+const u8arr_eq = (a, b)=>!u8arr_cmp(a, b);
+
 function tx_out_find(network, tx, saddr){
   const addr = bitcoin.address.toOutputScript(saddr, network);
   for (let i=0; i<tx.outs.length; i++){
     const out = tx.outs[i];
-    if (!out.script.equals(addr))
+    if (!u8arr_eq(out.script, addr))
       continue;
     return {index: i, value: out.value, out};
   }
