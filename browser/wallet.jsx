@@ -6,7 +6,7 @@ import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import etask from 'lif-kernel/etask.js';
-import {OE, OV, OA, ewait, esleep, ipc_postmessage, CE, CEA, json,
+import {OE, OV, OA, ewait, esleep, ipc_postmessage, CE, CEA, json, assert,
 } from 'lif-kernel/util.js';
 import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
@@ -754,7 +754,12 @@ function Receive_screen({address, symbol, netconf}){
 }
 
 // Mine Screen
-const fmt_duration = sec=>{
+function target_get(){
+  if (settings.ls.devtools && settings.ls.dev_target)
+    return 0xffff001d;
+}
+
+function fmt_duration(sec){
   if (!isFinite(sec) || sec<0)
     return '—';
   sec = Math.floor(sec);
@@ -764,7 +769,8 @@ const fmt_duration = sec=>{
   const mm = (''+m).padStart(2, '0');
   const ss = (''+s).padStart(2, '0');
   return h>0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
-};
+}
+
 function Mine_screen({wallet}){
   const {netconf} = wallet;
   const [on, setOn] = useState(false);
@@ -790,21 +796,17 @@ function Mine_screen({wallet}){
     blockStartRef.current = Date.now();
     runningRef.et = etask(function*(){
       const saddr = wallet.c.receiveAddress;
-      let ret, target;
-      if (settings.ls.devtools && settings.ls.dev_target)
-        target = 0xffff001d;
+      let ret, target = target_get();
       while (1){
         let et;
         try {
           if (mode=='instant')
             et = mine_instant({netconf, saddr, target});
-          else if (mode=='pool')
-            et = mine_instant_pool({wallet, reward_share: 0.5, target});
           else
             et = mine_solo({netconf, saddr, target});
           et.on('update', up=>setStats(up));
           ret = yield et;
-          if (mode=='instant' || mode=='pool'){
+          if (mode=='instant'){
             if (ret.tx)
               setCount(c=>c+1);
           } else {
@@ -815,8 +817,7 @@ function Mine_screen({wallet}){
           ret = {err: ''+err};
         }
         setLastStatus(ret.err);
-        if (ret.err)
-          yield esleep(1000);
+        yield esleep(1000);
       }
       setOn(false);
     });
@@ -851,6 +852,133 @@ function Mine_screen({wallet}){
       </button>
       <div style={{marginTop: 16, fontSize: 14}}>
         Blocks mined: <strong>{count}</strong>
+      </div>
+      {lastStatus && (
+        <div style={{marginTop: 8, fontSize: 13, color: '#c00'}}>
+          Last status: {lastStatus}
+        </div>
+      )}
+      {stats && (
+        <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
+          <tbody>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Method</td>
+              <td><strong>{mode=='solo' ? 'Solo mining' : mode=='instant' ? 'Instant mining' : 'Mining pool'}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Speed</td>
+              <td><strong>{stats.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Total hashes</td>
+              <td><strong>{stats.total ? stats.total.toLocaleString() : '…'}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Hashes to win</td>
+              <td><strong>{stats.nhash_win ? stats.nhash_win.toLocaleString() : '…'}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Elapsed</td>
+              <td><strong>{fmt_duration(elapsed)}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Estimated total</td>
+              <td><strong>{fmt_duration(estimated)}</strong></td>
+            </tr>
+            <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Estimated remaining</td>
+              <td><strong>{fmt_duration(remaining)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function Mine_pool_screen({wallet}){
+  const {netconf} = wallet;
+  const [on, setOn] = useState(false);
+  const [mode, setMode] = useState('instant');
+  const [win_n, set_win_n] = useState(0);
+  const [pay_n, set_pay_n] = useState(0);
+  const [stats, setStats] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [lastStatus, setLastStatus] = useState(null);
+  const runningRef = useRef(false);
+  const blockStartRef = useRef(null);
+  const toggle = ()=>{
+    if (on){
+      runningRef.current = false;
+      runningRef.et?.return();
+      runningRef.et = null;
+      setOn(false);
+      return;
+    }
+    runningRef.current = true;
+    setOn(true);
+    setStats(null);
+    setElapsed(0);
+    blockStartRef.current = Date.now();
+    runningRef.et = etask(function*(){
+      const saddr = wallet.c.receiveAddress;
+      let ret, target = target_get();
+      let et;
+      try {
+        et = mine_instant_pool({wallet, reward_share: 0.5, target});
+        et.on('update', up=>setStats(up));
+        et.on('pay', pay=>{
+          console.log('payout', pay);
+          assert(pay.tx);
+          set_pay_n(c=>c+1);
+        });
+        et.on('win', win=>{
+          console.log('win', win);
+          assert(win.height);
+          set_win_n(c=>c+1);
+        });
+        ret = yield et;
+      } catch(err){ CEA(err);
+        ret = {err: ''+err};
+      }
+      setLastStatus(ret.err);
+        if (ret.err)
+      setOn(false);
+    });
+  };
+  useEffect(()=>{
+    if (!on)
+      return;
+    const id = setInterval(()=>{
+      setElapsed(Math.floor((Date.now()-blockStartRef.current)/1000));
+    }, 1000);
+    return ()=>clearInterval(id);
+  }, [on]);
+  useEffect(()=>()=>{ runningRef.current = false; }, []);
+  const estimated = stats?.hps ? stats.nhash_win/stats.hps : null;
+  const remaining = estimated!=null ? estimated-elapsed : null;
+  return (
+    <div style={{marginTop: 16, maxWidth: 480}}>
+      <h3>Mine for free</h3>
+      {!on && (
+        <div style={{display: 'flex', gap: 16, marginTop: 10, fontSize: 14}}>
+          {['solo', 'instant', 'pool'].map(m=>(
+            <label key={m} style={{display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'}}>
+              <input type="radio" name="mine_mode" value={m} checked={mode==m}
+                onChange={()=>setMode(m)} />
+              {m=='solo' ? 'Solo mining' : m=='instant' ? 'Instant mining' : 'Mining pool'}
+            </label>
+          ))}
+        </div>
+      )}
+      <button onClick={toggle} style={{fontSize: 16, marginTop: 8}}>
+        {on ? '⏹ Stop mining pool' : '▶ Start mining pool'}
+      </button>
+      <div style={{marginTop: 16, fontSize: 14}}>
+        Blocks mined: <strong>{win_n}</strong>
+      </div>
+      <div style={{marginTop: 16, fontSize: 14}}>
+        Payouts paid: <strong>{pay_n}</strong>
       </div>
       {lastStatus && (
         <div style={{marginTop: 8, fontSize: 13, color: '#c00'}}>
