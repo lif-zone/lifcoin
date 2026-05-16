@@ -10,7 +10,7 @@ import {OE, OV, OA, ewait, esleep, ipc_postmessage, CE, CEA,
 } from 'lif-kernel/util.js';
 import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
-  hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
+  hd_wallet, hd_path_def, addr_valid,
   _el, tx_send, kv_tx_send, kv_tx_edit, kv_tx_add, tx_broadcast,
   cache_clear, wallet_bal, kv_is_dns, LIF_DOMAINS,
   LIF_SERVER_DEF, lif_server_get, lif_server_set, mine_solo, mine_instant, mine_instant_pool,
@@ -1104,7 +1104,7 @@ function Fee_field({value, onChange, netconf}){
 
 function Addr_field({value, onChange, netconf, onValid, placeholder='Recipient address'}){
   const modal = useModal();
-  const valid = addr_valid(value, netconf.network);
+  const valid = addr_valid(netconf.network, value);
   const err = value && !valid ? 'Invalid address' : '';
   const [scanning, setScanning] = useState(false);
   const videoRef = useRef(null);

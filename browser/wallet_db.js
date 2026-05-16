@@ -382,15 +382,15 @@ async function wallet_cs_load(wallet){
   OA(c, _cs);
   const root = wallet_root(wallet);
   const ap = wallet.derivPath || hd_path_def(netconf);
-  c.addrs = cs.addrs.map(a=>({...a, ...hd_addr(root, ap,
-    network, a.chain, a.index)}));
+  c.addrs = cs.addrs.map(a=>({...a,
+    ...hd_addr(network, root, ap, a.chain, a.index)}));
   c.changeAddrInfo = cs.changeAddrInfo
-    ? {...cs.changeAddrInfo, ...hd_addr(root, ap, network,
+    ? {...cs.changeAddrInfo, ...hd_addr(network, root, ap,
       cs.changeAddrInfo.chain, cs.changeAddrInfo.index)}
     : null;
   c.utxos = cs.utxos.map(u=>({
-    ...u, addrInfo: cs.addrs.find(a=>a.address==u.address)||hd_addr(root,
-      ap, network, u.chain, u.index)
+    ...u, addrInfo: cs.addrs.find(a=>a.address==u.address)||
+      hd_addr(network, root, ap, u.chain, u.index)
   }));
 }
 
@@ -415,10 +415,10 @@ async function _wallet_fetch(wallet){
   const addrs = c.addrs = [...extRes.used, ...chgRes.used];
   cs.addrs = c.addrs.map(({address, chain, index, hist})=>(
     {address, chain, index, hist}));
-  c.receiveAddress = hd_addr(root, ap, network, 0, extRes.nextIndex)
+  c.receiveAddress = hd_addr(network, root, ap, 0, extRes.nextIndex)
     .address;
   cs.receiveAddress = c.receiveAddress;
-  c.changeAddrInfo = hd_addr(root, ap, network, 1, chgRes.nextIndex);
+  c.changeAddrInfo = hd_addr(network, root, ap, 1, chgRes.nextIndex);
   cs.changeAddrInfo = c.changeAddrInfo
     ? {address: c.changeAddrInfo.address,
       chain: c.changeAddrInfo.chain, index: c.changeAddrInfo.index}
@@ -557,7 +557,7 @@ export function hd_path_def(netconf){
   return `m/84'/${netconf.coin_type}'/0'`;
 }
 
-export function hd_addr(root, accountPath, network, chain, index){
+export function hd_addr(network, root, accountPath, chain, index){
   const child = root.derivePath(`${accountPath}/${chain}/${index}`);
   const pubkey = child.publicKey;
   const {address} = bitcoin.payments.p2wpkh({pubkey, network});
@@ -572,7 +572,7 @@ export function hd_wallet(mnemonic, networkKey, passphrase='',
   const network = netconf.network;
   const root = hd_root(mnemonic, network, passphrase);
   const accountPath = derivPath || hd_path_def(netconf);
-  const {address, keyPair} = hd_addr(root, accountPath, network, 0, 0);
+  const {address, keyPair} = hd_addr(network, root, accountPath, 0, 0);
   return {address, keyPair, network, netconf, root};
 }
 
@@ -586,8 +586,8 @@ export async function hd_scan(netconf, root, accountPath, chain){
   let lastUsed = -1;
   let start = 0;
   while (true){
-    const entries = Array.from({length: GAP}, (_, i)=>hd_addr(root,
-      accountPath, network, chain, start+i));
+    const entries = Array.from({length: GAP},
+      (_, i)=>hd_addr(network, root, accountPath, chain, start+i));
     const hists = await Promise.all(
       entries.map(e=>el.sh_get_history(addr_sh(e.address, network)))
     );
@@ -647,14 +647,14 @@ export function fee_calc(rateSatPerKb, tx){
 export function hd_addr_find(root, accountPath, network, saddr_find){
   for (let ch=0; ch<2; ch++){
     for (let idx=0; idx<30; idx++){
-      const info = hd_addr(root, accountPath, network, ch, idx);
+      const info = hd_addr(network, root, accountPath, ch, idx);
       if (info.address==saddr_find)
         return info;
     }
   }
 }
 
-export function addr_valid(addr, network){
+export function addr_valid(network, addr){
   try {
     bitcoin.address.toOutputScript(addr, network);
     return true;
@@ -668,6 +668,16 @@ function tx_psbt(network){
   if (network.netconf.fee_max)
     p.setMaximumFeeRate(network.netconf.fee_max/1000);
   return p;
+}
+
+function tx_out_find(network, tx, saddr){
+  const addr = bitcoin.address.toOutputScript(saddr, network);
+  for (let i=0; i<tx.outs.length; i++){
+    const out = tx.outs[i];
+    if (!out.script.equals(addr))
+      continue;
+    return {index: i, value: out.value, out};
+  }
 }
 
 function psbt_input_get_value(psbt, vin){
@@ -844,13 +854,9 @@ export function mine_solo({netconf, saddr, min, max, target, steps=true}){
   console.log('starting mining', template.header);
   let reward = template.reward;
   let opt = {pow: netconf.pow, header, min, max, target};
-  let mine_et;
-  if (steps)
-    mine_et = yield mine_steps(opt);
-  else
-    mine_et = yield mine_worker_call(opt);
+  let mine_et = steps ? mine_steps(opt) : mine_worker_call(opt);
   mine_et.on('update', up=>this.emit('update', up));
-  let mine_ret = yield mite_et;
+  let mine_ret = yield mine_et;
   console.log('mine_res', mine_ret);
   if (!mine_ret.found)
     return {err: 'failed mining', ...mine_ret};
@@ -862,16 +868,6 @@ export function mine_solo({netconf, saddr, min, max, target, steps=true}){
   console.log('success! new block height '+ret.height);
   return ret;
 }); }
-
-function tx_out_find(tx, saddr){
-  const addr = bitcoin.address.toOutputScript(saddr);
-  for (let i=0; i<tx.outs.length; i++){
-    const out = tx.outs[i];
-    if (!out.script.equals(addr))
-      continue;
-    return {index: i, value: out.value, out};
-  }
-}
 
 let g_rg = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
@@ -928,12 +924,12 @@ export function mine_instant({netconf, saddr}){
     rg.cheat++;
     return {err: 'failed submitting winning share', ...(tx_ret||{}), cheat: 1};
   }
-  let _tx = _try(()=>bitcoin.transaction.fromHex(tx));
+  let _tx = _try(()=>bitcoin.Transaction.fromHex(tx));
   if (!_tx){
     rg.cheat++;
     return {err: 'pool cheat: invalid tx', cheat: 1};
   }
-  let out = tx_out_find(_tx, saddr);
+  let out = tx_out_find(netconf.network, _tx, saddr);
   if (!out){
     rg.cheat++;
     return {err: 'pool cheat: didnt pay out to addr', cheat: 1};
