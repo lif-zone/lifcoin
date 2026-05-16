@@ -1089,7 +1089,6 @@ export function mine_instant_pool({wallet, reward_share}){
       yield esleep(1000);
       do_update();
     }
-    return {stpo: true};
   } catch(err){ CEA(err);
     return {error: ''+err};
   } finally {
