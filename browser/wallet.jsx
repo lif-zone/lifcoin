@@ -787,7 +787,7 @@ function Mine_screen({wallet}){
   const [on, setOn] = useState(false);
   const [mode, setMode] = useState('instant');
   const [count, setCount] = useState(0);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({});
   const [elapsed, setElapsed] = useState(0);
   const [lastStatus, setLastStatus] = useState(null);
   const runningRef = useRef(false);
@@ -802,7 +802,7 @@ function Mine_screen({wallet}){
     }
     runningRef.current = true;
     setOn(true);
-    setStats(null);
+    setStats({});
     setElapsed(0);
     blockStartRef.current = Date.now();
     runningRef.et = etask(function*(){
@@ -849,7 +849,7 @@ function Mine_screen({wallet}){
       <h3>Mine for free</h3>
       {!on && (
         <div style={{display: 'flex', gap: 16, marginTop: 10, fontSize: 14}}>
-          {['solo', 'instant'].map(m=>(
+          {['instant', 'solo'].map(m=>(
             <label key={m} style={{display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'}}>
               <input type="radio" name="mine_mode" value={m} checked={mode==m}
                 onChange={()=>setMode(m)} />
@@ -869,40 +869,34 @@ function Mine_screen({wallet}){
           Last status: {lastStatus}
         </div>
       )}
-      {stats && (
-        <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
-          <tbody>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Method</td>
-              <td><strong>{mode=='solo' ? 'Solo mining' : 'Instant mining'}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Speed</td>
-              <td><strong>{stats.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Total hashes</td>
-              <td><strong>{stats.total ? stats.total.toLocaleString() : '…'}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Hashes to win</td>
-              <td><strong>{stats.nhash_win ? stats.nhash_win.toLocaleString() : '…'}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Elapsed</td>
-              <td><strong>{fmt_duration(elapsed)}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Estimated total</td>
-              <td><strong>{fmt_duration(estimated)}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Estimated remaining</td>
-              <td><strong>{fmt_duration(remaining)}</strong></td>
-            </tr>
-          </tbody>
-        </table>
-      )}
+      <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
+        <tbody>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Speed</td>
+            <td><strong>{stats.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Total hashes</td>
+            <td><strong>{stats.total ? stats.total.toLocaleString() : '…'}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Hashes to win</td>
+            <td><strong>{stats.nhash_win ? stats.nhash_win.toLocaleString() : '…'}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Elapsed</td>
+            <td><strong>{fmt_duration(elapsed)}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Estimated total</td>
+            <td><strong>{fmt_duration(estimated)}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Estimated remaining</td>
+            <td><strong>{fmt_duration(remaining)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
