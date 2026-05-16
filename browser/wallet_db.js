@@ -878,7 +878,6 @@ export function mine_instant({netconf, saddr}){
   return etask(function*mine_instant()
 {
   this.on('cancel', ()=>console.log('mine_instant canceled'));
-  // here will be the implementation of the instant mining code
   const rg_c = rg_rpc();
   let ret = yield rg_c.topic_get('mine_instant');
   if (!ret.length)
@@ -909,11 +908,6 @@ export function mine_instant({netconf, saddr}){
   rg.template++;
   const header = Buffer.from(template.header, 'hex');
   let opt = {pow: netconf.pow, header, target: template.target};
-  if (0){ // debug target
-    //opt.target = undefined;
-    opt.target = target_to_compact(target_from_nhash_win(
-      target_to_nhash_win(target_from_compact(header_get_target(header)))/4n));
-  }
   let mine_ret = yield mine_steps(opt);
   console.log('mine_res', mine_ret);
   if (!mine_ret.found)
