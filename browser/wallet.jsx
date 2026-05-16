@@ -797,29 +797,24 @@ function Mine_screen({wallet}){
     blockStartRef.current = Date.now();
     mining_et = etask(function*(){
       const saddr = wallet.c.receiveAddress;
-      const on_update = up=>{
-        if (!runningRef.current)
-          return {stop: true};
-        setStats(up);
-      };
+      this.on('update', up=>setStats(up));
       while (runningRef.current){
         blockStartRef.current = Date.now();
         let ret;
         try {
           if (mode=='instant'){
-            ret = yield mine_instant({netconf, saddr, on_update});
+            ret = yield mine_instant({netconf, saddr});
             if (ret.tx)
               setCount(c=>c+1);
           } else if (mode=='pool'){
-            ret = yield mine_instant_pool({wallet, reward_share: 0.5,
-              on_update});
+            ret = yield mine_instant_pool({wallet, reward_share: 0.5});
             if (ret.tx)
               setCount(c=>c+1);
           } else {
             let target;
             if (settings.ls.devtools && settings.ls.dev_target)
               target = 0xffff001d;
-            ret = yield mine_solo({netconf, saddr, target, on_update});
+            ret = yield mine_solo({netconf, saddr, target});
             if (ret?.height)
               setCount(c=>c+1);
           }

@@ -834,7 +834,7 @@ export function kv_is_dns(key){
   return dns;
 }
 
-export function mine_solo({netconf, saddr, min, max, target, on_update}){
+export function mine_solo({netconf, saddr, min, max, target, steps=true}){
   return etask(function*()
 {
   this.on('cancel', ()=>console.log('mine_solo canceled'));
@@ -843,12 +843,14 @@ export function mine_solo({netconf, saddr, min, max, target, on_update}){
   const header = Buffer.from(template.header, 'hex');
   console.log('starting mining', template.header);
   let reward = template.reward;
-  let opt = {pow: netconf.pow, header, min, max, target, on_update};
-  let mine_ret;
-  if (on_update)
-    mine_ret = yield mine_steps(opt);
+  let opt = {pow: netconf.pow, header, min, max, target};
+  let mine_et;
+  if (steps)
+    mine_et = yield mine_steps(opt);
   else
-    mine_ret = yield mine_worker_call(opt);
+    mine_et = yield mine_worker_call(opt);
+  mine_et.on('update', up=>this.emit('update', up));
+  let mine_ret = yield mite_et;
   console.log('mine_res', mine_ret);
   if (!mine_ret.found)
     return {err: 'failed mining', ...mine_ret};
@@ -873,7 +875,7 @@ function tx_out_find(tx, saddr){
 
 let g_rg = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
-export function mine_instant({netconf, saddr, on_update}){
+export function mine_instant({netconf, saddr}){
   return etask(function*mine_instant()
 {
   this.on('cancel', ()=>console.log('mine_instant canceled'));
@@ -907,7 +909,7 @@ export function mine_instant({netconf, saddr, on_update}){
     return {err: 'pool: reward lees than fee'};
   rg.template++;
   const header = Buffer.from(template.header, 'hex');
-  let opt = {pow: netconf.pow, header, target: template.target, on_update};
+  let opt = {pow: netconf.pow, header, target: template.target};
   if (0){ // debug target
     //opt.target = undefined;
     opt.target = target_to_compact(target_from_nhash_win(
@@ -953,7 +955,7 @@ export function mine_instant({netconf, saddr, on_update}){
 }); };
 
 let STALE_OFFER = 60; // 1 minute
-export function mine_instant_pool({wallet, reward_share, on_update}){
+export function mine_instant_pool({wallet, reward_share}){
   return etask(function*mine_instant_pool()
 {
   this.on('cancel', ()=>console.log('mine_instant_pool canceled'));
@@ -1009,14 +1011,14 @@ export function mine_instant_pool({wallet, reward_share, on_update}){
         header: template.header, target: slice_target,
         time_local, min: offer.min, max: offer.max};
     });
-    function do_update(){
+    let do_update = ()=>{
       let total_h = nwin*nhash_win_slice;
       let hps = total_h/Math.max(date_time()-time_local, 1);
-      return on_update({hps, slice_h: nhash_win_slice,
+      this.emit('update', {hps, slice_h: nhash_win_slice,
         total_h, nhash_win});
-    }
+    };
     rpc.method('mine_instant_update', params=>{
-      console.log('TODO call on_update and update statistics');
+      console.log('TODO call do_update and update statistics');
     });
     function mine_instant_submit(params){ return etask(function*(){
       let {addr, header: h} = params;
@@ -1086,9 +1088,7 @@ export function mine_instant_pool({wallet, reward_share, on_update}){
       {reward: slice_reward, fee, target});
     while (1){
       yield esleep(1000);
-      let up = do_update();
-      if (up?.stop && 0)
-        break;
+      do_update();
     }
     return {stpo: true};
   } catch(err){ CEA(err);
