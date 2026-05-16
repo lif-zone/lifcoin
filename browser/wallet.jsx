@@ -872,7 +872,7 @@ function Mine_screen({wallet}){
       <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
         <tbody>
           <tr>
-            <td style={{color: '#666', paddingRight: 16}}>Speed</td>
+            <td style={{color: '#666', paddingRight: 16}}>Speed H/s</td>
             <td><strong>{stats.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>
           </tr>
           <tr>
@@ -903,9 +903,8 @@ function Mine_screen({wallet}){
 
 function Mine_pool_screen({wallet}){
   const {netconf} = wallet;
+  const {symbol} = netconf;
   const [on, setOn] = useState(false);
-  const [win_n, set_win_n] = useState(0);
-  const [pay_n, set_pay_n] = useState(0);
   const [stats, setStats] = useState({});
   const [elapsed, setElapsed] = useState(0);
   const [lastStatus, setLastStatus] = useState(null);
@@ -934,12 +933,10 @@ function Mine_pool_screen({wallet}){
         et.on('pay', pay=>{
           console.log('payout', pay);
           assert(pay.tx);
-          set_pay_n(c=>c+1);
         });
         et.on('win', win=>{
           console.log('win', win);
           assert(win.height);
-          set_win_n(c=>c+1);
         });
         ret = yield et;
       } catch(err){ CEA(err);
@@ -967,12 +964,6 @@ function Mine_pool_screen({wallet}){
       <button onClick={toggle} style={{fontSize: 16, marginTop: 8}}>
         {on ? '⏹ Stop mining pool' : '▶ Start mining pool'}
       </button>
-      <div style={{marginTop: 16, fontSize: 14}}>
-        Blocks mined: <strong>{win_n}</strong>
-      </div>
-      <div style={{marginTop: 16, fontSize: 14}}>
-        Payouts paid: <strong>{pay_n}</strong>
-      </div>
       {lastStatus && (
         <div style={{marginTop: 8, fontSize: 13, color: '#c00'}}>
           Last status: {lastStatus}
@@ -981,7 +972,25 @@ function Mine_pool_screen({wallet}){
       <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
         <tbody>
           <tr>
-            <td style={{color: '#666', paddingRight: 16}}>Speed</td>
+            <td style={{color: '#666', paddingRight: 16}}>Blocks mined</td>
+            <td><strong>{!stats.win_n ? '0' : (<>
+              {''+stats.win_n} Blocks,{' '}
+              <Amount sat={stats.win_v} signed symbol={symbol}/>
+            </>)}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Payouts</td>
+            <td><strong>{!stats.pay_n ? '0' : (<>
+              {''+stats.pay_n} TXs,{' '}
+              <Amount sat={-stats.pay_v} signed symbol={symbol}/>
+            </>)}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Num of errors</td>
+            <td><strong>{stats.invalid_submit_n ? ''+stats.invalid_submit_n : ''}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Speed H/s</td>
             <td><strong>{stats.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>
           </tr>
           <tr>

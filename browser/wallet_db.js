@@ -956,6 +956,8 @@ export function mine_instant_pool({wallet, reward_share}){
   const {pow} = netconf;
   const rg_c = rg_rpc();
   const rpc = yield rg_c.connect();
+  const _this = this;
+  let invalid_submit_n = 0, win_n = 0, pay_n = 0, win_v = 0, pay_v =0;
   try {
     const el = _el(netconf);
     yield rg_c.rg_id(g_rg_id);
@@ -1008,7 +1010,7 @@ export function mine_instant_pool({wallet, reward_share}){
       let total_h = nwin*nhash_win_slice;
       let hps = total_h/Math.max(date_time()-time_local, 1);
       this.emit('update', {hps, slice_h: nhash_win_slice,
-        total_h, nhash_win});
+        total_h, nhash_win, invalid_submit_n, win_n, pay_n, win_v, pay_v});
     };
     rpc.method('mine_instant_update', params=>{
       console.log('TODO call do_update and update statistics');
@@ -1030,8 +1032,13 @@ export function mine_instant_pool({wallet, reward_share}){
       if (ret){
         console.log('seems like got a winning block!', h);
         let ret = yield el.mine_submit_header(h);
-        if (ret?.height)
+        if (ret?.height){
           console.log('winning block submitted successfully!');
+          win_n++;
+          win_v += reward;
+          _this.emit('win', ret);
+          do_update();
+        }
       }
       // locate offer, validate it matches nonce range and time range
       let i = Math.floor(nonce/slice_sz);
@@ -1062,6 +1069,10 @@ export function mine_instant_pool({wallet, reward_share}){
       let tx = tx_send({wallet, saddr_to: addr, value: slice_reward-fee, fee});
       if (tx.err)
         return {error: 'failed payout to valid offer! serious bug!'};
+      pay_n++;
+      pay_v += slice_reward;
+      _this.emit('pay', tx);
+      do_update();
       ret = yield tx_broadcast(netconf, tx.tx);
       if (!ret)
         return {error: 'failed broadcast TX of payout to valid offer!'};
@@ -1070,9 +1081,12 @@ export function mine_instant_pool({wallet, reward_share}){
     }); }
     rpc._method('mine_instant_submit', async params=>{
       let ret = await mine_instant_submit(params);
-      if (ret.error)
+      if (ret.error){
         console.error(ret.error);
-      else
+        invalid_submit_n++;
+        _this.emit('invalid_submit', ret);
+        do_update();
+      } else
         console.log(ret.result);
       do_update();
       return ret;
