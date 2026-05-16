@@ -755,13 +755,14 @@ function Receive_screen({address, symbol, netconf}){
 
 // Mine Screen
 const fmt_duration = sec=>{
-  if (!isFinite(sec) || sec<0) return '—';
-  sec = Math.round(sec);
+  if (!isFinite(sec) || sec<0)
+    return '—';
+  sec = Math.floor(sec);
   const h = Math.floor(sec/3600);
   const m = Math.floor((sec%3600)/60);
   const s = sec%60;
-  const mm = String(m).padStart(2,'0');
-  const ss = String(s).padStart(2,'0');
+  const mm = (''+m).padStart(2, '0');
+  const ss = (''+s).padStart(2, '0');
   return h>0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
 };
 function Mine_screen({wallet}){
