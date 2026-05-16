@@ -6,7 +6,7 @@ import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import etask from 'lif-kernel/etask.js';
-import {OE, OV, OA, ewait, esleep, ipc_postmessage, CE, CEA,
+import {OE, OV, OA, ewait, esleep, ipc_postmessage, CE, CEA, json,
 } from 'lif-kernel/util.js';
 import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
@@ -54,13 +54,6 @@ function Modal_provider({children}){
   );
 }
 function useModal(){ return useContext(Modal_context); }
-
-function json(o){
-  return JSON.stringify(o);
-}
-function trunc(s, len){
-  return s.length>len ? s.slice(0, len)+'…' : s;
-}
 
 // Styles
 const cardStyle = {
