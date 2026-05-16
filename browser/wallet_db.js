@@ -670,7 +670,7 @@ function tx_psbt(network){
   return p;
 }
 
-const u8arr_cmp = indexedDB.cmp;
+const u8arr_cmp = indexedDB.cmp.bind(indexedDB);
 const u8arr_eq = (a, b)=>!u8arr_cmp(a, b);
 
 function tx_out_find(network, tx, saddr){
