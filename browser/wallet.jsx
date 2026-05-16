@@ -849,11 +849,11 @@ function Mine_screen({wallet}){
       <h3>Mine for free</h3>
       {!on && (
         <div style={{display: 'flex', gap: 16, marginTop: 10, fontSize: 14}}>
-          {['solo', 'instant', 'pool'].map(m=>(
+          {['solo', 'instant'].map(m=>(
             <label key={m} style={{display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'}}>
               <input type="radio" name="mine_mode" value={m} checked={mode==m}
                 onChange={()=>setMode(m)} />
-              {m=='solo' ? 'Solo mining' : m=='instant' ? 'Instant mining' : 'Mining pool'}
+              {m=='solo' ? 'Solo mining' : 'Instant mining'}
             </label>
           ))}
         </div>
@@ -874,7 +874,7 @@ function Mine_screen({wallet}){
           <tbody>
             <tr>
               <td style={{color: '#666', paddingRight: 16}}>Method</td>
-              <td><strong>{mode=='solo' ? 'Solo mining' : mode=='instant' ? 'Instant mining' : 'Mining pool'}</strong></td>
+              <td><strong>{mode=='solo' ? 'Solo mining' : 'Instant mining'}</strong></td>
             </tr>
             <tr>
               <td style={{color: '#666', paddingRight: 16}}>Speed</td>
@@ -910,10 +910,9 @@ function Mine_screen({wallet}){
 function Mine_pool_screen({wallet}){
   const {netconf} = wallet;
   const [on, setOn] = useState(false);
-  const [mode, setMode] = useState('instant');
   const [win_n, set_win_n] = useState(0);
   const [pay_n, set_pay_n] = useState(0);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({});
   const [elapsed, setElapsed] = useState(0);
   const [lastStatus, setLastStatus] = useState(null);
   const runningRef = useRef(false);
@@ -928,7 +927,7 @@ function Mine_pool_screen({wallet}){
     }
     runningRef.current = true;
     setOn(true);
-    setStats(null);
+    setStats({});
     setElapsed(0);
     blockStartRef.current = Date.now();
     runningRef.et = etask(function*(){
@@ -966,22 +965,11 @@ function Mine_pool_screen({wallet}){
     return ()=>clearInterval(id);
   }, [on]);
   useEffect(()=>()=>{ runningRef.current = false; }, []);
-  const estimated = stats?.hps ? stats.nhash_win/stats.hps : null;
+  const estimated = stats.hps ? stats.nhash_win/stats.hps : null;
   const remaining = estimated!=null ? estimated-elapsed : null;
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
-      <h3>Mine for free</h3>
-      {!on && (
-        <div style={{display: 'flex', gap: 16, marginTop: 10, fontSize: 14}}>
-          {['solo', 'instant', 'pool'].map(m=>(
-            <label key={m} style={{display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'}}>
-              <input type="radio" name="mine_mode" value={m} checked={mode==m}
-                onChange={()=>setMode(m)} />
-              {m=='solo' ? 'Solo mining' : m=='instant' ? 'Instant mining' : 'Mining pool'}
-            </label>
-          ))}
-        </div>
-      )}
+      <h3>Mining pool server</h3>
       <button onClick={toggle} style={{fontSize: 16, marginTop: 8}}>
         {on ? '⏹ Stop mining pool' : '▶ Start mining pool'}
       </button>
@@ -996,40 +984,34 @@ function Mine_pool_screen({wallet}){
           Last status: {lastStatus}
         </div>
       )}
-      {stats && (
-        <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
-          <tbody>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Method</td>
-              <td><strong>{mode=='solo' ? 'Solo mining' : mode=='instant' ? 'Instant mining' : 'Mining pool'}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Speed</td>
-              <td><strong>{stats.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Total hashes</td>
-              <td><strong>{stats.total ? stats.total.toLocaleString() : '…'}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Hashes to win</td>
-              <td><strong>{stats.nhash_win ? stats.nhash_win.toLocaleString() : '…'}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Elapsed</td>
-              <td><strong>{fmt_duration(elapsed)}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Estimated total</td>
-              <td><strong>{fmt_duration(estimated)}</strong></td>
-            </tr>
-            <tr>
-              <td style={{color: '#666', paddingRight: 16}}>Estimated remaining</td>
-              <td><strong>{fmt_duration(remaining)}</strong></td>
-            </tr>
-          </tbody>
-        </table>
-      )}
+      <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
+        <tbody>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Speed</td>
+            <td><strong>{stats.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Total hashes</td>
+            <td><strong>{stats.total ? stats.total.toLocaleString() : '…'}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Hashes to win</td>
+            <td><strong>{stats.nhash_win ? stats.nhash_win.toLocaleString() : '…'}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Elapsed</td>
+            <td><strong>{fmt_duration(elapsed)}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Estimated total</td>
+            <td><strong>{fmt_duration(estimated)}</strong></td>
+          </tr>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>Estimated remaining</td>
+            <td><strong>{fmt_duration(remaining)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
