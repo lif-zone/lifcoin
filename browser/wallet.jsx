@@ -754,7 +754,6 @@ function Receive_screen({address, symbol, netconf}){
 }
 
 // Mine Screen
-let mining_et;
 const fmt_duration = sec=>{
   if (!isFinite(sec) || sec<0) return '—';
   sec = Math.round(sec);
@@ -778,8 +777,8 @@ function Mine_screen({wallet}){
   const toggle = ()=>{
     if (on){
       runningRef.current = false;
-      mining_et?.return();
-      mining_et = null;
+      runningRef.et?.return();
+      runningRef.et = null;
       setOn(false);
       return;
     }
@@ -788,34 +787,32 @@ function Mine_screen({wallet}){
     setStats(null);
     setElapsed(0);
     blockStartRef.current = Date.now();
-    mining_et = etask(function*(){
+    runningRef.et = etask(function*(){
       const saddr = wallet.c.receiveAddress;
-      this.on('update', up=>setStats(up));
-      while (runningRef.current){
-        blockStartRef.current = Date.now();
-        let ret;
+      let ret, target;
+      if (settings.ls.devtools && settings.ls.dev_target)
+        target = 0xffff001d;
+      while (1){
+        let et;
         try {
-          if (mode=='instant'){
-            ret = yield mine_instant({netconf, saddr});
-            if (ret.tx)
-              setCount(c=>c+1);
-          } else if (mode=='pool'){
-            ret = yield mine_instant_pool({wallet, reward_share: 0.5});
+          if (mode=='instant')
+            et = mine_instant({netconf, saddr, target});
+          else if (mode=='pool')
+            et = mine_instant_pool({wallet, reward_share: 0.5, target});
+          else
+            et = mine_solo({netconf, saddr, target});
+          et.on('update', up=>setStats(up));
+          ret = yield et;
+          if (mode=='instant' || mode=='pool'){
             if (ret.tx)
               setCount(c=>c+1);
           } else {
-            let target;
-            if (settings.ls.devtools && settings.ls.dev_target)
-              target = 0xffff001d;
-            ret = yield mine_solo({netconf, saddr, target});
             if (ret?.height)
               setCount(c=>c+1);
           }
         } catch(err){ CEA(err);
           ret = {err: ''+err};
         }
-        if (!runningRef.current)
-          break;
         setLastStatus(ret.err);
         if (ret.err)
           yield esleep(1000);
@@ -824,14 +821,15 @@ function Mine_screen({wallet}){
     });
   };
   useEffect(()=>{
-    if (!on) return;
+    if (!on)
+      return;
     const id = setInterval(()=>{
       setElapsed(Math.floor((Date.now()-blockStartRef.current)/1000));
     }, 1000);
     return ()=>clearInterval(id);
   }, [on]);
   useEffect(()=>()=>{ runningRef.current = false; }, []);
-  const estimated = stats?.hps>0 ? stats.nhash_win/stats.hps : null;
+  const estimated = stats?.hps ? stats.nhash_win/stats.hps : null;
   const remaining = estimated!=null ? estimated-elapsed : null;
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
@@ -858,20 +856,24 @@ function Mine_screen({wallet}){
           Last status: {lastStatus}
         </div>
       )}
-      {on && (
+      {stats && (
         <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
           <tbody>
             <tr>
+              <td style={{color: '#666', paddingRight: 16}}>Method</td>
+              <td><strong>{mode=='solo' ? 'Solo mining' : mode=='instant' ? 'Instant mining' : 'Mining pool'}</strong></td>
+            </tr>
+            <tr>
               <td style={{color: '#666', paddingRight: 16}}>Speed</td>
-              <td><strong>{stats?.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>
+              <td><strong>{stats.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>
             </tr>
             <tr>
               <td style={{color: '#666', paddingRight: 16}}>Total hashes</td>
-              <td><strong>{stats?.total ? stats.total.toLocaleString() : '…'}</strong></td>
+              <td><strong>{stats.total ? stats.total.toLocaleString() : '…'}</strong></td>
             </tr>
             <tr>
               <td style={{color: '#666', paddingRight: 16}}>Hashes to win</td>
-              <td><strong>{stats?.nhash_win ? stats.nhash_win.toLocaleString() : '…'}</strong></td>
+              <td><strong>{stats.nhash_win ? stats.nhash_win.toLocaleString() : '…'}</strong></td>
             </tr>
             <tr>
               <td style={{color: '#666', paddingRight: 16}}>Elapsed</td>

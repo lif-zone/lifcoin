@@ -77,6 +77,7 @@ c add https ssl support for lif-coin:8432
     update it.
   - add UI of estimations how much will be earned, and how much expected per day
     of mining, and how much expected per month of mining.
+- load qrcode dynamically, only when needed
 - add $ value: 1LIF==1USD. BTC - get dynamic. a click on the value changes
   the display. in USD - show up to the cent 40.41$ LIF, 1500.00$ BTC
 - add an outgoing proxy from lif_node to lif server.

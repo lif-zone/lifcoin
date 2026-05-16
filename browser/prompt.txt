@@ -1072,3 +1072,59 @@ USER: Add to Mine_screen another radio button for "Mining pool" that will call m
 CLAUDE: Added "Mining pool" radio button to Mine_screen. Imported mine_instant_pool from wallet_db.js, added 'pool' to the radio button array with label "Mining pool", and added else-if branch calling mine_instant_pool({wallet, reward_share: 1, on_update}).
 
 ---
+
+---
+
+USER: After clicking stop mining, stats should still appear. Also show what mining method was used. Stats only clear when clicking start again.
+
+CLAUDE: Added activeMode state (set on start, persists after stop). Changed stats table condition from {on && to {stats && so it stays visible after stopping. Added Method row showing solo/instant/pool label. Stats cleared via setStats(null) only when starting a new session.
+
+---
+
+---
+
+USER: why is activeMode needed? there already is a mode
+
+CLAUDE: Removed activeMode state — mode already holds the correct value since radio buttons are hidden while mining, so it never changes during a session. Replaced activeMode references with mode.
+
+---
+
+---
+
+USER: Stats stopped showing in solo mode after changes
+
+CLAUDE: Changed condition from {stats && to {(on || stats) && — shows table immediately while mining (with "…" placeholders), and keeps it visible after stopping if stats were populated.
+
+---
+
+---
+
+USER: Stats still disappear when clicking stop
+
+CLAUDE: Removed setStats(null) from the start logic. Stats now persist naturally and get overwritten by the first update when mining restarts. This prevents the (on || stats) condition from going false on stop.
+
+---
+
+---
+
+USER: Stats still disappear when clicking stop mining
+
+CLAUDE: Added frozenStats state, updated via useEffect whenever stats is non-null. Changed condition to (on || frozenStats) and display values use displayStats = on ? stats : frozenStats. This ensures stats persist regardless of what happens to the stats state when mining stops.
+
+---
+
+---
+
+USER: why add more variables? just don't clear stats until clicking start mining again
+
+CLAUDE: Removed frozenStats/displayStats complexity. Real fix: guarded the etask update handler with `if (up) setStats(up)` — the etask was emitting null/undefined on cancel, which cleared stats. Now stats only clear via setStats(null) on start, and persist after stopping.
+
+---
+
+---
+
+USER: Stats still disappear when clicking stop
+
+CLAUDE: Something in the etask/React cycle was clearing the stats state. Added module-level mining_stats variable (same pattern as mining_et) to hold last stats outside React. The stats state is kept only as a render trigger. mining_stats is set alongside setStats on update, cleared on start. Table condition uses (on || mining_stats).
+
+---
