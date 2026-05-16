@@ -5,7 +5,9 @@ import React, {useState, useEffect, useMemo, useRef, createContext,
 import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
-import {OE, OV, OA, ewait, esleep, ipc_postmessage} from 'lif-kernel/util.js';
+import etask from 'lif-kernel/etask.js';
+import {OE, OV, OA, ewait, esleep, ipc_postmessage, CE, CEA,
+} from 'lif-kernel/util.js';
 import {settings_get, settings_save, wallet_db_init, wallet_fetch,
   wallet_add, wallet_del, wallet_update, wallets_get, wallet_get,
   hd_root, hd_wallet, hd_addr, hd_path_def, addr_valid,
@@ -759,6 +761,7 @@ function Receive_screen({address, symbol, netconf}){
 }
 
 // Mine Screen
+let mining_et;
 const fmt_duration = sec=>{
   if (!isFinite(sec) || sec<0) return '—';
   sec = Math.round(sec);
@@ -782,6 +785,8 @@ function Mine_screen({wallet}){
   const toggle = ()=>{
     if (on){
       runningRef.current = false;
+      mining_et?.return();
+      mining_et = null;
       setOn(false);
       return;
     }
@@ -790,7 +795,7 @@ function Mine_screen({wallet}){
     setStats(null);
     setElapsed(0);
     blockStartRef.current = Date.now();
-    (async()=>{
+    mining_et = etask(function*(){
       const saddr = wallet.c.receiveAddress;
       const on_update = up=>{
         if (!runningRef.current)
@@ -802,11 +807,11 @@ function Mine_screen({wallet}){
         let ret;
         try {
           if (mode=='instant'){
-            ret = await mine_instant({netconf, saddr, on_update});
+            ret = yield mine_instant({netconf, saddr, on_update});
             if (ret.tx)
               setCount(c=>c+1);
           } else if (mode=='pool'){
-            ret = await mine_instant_pool({wallet, reward_share: 0.5,
+            ret = yield mine_instant_pool({wallet, reward_share: 0.5,
               on_update});
             if (ret.tx)
               setCount(c=>c+1);
@@ -814,21 +819,21 @@ function Mine_screen({wallet}){
             let target;
             if (settings.ls.devtools && settings.ls.dev_target)
               target = 0xffff001d;
-            ret = await mine_solo({netconf, saddr, target, on_update});
+            ret = yield mine_solo({netconf, saddr, target, on_update});
             if (ret?.height)
               setCount(c=>c+1);
           }
-        } catch(err){
+        } catch(err){ CEA(err);
           ret = {err: ''+err};
         }
         if (!runningRef.current)
           break;
         setLastStatus(ret.err);
         if (ret.err)
-          await esleep(1000);
+          yield esleep(1000);
       }
       setOn(false);
-    })();
+    });
   };
   useEffect(()=>{
     if (!on) return;

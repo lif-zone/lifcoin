@@ -834,29 +834,32 @@ export function kv_is_dns(key){
   return dns;
 }
 
-export async function mine_solo({netconf, saddr, min, max, target, on_update}){
+export function mine_solo({netconf, saddr, min, max, target, on_update}){
+  return etask(function*()
+{
+  this.on('cancel', ()=>console.log('mine_solo canceled'));
   const el = _el(netconf);
-  let template = await el.mine_get_template(saddr);
+  let template = yield el.mine_get_template(saddr);
   const header = Buffer.from(template.header, 'hex');
   console.log('starting mining', template.header);
   let reward = template.reward;
   let opt = {pow: netconf.pow, header, min, max, target, on_update};
   let mine_ret;
   if (on_update)
-    mine_ret = await mine_steps(opt);
+    mine_ret = yield mine_steps(opt);
   else
-    mine_ret = await mine_worker_call(opt);
+    mine_ret = yield mine_worker_call(opt);
   console.log('mine_res', mine_ret);
   if (!mine_ret.found)
     return {err: 'failed mining', ...mine_ret};
   console.log('submitting new block');
   mine_ret.header = mine_ret.header.toString('hex');
-  let ret = await el.mine_submit_header(mine_ret.header);
+  let ret = yield el.mine_submit_header(mine_ret.header);
   if (!ret?.height)
     return {err: 'failed submitting new block', ...(ret||{})};
   console.log('success! new block height '+ret.height);
   return ret;
-}
+}); }
 
 function tx_out_find(tx, saddr){
   const addr = bitcoin.address.toOutputScript(saddr);
@@ -873,6 +876,7 @@ let g_rg_id = ''+Math.floor(Math.random()*1000000000);
 export function mine_instant({netconf, saddr, on_update}){
   return etask(function*mine_instant()
 {
+  this.on('cancel', ()=>console.log('mine_instant canceled'));
   // here will be the implementation of the instant mining code
   const rg_c = rg_rpc();
   let ret = yield rg_c.topic_get('mine_instant');
@@ -952,6 +956,7 @@ let STALE_OFFER = 60; // 1 minute
 export function mine_instant_pool({wallet, reward_share, on_update}){
   return etask(function*mine_instant_pool()
 {
+  this.on('cancel', ()=>console.log('mine_instant_pool canceled'));
   const {netconf} = wallet;
   const {pow} = netconf;
   const rg_c = rg_rpc();
@@ -1082,7 +1087,7 @@ export function mine_instant_pool({wallet, reward_share, on_update}){
     while (1){
       yield esleep(1000);
       let up = do_update();
-      if (up?.stop)
+      if (up?.stop && 0)
         break;
     }
     return {stpo: true};

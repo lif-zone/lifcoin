@@ -162,6 +162,7 @@ export function mine_worker_call(mine_cmd){ return etask(function*(){
 export function mine_steps({pow, header, time_local,
   min=0, max=0x100000000, target, on_update}){ return etask(function*()
 {
+  this.on('cancel', ()=>console.log('mine_steps canceled'));
   let hps = 10; // initial hashs per second. in reality is around 1M hps
   let slice_ms = 1000;
   let total_h = 0;
@@ -175,7 +176,7 @@ export function mine_steps({pow, header, time_local,
   for (;;){
     let slice_h = Math.max(Math.floor(hps*slice_ms/1000), 1);
     let up = on_update({hps, slice_h, total_h, nhash_win});
-    if (up?.stop)
+    if (up?.stop && 0)
       return {stop: true, total_h};
     let time = date_time();
     if (time!=time_last){
