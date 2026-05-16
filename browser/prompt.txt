@@ -1128,3 +1128,11 @@ USER: Stats still disappear when clicking stop
 CLAUDE: Something in the etask/React cycle was clearing the stats state. Added module-level mining_stats variable (same pattern as mining_et) to hold last stats outside React. The stats state is kept only as a render trigger. mining_stats is set alongside setStats on update, cleared on start. Table condition uses (on || mining_stats).
 
 ---
+
+---
+
+USER: Add in wallet page, on the left of existing mining button, a button to go to Mine_pool_screen. Display this button only for wallets with balance over 50 LIF.
+
+CLAUDE: Added onMinePool prop to Wallet_screen. Button shows left of existing mine button only when netconf.lif_kv && balance >= 50*1e8. Wired up wallet_mine_pool screen in BrightWallet with back navigation and Mine_pool_screen rendering.
+
+---

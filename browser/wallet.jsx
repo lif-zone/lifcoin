@@ -113,7 +113,7 @@ function BrightWallet(){
       setScreen('wallet_info');
     else if (screen=='wallet_send' || screen=='wallet_receive' ||
       screen=='wallet_kv_add' || screen=='wallet_kv_add_raw' || screen=='wallet_settings' ||
-      screen=='wallet_mine')
+      screen=='wallet_mine' || screen=='wallet_mine_pool')
       setScreen('wallet_info');
     else if (screen=='devtools')
       setScreen('settings');
@@ -173,6 +173,7 @@ function BrightWallet(){
           onKvAddRaw={()=>setScreen('wallet_kv_add_raw')}
           onSettings={()=>setScreen('wallet_settings')}
           onMine={()=>setScreen('wallet_mine')}
+          onMinePool={()=>setScreen('wallet_mine_pool')}
           refreshTick={refreshTick}
           setWalletLoading={setWalletLoading}
         />
@@ -211,6 +212,11 @@ function BrightWallet(){
       )}
       {screen=='wallet_mine' && wallet && (
         <Mine_screen
+          wallet={wallet}
+        />
+      )}
+      {screen=='wallet_mine_pool' && wallet && (
+        <Mine_pool_screen
           wallet={wallet}
         />
       )}
@@ -497,7 +503,7 @@ function transactions_sorted(transactions){
 // Wallet Detail Screen
 function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx,
   onSelectKey, onSend, onReceive, onKvAdd, onKvAddRaw, onSettings, onMine,
-  refreshTick, setWalletLoading})
+  onMinePool, refreshTick, setWalletLoading})
 {
   const modal = useModal();
   const {netconf} = wallet;
@@ -538,7 +544,12 @@ function Wallet_screen({wallet, onDelete, onUpdate, onSelectTx,
       <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
         <h2 style={{margin: 0}}>{label}</h2>
         {netconf.lif_kv && (
-          <button onClick={onMine}>Get free LIF - click & mine!</button>
+          <div style={{display: 'flex', gap: 8}}>
+            {balance>=50*1e8 && (
+              <button onClick={onMinePool}>Mining pool</button>
+            )}
+            <button onClick={onMine}>Get free LIF - click & mine!</button>
+          </div>
         )}
       </div>
       {connErr && (
