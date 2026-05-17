@@ -2,7 +2,6 @@
 import React, {useState, useEffect, useMemo, useRef, createContext,
   useContext, useCallback,
 } from 'react';
-import QRCode from 'qrcode';
 import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import etask from 'lif-kernel/etask.js';
@@ -731,8 +730,11 @@ function Receive_screen({address, symbol, netconf}){
     setCopied(false);
   };
   useEffect(()=>{
-    if (canvasRef.current && address)
-      QRCode.toCanvas(canvasRef.current, address, {width: 220, margin: 2});
+    (async()=>{
+      const QRCode = (await import('qrcode')).default;
+      if (canvasRef.current && address)
+        QRCode.toCanvas(canvasRef.current, address, {width: 220, margin: 2});
+    })();
   }, [address]);
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
