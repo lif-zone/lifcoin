@@ -986,8 +986,12 @@ function Mine_pool_screen({wallet}){
             </>)}</strong></td>
           </tr>
           <tr>
-            <td style={{color: '#666', paddingRight: 16}}>Num of errors</td>
-            <td><strong>{stats.invalid_submit_n ? ''+stats.invalid_submit_n : ''}</strong></td>
+            <td style={{color: '#666', paddingRight: 16}}>Errors</td>
+            <td><strong>{!stats.submit_err_n ? '0' :
+              (<span style={{color: '#c00'}}>
+                {''+stats.submit_err_n} Errors:{' '}{stats.submit_err}
+              </span>)}
+            </strong></td>
           </tr>
           <tr>
             <td style={{color: '#666', paddingRight: 16}}>Speed H/s</td>

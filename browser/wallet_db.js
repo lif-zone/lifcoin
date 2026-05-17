@@ -20,6 +20,14 @@ import {mine, mine_worker_call, mine_steps,
 } from './mine.js';
 import etask from 'lif-kernel/etask.js';
 
+function buf_from_hex(b){
+  if (Buffer.isBuffer(b))
+    return Buffer.from(b);
+  return Buffer.from(b, 'hex');
+}
+function buf_to_hex(b){
+  return b.toString('hex');
+}
 const HD_SCAN_GAP = 20;
 const DUST_VAL = 1;
 
@@ -460,7 +468,7 @@ async function _wallet_fetch(wallet){
     ]);
     const tsMap = {};
     heights.forEach((h, i)=>{
-      tsMap[h] = Buffer.from(headers[i], 'hex').readUInt32LE(68);
+      tsMap[h] = buf_from_hex(headers[i]).readUInt32LE(68);
     });
     const histTxIds = new Set(hist.map(t=>t.tx_hash));
     const prevIds = [...new Set(verboseTxs.flatMap(vtx=>(vtx.vin||[]).map(
@@ -610,7 +618,7 @@ export async function hd_scan(netconf, root, accountPath, chain){
 export function addr_sh(saddr, network){
   const script = bitcoin.address.toOutputScript(saddr, network);
   const hash = sha256(script);
-  return Buffer.from(hash.reverse()).toString('hex');
+  return buf_to_hex(Buffer.from(hash.reverse()));
 }
 
 export async function el_estimatefee(netconf){
@@ -853,7 +861,7 @@ export function mine_solo({netconf, saddr, min, max, target, steps=true}){
   this.on('cancel', ()=>console.log('mine_solo canceled'));
   const el = _el(netconf);
   let template = yield el.mine_get_template(saddr);
-  const header = Buffer.from(template.header, 'hex');
+  const header = buf_from_hex(template.header);
   console.log('starting mining', template.header);
   let reward = template.reward;
   let opt = {pow: netconf.pow, header, min, max, target};
@@ -906,7 +914,7 @@ export function mine_instant({netconf, saddr}){
   if (reward<=fee)
     return {err: 'pool: reward lees than fee'};
   rg.template++;
-  const header = Buffer.from(template.header, 'hex');
+  const header = buf_from_hex(template.header);
   let opt = {pow: netconf.pow, header, target: template.target};
   let mine_ret = yield mine_steps(opt);
   console.log('mine_res', mine_ret);
@@ -947,6 +955,15 @@ export function mine_instant({netconf, saddr}){
   return {...ret, ...warn};
 }); };
 
+function header_match(a, b){
+  let _a = buf_from_hex(a), _b = buf_from_hex(b);
+  header_set_time(_a, 0);
+  header_set_nonce(_a, 0);
+  header_set_time(_b, 0);
+  header_set_nonce(_b, 0);
+  return buf_to_hex(_a)==buf_to_hex(_b);
+}
+
 let STALE_OFFER = 60; // 1 minute
 export function mine_instant_pool({wallet, reward_share}){
   return etask(function*mine_instant_pool()
@@ -957,24 +974,27 @@ export function mine_instant_pool({wallet, reward_share}){
   const rg_c = rg_rpc();
   const rpc = yield rg_c.connect();
   const _this = this;
-  let invalid_submit_n = 0, win_n = 0, pay_n = 0, win_v = 0, pay_v =0;
+  let submit_err_n = 0, submit_err = '';
+  let win_n = 0, pay_n = 0, win_v = 0, pay_v = 0;
+  const offers = {};
+  const nslice = 1024;
+  const slice_sz = Math.floor(0x100000000/nslice);
   try {
     const el = _el(netconf);
     yield rg_c.rg_id(g_rg_id);
-    const offers = {};
-    const nslice = 1024;
-    const slice_sz = Math.floor(0x100000000/nslice);
     const saddr = wallet.c.receiveAddress;
     const template = yield el.mine_get_template(saddr);
     const {reward} = template;
-    const header = Buffer.from(template.header, 'hex');
+    const header = buf_from_hex(template.header);
     const target = header_get_target(header);
+    const time_base = header_get_time(header);
+    const time_base_local = date_time();
+    const time_diff = time_base_local-time_base;
     const nhash_win = Number(target_to_nhash_win(target_from_compact(target)));
     const nhash_win_slice = Math.floor(nhash_win/nslice);
     const slice_target = target_to_compact(target_from_nhash_win(
       nhash_win_slice));
     const slice_reward = Math.floor(reward/nslice*reward_share);
-    const time_local = date_time();
     const fee = tx_send({wallet, saddr_to: wallet.c.changeAddrInfo.address,
       value: 1}).fee;
     let nwin = 0;
@@ -1000,17 +1020,22 @@ export function mine_instant_pool({wallet, reward_share}){
       }
       if (i==undefined)
         return {error: 'all offer slots full'};
+      let now = date_time();
+      let h = Buffer.from(header);
+      let time_now = now-time_diff;
+      header_set_time(h, time_now);
       offer = offers[i] = {min: i*slice_sz, max: (i+1)*slice_sz, addr,
-        time_local, last_update: time_local, win: []};
+        time_local: now, last_update: now, win: []};
       return {reward: slice_reward, fee,
-        header: template.header, target: slice_target,
-        time_local, min: offer.min, max: offer.max};
+        header: buf_to_hex(h), target: slice_target,
+        min: offer.min, max: offer.max};
     });
     let do_update = ()=>{
       let total_h = nwin*nhash_win_slice;
-      let hps = total_h/Math.max(date_time()-time_local, 1);
+      let hps = total_h/Math.max(date_time()-time_base_local, 1);
       this.emit('update', {hps, slice_h: nhash_win_slice,
-        total_h, nhash_win, invalid_submit_n, win_n, pay_n, win_v, pay_v});
+        total_h, nhash_win, submit_err_n, submit_err,
+        win_n, pay_n, win_v, pay_v});
     };
     rpc.method('mine_instant_update', params=>{
       console.log('TODO call do_update and update statistics');
@@ -1019,7 +1044,7 @@ export function mine_instant_pool({wallet, reward_share}){
       let {addr, header: h} = params;
       if (!addr)
         return {error: 'no reward addr'};
-      let _h = Buffer.from(h, 'hex');
+      let _h = buf_from_hex(h);
       let nonce = header_get_nonce(_h);
       let time = header_get_time(_h);
       // check target in range for reward - if so - give reward
@@ -1048,23 +1073,16 @@ export function mine_instant_pool({wallet, reward_share}){
       let win = offer.win.find(w=>w.time==time && w.nonce==nonce);
       if (win)
         return {error: 'offer was already presented'};
-      win = {time, nonce, time_local: date_time()};
-      let a = Buffer.from(_h), b = Buffer.from(header);
-      header_set_time(a, 0);
-      header_set_nonce(a, 0);
-      header_set_time(b, 0);
-      header_set_nonce(b, 0);
-      if (a.toString('hex')!=b.toString('hex'))
+      win = {time, nonce, time_local: date_time(), header: h};
+      if (!header_match(_h, header))
         return {error: 'header fields do not match offer'};
-      offer.win.push(win);
-      let offer_time = header_get_time(header);
-      let time_diff = win.time_local-time_local;
-      if (time<offer_time || time>offer_time+time_diff+1)
+      let time_now = win.time_local-time_diff;
+      if (time<time_base)
         return {error: 'header time too earlier than offer'};
-      if (time<offer_time || time>offer_time+time_diff+1)
+      if (time>time_now+1)
         return {error: 'header time in the future'};
       console.log('valid offer - do share payout!');
-      win.valid = 1;
+      offer.win.push(win);
       nwin++;
       let tx = tx_send({wallet, saddr_to: addr, value: slice_reward-fee, fee});
       if (tx.err)
@@ -1083,8 +1101,9 @@ export function mine_instant_pool({wallet, reward_share}){
       let ret = await mine_instant_submit(params);
       if (ret.error){
         console.error(ret.error);
-        invalid_submit_n++;
-        _this.emit('invalid_submit', ret);
+        submit_err_n++;
+        submit_err = ret.error;
+        _this.emit('submit_err', ret);
         do_update();
       } else
         console.log(ret.result);
