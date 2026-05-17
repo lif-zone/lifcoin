@@ -872,12 +872,12 @@ export function mine_solo({netconf, saddr, min, max, target, steps=true}){
   if (!mine_ret.found)
     return {err: 'failed mining', ...mine_ret};
   console.log('submitting new block');
-  mine_ret.header = mine_ret.header.toString('hex');
+  mine_ret.header = buf_to_hex(mine_ret.header);
   let ret = yield el.mine_submit_header(mine_ret.header);
   if (!ret?.height)
     return {err: 'failed submitting new block', ...(ret||{})};
   console.log('success! new block height '+ret.height);
-  return ret;
+  return {...ret, reward};
 }); }
 
 let g_rg = {};
@@ -916,13 +916,15 @@ export function mine_instant({netconf, saddr}){
   rg.template++;
   const header = buf_from_hex(template.header);
   let opt = {pow: netconf.pow, header, target: template.target};
-  let mine_ret = yield mine_steps(opt);
+  let mine_et = mine_steps(opt);
+  mine_et.on('update', up=>this.emit('update', up));
+  let mine_ret = yield mine_et;
   console.log('mine_res', mine_ret);
   if (!mine_ret.found)
     return mine_ret;
   rg.mined++;
   console.log('submitting new block');
-  mine_ret.header = mine_ret.header.toString('hex');
+  mine_ret.header = buf_to_hex(mine_ret.header);
   let tx_ret = yield rg_c.rcall(rg_id, 'mine_instant_submit', {header: mine_ret.header, addr: saddr});
   let tx = tx_ret?.tx;
   if (!tx){
@@ -940,7 +942,7 @@ export function mine_instant({netconf, saddr}){
     return {err: 'pool cheat: didnt pay out to addr', cheat: 1};
   }
   let warn = {};
-  if (out.value<(reward-fee)){
+  if (out.value<reward-fee){
     rg.cheat++;
     warn = {warn: 'pool cheat: paid only '+out.value+' - less than '
       +(reward-fee)+' promised (fee ', cheat: 1};
@@ -952,7 +954,7 @@ export function mine_instant({netconf, saddr}){
   }
   rg.success++;
   console.log('success! new TX '+ret.tx);
-  return {...ret, ...warn};
+  return {...ret, reward_net: out.value, reward, fee, ...warn};
 }); };
 
 function header_match(a, b){

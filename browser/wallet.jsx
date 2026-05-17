@@ -786,7 +786,6 @@ function Mine_screen({wallet}){
   const {netconf} = wallet;
   const [on, setOn] = useState(false);
   const [mode, setMode] = useState('instant');
-  const [count, setCount] = useState(0);
   const [stats, setStats] = useState({});
   const [elapsed, setElapsed] = useState(0);
   const [lastStatus, setLastStatus] = useState(null);
@@ -802,28 +801,33 @@ function Mine_screen({wallet}){
     }
     runningRef.current = true;
     setOn(true);
-    setStats({});
+    setStats({win_n: 0});
     setElapsed(0);
     blockStartRef.current = Date.now();
     runningRef.et = etask(function*(){
       const saddr = wallet.c.receiveAddress;
       let ret, target = target_get();
       while (1){
-        let et;
         try {
+          let et;
           if (mode=='instant')
             et = mine_instant({netconf, saddr, target});
           else
             et = mine_solo({netconf, saddr, target});
-          et.on('update', up=>setStats(up));
+          et.on('update', up=>setStats({...stats, ...up}));
           ret = yield et;
           if (mode=='instant'){
-            if (ret.tx)
-              setCount(c=>c+1);
+            if (ret.tx){
+              stats.win_n++;
+              stats.win_v += ret.reward_net;
+            }
           } else {
-            if (ret?.height)
-              setCount(c=>c+1);
+            if (ret?.height){
+              stats.win_n++;
+              stats.win_v += ret.reward;
+            }
           }
+          setStats(stats);
         } catch(err){ CEA(err);
           ret = {err: ''+err};
         }
@@ -844,6 +848,7 @@ function Mine_screen({wallet}){
   useEffect(()=>()=>{ runningRef.current = false; }, []);
   const estimated = stats?.hps ? stats.nhash_win/stats.hps : null;
   const remaining = estimated!=null ? estimated-elapsed : null;
+  const mode_shares_blocks = mode=='instant' ? 'Shares' : 'Blocks';
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Mine for free</h3>
@@ -861,9 +866,6 @@ function Mine_screen({wallet}){
       <button onClick={toggle} style={{fontSize: 16, marginTop: 8}}>
         {on ? '⏹ Stop mining' : '▶ Start mining'}
       </button>
-      <div style={{marginTop: 16, fontSize: 14}}>
-        Blocks mined: <strong>{count}</strong>
-      </div>
       {lastStatus && (
         <div style={{marginTop: 8, fontSize: 13, color: '#c00'}}>
           Last status: {lastStatus}
@@ -871,6 +873,15 @@ function Mine_screen({wallet}){
       )}
       <table style={{marginTop: 16, borderCollapse: 'collapse', fontSize: 14}}>
         <tbody>
+          <tr>
+            <td style={{color: '#666', paddingRight: 16}}>
+              {mode_shares_blocks}{' '}mined
+            </td>
+            <td><strong>{!stats.win_n ? '0' : (<>
+              {''+stats.win_n}{' '}{mode_shares_blocks},{' '}
+              <Amount sat={stats.win_v} signed symbol={symbol}/>
+            </>)}</strong></td>
+          </tr>
           <tr>
             <td style={{color: '#666', paddingRight: 16}}>Speed H/s</td>
             <td><strong>{stats.hps ? stats.hps.toLocaleString()+' H/s' : '…'}</strong></td>

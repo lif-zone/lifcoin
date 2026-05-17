@@ -185,11 +185,13 @@ export function mine_steps({pow, header, time_local,
     let tstart = Date.now();
     let ret = yield mine_worker_call({pow, header: _header, target,
       min: at, max: Math.min(at+slice_h, 0x100000000)});
-    if (ret.found)
+    if (ret.found){
+      total_h += ret.nonce-at;
       return {...ret, total_h};
+    }
+    total_h += slice_h;
     let tend = Date.now();
     let ms = Math.max(tend-tstart, 1);
-    total_h += slice_h;
     hps = Math.round(slice_h*1000/ms);
     at += slice_h;
     if (at>=max){
