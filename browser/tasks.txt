@@ -60,8 +60,7 @@ make wallet.jsx support multiple wallets
   + fix all "site" in wallets to have nice domain names
 + sync VPS lif_node with local lif_node (GETBLOCKS fail/timeout response)
 + add rpc.on(), and do rpc.emit('close')
-c add https ssl support for lif-coin:8432
-- make lif/git source to bring most up-to-date versions
++ load qrcode dynamically, only when needed
 * instant P2P mining: add to wallet ability offer instant mining.
   use lif-kernel server do websocket connection between peers on same
   subject ('mine_instant'). Some register as mine_instant servers, and others
@@ -77,14 +76,16 @@ c add https ssl support for lif-coin:8432
     update it.
   - add UI of estimations how much will be earned, and how much expected per day
     of mining, and how much expected per month of mining.
-- load qrcode dynamically, only when needed
 - add $ value: 1LIF==1USD. BTC - get dynamic. a click on the value changes
-  the display. in USD - show up to the cent 40.41$ LIF, 1500.00$ BTC
+  the display. in USD - show up to the cent $40.41 LIF, $1500.00 BTC
 - add an outgoing proxy from lif_node to lif server.
 - add rpc.rconnect() - remote connection. Gives an object similar to and rpc(),
   but with remove connection.
 - add support for websocket subscription on new transactions, and updating
   accordingly. including tx from mempool (for instant mining win feedback).
+- add lif-net incoming connections to lif-coin:8432
+- add lif-net outgoing connections to github
+- make lif/git source to bring most up-to-date versions
 
 Low priority:
 -------------
