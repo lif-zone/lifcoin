@@ -786,9 +786,10 @@ function fmt_duration(sec){
 
 function Mine_screen({wallet}){
   const {netconf} = wallet;
+  const {symbol} = netconf;
   const [on, setOn] = useState(false);
   const [mode, setMode] = useState('instant');
-  const [stats, setStats] = useState({});
+  let [stats, setStats] = useState({});
   const [elapsed, setElapsed] = useState(0);
   const [lastStatus, setLastStatus] = useState(null);
   const runningRef = useRef(false);
@@ -803,7 +804,7 @@ function Mine_screen({wallet}){
     }
     runningRef.current = true;
     setOn(true);
-    setStats({win_n: 0});
+    setStats(stats = {win_n: 0, win_v: 0});
     setElapsed(0);
     blockStartRef.current = Date.now();
     runningRef.et = etask(function*(){
@@ -816,7 +817,7 @@ function Mine_screen({wallet}){
             et = mine_instant({netconf, saddr, target});
           else
             et = mine_solo({netconf, saddr, target});
-          et.on('update', up=>setStats({...stats, ...up}));
+          et.on('update', up=>setStats(stats = {...stats, ...up}));
           ret = yield et;
           if (mode=='instant'){
             if (ret.tx){
@@ -854,17 +855,15 @@ function Mine_screen({wallet}){
   return (
     <div style={{marginTop: 16, maxWidth: 480}}>
       <h3>Mine for free</h3>
-      {!on && (
-        <div style={{display: 'flex', gap: 16, marginTop: 10, fontSize: 14}}>
-          {['instant', 'solo'].map(m=>(
-            <label key={m} style={{display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'}}>
-              <input type="radio" name="mine_mode" value={m} checked={mode==m}
-                onChange={()=>setMode(m)} />
-              {m=='solo' ? 'Solo mining' : 'Instant mining'}
-            </label>
-          ))}
-        </div>
-      )}
+      <div style={{display: 'flex', gap: 16, marginTop: 10, fontSize: 14}}>
+        {['instant', 'solo'].map(m=>(
+          <label key={m} style={{display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'}}>
+            <input type="radio" name="mine_mode" value={m} checked={mode==m}
+              onChange={()=>setMode(m)} />
+            {m=='solo' ? 'Solo mining' : 'Instant mining'}
+          </label>
+        ))}
+      </div>
       <button onClick={toggle} style={{fontSize: 16, marginTop: 8}}>
         {on ? '⏹ Stop mining' : '▶ Start mining'}
       </button>
@@ -1706,7 +1705,7 @@ function Settings_screen({onDevtools, onBack})
     set_electrum(v=>({...v, [key]: settings.netconf_def[key].electrum}));
   };
   const [devtools, set_devtools] = useState(()=>!!settings.ls.devtools);
-  const onDevToolsToggle = (v)=>{
+  const onDevToolsToggle = v=>{
     set_devtools(v);
     settings.ls.devtools = !!v;
     settings_save();
@@ -1754,6 +1753,12 @@ function Devtools_screen({onCacheClear, onBack}){
   const [lifServer, setLifServer] = useState(lif_server_get);
   const [lifnode_cmd, set_lifnode_cmd] = useState(null);
   const [lifnode_res, set_lifnode_res] = useState(null);
+  const [dev_target, set_dev_target] = useState(()=>!!settings.ls.dev_target);
+  const on_dev_target_toggle = v=>{
+    settings.ls.dev_target = !!v;
+    set_dev_target(v);
+    settings_save();
+  };
   const handleServerChange = (val)=>{
     setLifServer(val);
     lif_server_set(val);
@@ -1779,6 +1784,16 @@ function Devtools_screen({onCacheClear, onBack}){
         <p style={{fontSize: 13, color: '#666', marginTop: 6}}>
           Clears all cached wallet data and re-fetches from Electrum.
         </p>
+      </div>
+      <div style={{marginTop: 28}}>
+        <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
+          <input
+            type="checkbox"
+            checked={dev_target}
+            onChange={e=>on_dev_target_toggle(e.target.checked)}
+          />
+          Test real world target (10min hashing at 6.6M H/s)
+        </label>
       </div>
       <div style={{marginTop: 20}}>
         <label style={{fontWeight: 'bold'}}>Lifcoin Server:</label>

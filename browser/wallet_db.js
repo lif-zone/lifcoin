@@ -942,19 +942,20 @@ export function mine_instant({netconf, saddr}){
     return {err: 'pool cheat: didnt pay out to addr', cheat: 1};
   }
   let warn = {};
-  if (out.value<reward-fee){
+  const reward_net = Number(out.value);
+  if (reward_net<reward-fee){
     rg.cheat++;
     warn = {warn: 'pool cheat: paid only '+out.value+' - less than '
       +(reward-fee)+' promised (fee ', cheat: 1};
   }
-  ret = yield tx_broadcast(netconf, _tx);
-  if (!ret){
+  let txid = yield tx_broadcast(netconf, _tx);
+  if (!txid){
     rg.cheat++;
     return {err: 'pool cheat: TX reward not accepted by mempool', cheat: 1};
   }
   rg.success++;
-  console.log('success! new TX '+ret.tx);
-  return {...ret, reward_net: out.value, reward, fee, ...warn};
+  console.log('success! new TX '+txid);
+  return {txid, tx, _tx, reward_net, reward, fee, ...warn};
 }); };
 
 function header_match(a, b){
